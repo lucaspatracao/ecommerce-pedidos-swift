@@ -1,5 +1,6 @@
 package com.ecommerce.pedidos.swift.util;
 
+import java.time.Year;
 import java.util.Random;
 
 public class PedidoUtils {
@@ -17,7 +18,8 @@ public class PedidoUtils {
     public static String gerarNumeroDoPedido() {
         Random sorteio = new Random();
         int sequencial = sorteio.nextInt(100000);
-        return String.format("PED-2026-%05d", sequencial);
+        int anoAtual = Year.now().getValue();
+        return String.format("PED-%d-%05d", anoAtual, sequencial);
     }
 
     public static double calcularSubtotal(double[] precos, int[] quantidades) {
