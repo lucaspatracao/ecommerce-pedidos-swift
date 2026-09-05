@@ -120,7 +120,9 @@ Para executar a aplicação e testar manualmente a classe utilitária localmente
    mvn clean compile
    ```
 3. Execute a aplicação por meio da classe principal:
-   ```bash\n   mvn exec:java -Dexec.mainClass=\"com.ecommerce.pedidos.swift.Aplicacao\"\n   ```
+   ```bash
+   mvn exec:java -Dexec.mainClass="com.ecommerce.pedidos.swift.Aplicacao"
+   ```
 
 ---
 
@@ -131,8 +133,8 @@ Para executar a aplicação e testar manualmente a classe utilitária localmente
 | **01** | Repositório criado, estruturado, com README e commit inicial | 🟢 Concluído |
 | **02** | Fluxo de branches e primeiro Pull Request revisado | 🟢 Concluído |
 | **03** | Classe utilitária (`PedidoUtils.java`) do domínio incorporada | 🟢 Concluído |
-| **04** | Classes de domínio inicial (Produto, Cliente, Pedido, ItemPedido) | ⏳ Pendente |
-| **05** | Encapsulamento e abstração aplicados | ⏳ Pendente |
+| **04** | Classes de domínio inicial (Produto, Cliente, Pedido, ItemPedido) | 🟢 Concluído |
+| **05** | Encapsulamento e abstração aplicados | 🟢 Concluído |
 | **06** | Hierarquia de formas de pagamento (herança) | ⏳ Pendente |
 | **07** | Relacionamentos entre classes do domínio | ⏳ Pendente |
 | **08** | Módulo de pagamento polimórfico | ⏳ Pendente |

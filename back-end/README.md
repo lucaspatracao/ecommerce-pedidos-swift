@@ -9,16 +9,16 @@ Projeto de back-end em Java para gestão de pedidos de e-commerce, desenvolvido 
 
 ## Objetivo do projeto
 
-O sistema tem como finalidade simular a gestão de um e-commerce, incluindo:
+O sistema simula a gestão básica de um e-commerce, com foco em modelagem de domínio, regras de negócio e exemplos didáticos de boas práticas de encapsulamento e validação.
 
-- cadastro de produtos;
-- cadastro de clientes;
-- criação de pedidos;
-- inclusão de itens no pedido;
-- cálculo do valor total;
-- controle de estoque;
-- alteração de situação do pedido;
-- demonstração de regras de negócio orientadas a objetos.
+Funcionalidades implementadas (exemplos):
+
+- cadastro de produtos com validação e controle de estoque;
+- cadastro de clientes com validação de campos básicos (CPF, e-mail);
+- criação de pedidos e associação de itens ao pedido;
+- cálculo de subtotais e total do pedido usando `BigDecimal` no domínio;
+- regras de negócio demonstrativas (situação do pedido, baixa de estoque);
+- utilitários para geração de número de pedido, cálculo de frete e formatação de recibo (classe `PedidoUtils`).
 
 ## Tecnologias
 
@@ -35,82 +35,62 @@ back-end/
 │   ├── src/
 │   │   ├── main/
 │   │   │   └── java/
-│   │   │       ├── App.java
-│   │   │       └── com/
-│   │   │           └── ecommerce/
-│   │   │               └── pedidos/
-│   │   │                   ├── modelo/
-│   │   │                   │   ├── Cliente.java
-│   │   │                   │   ├── ItemPedido.java
-│   │   │                   │   ├── Pedido.java
-│   │   │                   │   ├── Produto.java
-│   │   │                   │   └── SituacaoPedido.java
-│   │   │                   └── swift/
-│   │   │                       └── util/
-│   │   │                           └── PedidoUtils.java
+│   │   │       └── com/ecommerce/pedidos/
+│   │   │           ├── model/        # classes de domínio (Produto, Cliente, Pedido, ItemPedido, SituacaoPedido)
+│   │   │           └── swift/
+│   │   │               └── util/     # utilitários (PedidoUtils)
 │   │   └── test/
-│   │       └── java/
-│   │           └── com/
-│   │               └── ecommerce/
-│   │                   └── pedidos/
-│   │                       └── swift/
-│   │                           └── AppTest.java
 │   └── target/
 └── README.md
 ```
 
 ## Status atual
 
-O backend já conta com a estrutura inicial de domínio implementada, incluindo classes principais para:
+A versão atual do back-end já incorpora importantes evoluções:
 
-- `Produto`
-- `Cliente`
-- `Pedido`
-- `ItemPedido`
-- `SituacaoPedido`
-- `PedidoUtils`
-
-Além disso, a aplicação principal já executa uma simulação de fluxo de pedido com estoque, subtotal e mudança de situação.
+- Classes de domínio implementadas com validações e encapsulamento (`Produto`, `Cliente`, `Pedido`, `ItemPedido`).
+- Uso de `BigDecimal` nas entidades para representar valores monetários (evita problemas de precisão no domínio).
+- `Pedido.getItens()` retorna uma lista imutável (proteção contra modificações externas).
+- `PedidoUtils` contém utilitários para geração de número de pedido, cálculos de frete e montagem de recibos; atualmente usa tipos primitivos (`double`) internamente para cálculos utilitários — essa parte permanece como dívida técnica a ser migrada para `BigDecimal`.
+- `Aplicacao` (classe principal) contém demonstrações de validação, encapsulamento e tratamento de erros (ex.: tentativas de criar produtos inválidos, baixas de estoque inválidas, validação de e-mail).
 
 ## Como executar
 
-A partir da pasta do projeto:
+1. Navegue até o diretório do projeto Maven Back-end:
 
 ```bash
 cd back-end/ecommerce-pedidos-swift
-mvn compile
 ```
 
-Para rodar a aplicação manualmente:
+2. Compile o projeto utilizando o Apache Maven:
 
 ```bash
-cd src/main/java
-javac App.java
-java App
+mvn clean compile
 ```
 
-Se quiser executar os testes:
+3. Execute a aplicação de demonstração (`Aplicacao`):
+
+```bash
+mvn exec:java -Dexec.mainClass="com.ecommerce.pedidos.swift.Aplicacao"
+```
+
+4. Para executar os testes:
 
 ```bash
 mvn test
 ```
 
-## Observações
+## Observações e próximas tarefas
 
-Este é um projeto acadêmico em evolução. A estrutura atual está pronta para continuar com as próximas etapas do back-end, como:
+- Embora o domínio já utilize `BigDecimal`, a classe utilitária `PedidoUtils` ainda opera com `double` e formatações com `String`. Planeja-se migrar as operações financeiras utilitárias para `BigDecimal` para garantir consistência em toda a aplicação.
+- A classe `Aplicacao` é um exemplo de uso manual para demonstração; a evolução natural é expor uma API REST e integrar persistência.
 
-- validações e exceções;
-- testes unitários mais completos;
-- pagamentos;
-- persistência e integração com banco de dados;
-- API REST.
-
-## Roadmap de desenvolvimento
+## Roadmap de desenvolvimento (atualizado)
 
 - [x] Estrutura inicial do projeto
-- [x] Modelagem de domínio básica
-- [x] Simulação de compra e controle de estoque
-- [ ] Tratamento de exceções e validações
-- [ ] Testes automatizados
+- [x] Modelagem de domínio básica (Produto, Cliente, Pedido, ItemPedido)
+- [x] Simulação de compra, controle de estoque e validações (Aula 04 e 05)
+- [ ] Tratamento avançado de exceções e validações adicionais
+- [ ] Testes automatizados mais completos
 - [ ] Persistência com banco de dados
 - [ ] API REST e integração front-end

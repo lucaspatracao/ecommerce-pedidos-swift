@@ -1,4 +1,4 @@
-package com.ecommerce.pedidos.modelo;
+package com.ecommerce.pedidos.model;
 
 public enum SituacaoPedido {
     ABERTO,
