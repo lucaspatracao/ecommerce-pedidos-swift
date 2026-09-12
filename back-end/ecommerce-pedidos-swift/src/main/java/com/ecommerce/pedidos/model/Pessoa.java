@@ -43,5 +43,9 @@ public abstract class Pessoa {
         return valorNormalizado;
     }
 
+    public String getResumo() {
+        return nome + " (" + documento + ")";
+    }
+
     public abstract String getIdentificacao();
 }

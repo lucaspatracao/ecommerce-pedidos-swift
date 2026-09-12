@@ -35,10 +35,12 @@ A aplicação engloba a modelagem de domínio, regras de negócio e infraestrutu
 ---
 
 ### Tecnologias
-*   **Linguagem:** Java (versão LTS)
+*   **Linguagem:** Java 17 (versão LTS)
 *   **Gerenciador de Build e Dependências:** Apache Maven
+*   **Framework Web:** Spring Boot
+*   **Testes:** JUnit 5
 *   **Controle de Versão e Colaboração:** Git & GitHub
-*   *(Demais ferramentas e frameworks integrados ao longo do semestre: JUnit 5, Spring Boot, Banco de Dados Relacional, GitHub Actions, etc.)*
+*   *(Demais ferramentas e frameworks integrados ao longo do semestre: Banco de Dados Relacional, GitHub Actions, etc.)*
 
 ---
 
@@ -91,15 +93,16 @@ ecommerce-pedidos-swift/
 │       ├── src/
 │       │   ├── main/
 │       │   │   └── java/
-│       │   │       └── com/ecommerce/pedidos/swift/
-│       │   │           ├── modelo/         # Entidades e classes de domínio (Produto, Cliente)
-│       │   │           ├── servico/        # Serviços e regras de negócio complexas
-│       │   │           ├── repositorio/    # Camada de persistência (DAO / Repository)
-│       │   │           ├── util/           # Classes utilitárias (PedidoUtils.java)
-│       │   │           └── Aplicacao.java  # Classe de execução principal (Teste manual)
+│       │   │       └── com/ecommerce/pedidos/
+│       │   │           ├── model/          # Entidades e classes de domínio (Produto, Cliente, Pedido, ItemPedido, Pessoa, FormaPagamento)
+│       │   │           ├── service/        # Serviços e regras de negócio (PagamentoService)
+│       │   │           ├── repository/     # Camada de persistência em memória (FormaPagamentoRepository)
+│       │   │           ├── controller/     # Camada de entrada de fluxo de aplicação (PagamentoController)
+│       │   │           └── swift/
+│       │   │               └── Aplicacao.java  # Exemplo de execução principal com hierarquia de pagamento
 │       │   └── test/
 │       │       └── java/
-│       │           └── com/ecommerce/pedidos/swift/  # Estrutura de testes (JUnit 5)
+│       │           └── com/ecommerce/pedidos/model/  # Testes de domínio e herança
 │       └── pom.xml                     # Configuração de dependências do Maven Back-end
 ├── front-end/                          # Código da interface web
 ├── .gitignore                          # Arquivos ignorados pelo controle de versão
@@ -135,7 +138,7 @@ Para executar a aplicação e testar manualmente a classe utilitária localmente
 | **03** | Classe utilitária (`PedidoUtils.java`) do domínio incorporada | 🟢 Concluído |
 | **04** | Classes de domínio inicial (Produto, Cliente, Pedido, ItemPedido) | 🟢 Concluído |
 | **05** | Encapsulamento e abstração aplicados | 🟢 Concluído |
-| **06** | Hierarquia de formas de pagamento (herança) | ⏳ Pendente |
+| **06** | Hierarquia de formas de pagamento (herança) | 🟢 Concluído |
 | **07** | Relacionamentos entre classes do domínio | ⏳ Pendente |
 | **08** | Módulo de pagamento polimórfico | ⏳ Pendente |
 | **09** | Tratamento de exceções e validações | ⏳ Pendente |

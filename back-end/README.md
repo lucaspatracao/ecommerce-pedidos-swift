@@ -9,7 +9,7 @@ Projeto de back-end em Java para gestão de pedidos de e-commerce, desenvolvido 
 
 ## Objetivo do projeto
 
-O sistema simula a gestão básica de um e-commerce, com foco em modelagem de domínio, regras de negócio e exemplos didáticos de boas práticas de encapsulamento e validação.
+O sistema simula a gestão básica de um e-commerce, com foco em modelagem de domínio, regras de negócio, encapsulamento, herança, composição e exemplos didáticos de camadas organizadas em Java.
 
 Funcionalidades implementadas (exemplos):
 
@@ -17,14 +17,18 @@ Funcionalidades implementadas (exemplos):
 - cadastro de clientes com validação de campos básicos (CPF, e-mail);
 - criação de pedidos e associação de itens ao pedido;
 - cálculo de subtotais e total do pedido usando `BigDecimal` no domínio;
-- regras de negócio demonstrativas (situação do pedido, baixa de estoque);
-- utilitários para geração de número de pedido, cálculo de frete e formatação de recibo (classe `PedidoUtils`).
+- criação da hierarquia de Pessoa com a nova classe `Funcionario` e a extensão de domínio com `Cliente`;
+- abstração de pagamento com `FormaPagamento`, e implementações concretas `Pix`, `Boleto` e `CartaoCredito` usando herança e polimorfismo;
+- regras de negócio demonstrativas (situação do pedido, baixa de estoque, processamento de pagamentos);
+- utilitários para geração de número de pedido, cálculo de frete e formatação de recibo (`PedidoUtils`).
 
 ## Tecnologias
 
 - Java 17
 - Maven
 - JUnit 5
+- Spring Boot 3
+- Estrutura de camadas com `model`, `service`, `repository` e `controller`
 
 ## Estrutura do projeto
 
@@ -36,10 +40,14 @@ back-end/
 │   │   ├── main/
 │   │   │   └── java/
 │   │   │       └── com/ecommerce/pedidos/
-│   │   │           ├── model/        # classes de domínio (Produto, Cliente, Pedido, ItemPedido, SituacaoPedido)
-│   │   │           └── swift/
-│   │   │               └── util/     # utilitários (PedidoUtils)
+│   │   │           ├── model/        # Pessoa, Cliente, Funcionario, Produto, Pedido, ItemPedido, FormaPagamento, Pix, Boleto, CartaoCredito
+│   │   │           ├── service/      # PagamentoService
+│   │   │           ├── repository/   # FormaPagamentoRepository
+│   │   │           ├── controller/   # PagamentoController
+│   │   │           └── swift/        # Aplicacao e utilitários
 │   │   └── test/
+│   │       └── java/
+│   │           └── com/ecommerce/pedidos/model/   # testes de herança e pagamento
 │   └── target/
 └── README.md
 ```
@@ -48,11 +56,13 @@ back-end/
 
 A versão atual do back-end já incorpora importantes evoluções:
 
-- Classes de domínio implementadas com validações e encapsulamento (`Produto`, `Cliente`, `Pedido`, `ItemPedido`).
+- Classes de domínio implementadas com validações e encapsulamento (`Produto`, `Cliente`, `Pedido`, `ItemPedido`, `Pessoa`, `Funcionario`).
 - Uso de `BigDecimal` nas entidades para representar valores monetários (evita problemas de precisão no domínio).
 - `Pedido.getItens()` retorna uma lista imutável (proteção contra modificações externas).
-- `PedidoUtils` contém utilitários para geração de número de pedido, cálculos de frete e montagem de recibos; atualmente usa tipos primitivos (`double`) internamente para cálculos utilitários — essa parte permanece como dívida técnica a ser migrada para `BigDecimal`.
-- `Aplicacao` (classe principal) contém demonstrações de validação, encapsulamento e tratamento de erros (ex.: tentativas de criar produtos inválidos, baixas de estoque inválidas, validação de e-mail).
+- `FormaPagamento` passa a ser uma abstração com atributo comum (`valor`, `dataDoPagamento`, `situacao`) e `processar()` como método abstrato.
+- `Pix`, `Boleto` e `CartaoCredito` sobrescrevem `processar()` e reaproveitam o `getResumo()` com `super.getResumo()`.
+- `PagamentoService` e `FormaPagamentoRepository` organizam a camada de regras de negócio e acesso ao dado em memória.
+- `Aplicacao` demonstra a aplicação de herança com `Funcionario` e o polimorfismo com a lista de pagamentos de `FormaPagamento`.
 
 ## Como executar
 
@@ -82,14 +92,16 @@ mvn test
 
 ## Observações e próximas tarefas
 
-- Embora o domínio já utilize `BigDecimal`, a classe utilitária `PedidoUtils` ainda opera com `double` e formatações com `String`. Planeja-se migrar as operações financeiras utilitárias para `BigDecimal` para garantir consistência em toda a aplicação.
-- A classe `Aplicacao` é um exemplo de uso manual para demonstração; a evolução natural é expor uma API REST e integrar persistência.
+- O modelo de pagamento foi estendido com herança e polimorfismo (`FormaPagamento` + filhas).
+- A estrutura de aplicação agora contempla convenções de camada em estilo Spring Boot, com `repository`, `service` e `controller`.
+- A classe `Aplicacao` continua como exemplo de uso manual para demonstração; a evolução natural é a exposição de uma API REST e a integração com persistência.
 
 ## Roadmap de desenvolvimento (atualizado)
 
 - [x] Estrutura inicial do projeto
 - [x] Modelagem de domínio básica (Produto, Cliente, Pedido, ItemPedido)
 - [x] Simulação de compra, controle de estoque e validações (Aula 04 e 05)
+- [x] Hierarquia de classes de pagamento com `FormaPagamento`, `Pix`, `Boleto` e `CartaoCredito` (Aula 06)
 - [ ] Tratamento avançado de exceções e validações adicionais
 - [ ] Testes automatizados mais completos
 - [ ] Persistência com banco de dados
