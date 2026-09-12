@@ -1,110 +1,108 @@
-# Sistema de Gestão de Pedidos — E-commerce
+# Back-end — E-commerce Pedidos Swift
 
-> **Projeto Integrador** da Unidade Curricular: *Desenvolvimento Back-end* > **Curso:** Superior de Tecnologia em Análise e Desenvolvimento de Sistemas (Turma CSTADS601)  
-> **Instituição:** Faculdade de Tecnologia SENAI "Antonio Adolpho Lobbe"
+Projeto de back-end em Java para gestão de pedidos de e-commerce, desenvolvido no contexto da disciplina de Desenvolvimento Back-end da Faculdade de Tecnologia SENAI "Antonio Adolpho Lobbe".
 
----
+## Squad
 
-## Equipe / Squad: Swift
+- Lucas Nunes Patracão
+- Rafael Rubiá Oliveira Cardoso
 
-| Nome | Papel na Aula 01 |
-|---|---|
-| **Lucas Nunes Patracão** | Responsável do dia |
-| **Rafael Rubiá Oliveira Cardoso** | Desenvolvedor / Colaborador |
+## Objetivo do projeto
 
----
+O sistema simula a gestão básica de um e-commerce, com foco em modelagem de domínio, regras de negócio, encapsulamento, herança, composição e exemplos didáticos de camadas organizadas em Java.
 
-## Descrição do desafio
+Funcionalidades implementadas (exemplos):
 
-O objetivo principal deste projeto é conceber e implementar uma solução completa de **Back-end para Gestão de Pedidos em E-commerce**. 
-
-A aplicação engloba a modelagem de domínio, regras de negócio e infraestrutura para administrar o cadastro de clientes e catálogo de produtos, gerenciar todo o ciclo de vida dos pedidos e processar transações financeiras com múltiplos métodos de pagamento, garantindo confiabilidade, segurança e alta manutenibilidade do código.
-
----
-
-## Funcionalidades previstas
-
-- [ ] **Gerenciamento de Produtos:** Cadastro, atualização, consulta e controle de disponibilidade.
-- [ ] **Gerenciamento de Clientes:** Cadastro, edição de dados cadastrais e histórico de compras.
-- [ ] **Gestão de Pedidos:** Abertura, inclusão de itens, cálculo de totais, alteração de status e cancelamento.
-- [ ] **Processamento de Pagamentos:** Suporte a múltiplos métodos (Cartão de Crédito, Boleto Bancário e Pix).
-- [ ] **Garantia de Qualidade:** Testes automatizados unitários e de integração com relatórios de cobertura.
-- [ ] **Integração Contínua (CI/CD):** Pipeline para execução de build e testes automatizados.
-- [ ] **API RESTful:** Endpoints bem estruturados para integração e consumo por aplicações Front-end/Mobile.
-
----
+- cadastro de produtos com validação e controle de estoque;
+- cadastro de clientes com validação de campos básicos (CPF, e-mail);
+- criação de pedidos e associação de itens ao pedido;
+- cálculo de subtotais e total do pedido usando `BigDecimal` no domínio;
+- criação da hierarquia de Pessoa com a nova classe `Funcionario` e a extensão de domínio com `Cliente`;
+- abstração de pagamento com `FormaPagamento`, e implementações concretas `Pix`, `Boleto` e `CartaoCredito` usando herança e polimorfismo;
+- regras de negócio demonstrativas (situação do pedido, baixa de estoque, processamento de pagamentos);
+- utilitários para geração de número de pedido, cálculo de frete e formatação de recibo (`PedidoUtils`).
 
 ## Tecnologias
 
-- **Linguagem:** Java (versão LTS)
-- **Gerenciador de Build e Dependências:** Apache Maven
-- **Controle de Versão e Colaboração:** Git & GitHub
-- _(Demais ferramentas e frameworks integrados ao longo do semestre: JUnit 5, Spring Boot, Banco de Dados Relacional, GitHub Actions, etc.)_
+- Java 17
+- Maven
+- JUnit 5
+- Spring Boot 3
+- Estrutura de camadas com `model`, `service`, `repository` e `controller`
 
----
+## Estrutura do projeto
 
-## Estrutura de pastas
-
-
+```text
+back-end/
+├── ecommerce-pedidos-swift/
+│   ├── pom.xml
+│   ├── src/
+│   │   ├── main/
+│   │   │   └── java/
+│   │   │       └── com/ecommerce/pedidos/
+│   │   │           ├── model/        # Pessoa, Cliente, Funcionario, Produto, Pedido, ItemPedido, FormaPagamento, Pix, Boleto, CartaoCredito
+│   │   │           ├── service/      # PagamentoService
+│   │   │           ├── repository/   # FormaPagamentoRepository
+│   │   │           ├── controller/   # PagamentoController
+│   │   │           └── swift/        # Aplicacao e utilitários
+│   │   └── test/
+│   │       └── java/
+│   │           └── com/ecommerce/pedidos/model/   # testes de herança e pagamento
+│   └── target/
+└── README.md
 ```
 
-ecommerce-pedidos-swift/
-├── src/
-│   ├── main/
-│   │   └── java/
-│   │       └── com/senai/ecommerce/
-│   │           ├── modelo/         # Entidades e classes de domínio
-│   │           ├── servico/        # Regras de negócio e casos de uso
-│   │           ├── repositorio/    # Acesso a dados e persistência (DAO/Repository)
-│   │           └── util/           # Classes utilitárias e auxiliares
-│   └── test/
-│       └── java/
-│           └── com/senai/ecommerce/  # Suíte de testes unitários e de integração
-├── pom.xml                         # Configuração e dependências do Maven
-├── README.md                       # Documentação principal do repositório
-└── .gitignore                      # Arquivos e diretórios ignorados pelo Git
+## Status atual
 
+A versão atual do back-end já incorpora importantes evoluções:
+
+- Classes de domínio implementadas com validações e encapsulamento (`Produto`, `Cliente`, `Pedido`, `ItemPedido`, `Pessoa`, `Funcionario`).
+- Uso de `BigDecimal` nas entidades para representar valores monetários (evita problemas de precisão no domínio).
+- `Pedido.getItens()` retorna uma lista imutável (proteção contra modificações externas).
+- `FormaPagamento` passa a ser uma abstração com atributo comum (`valor`, `dataDoPagamento`, `situacao`) e `processar()` como método abstrato.
+- `Pix`, `Boleto` e `CartaoCredito` sobrescrevem `processar()` e reaproveitam o `getResumo()` com `super.getResumo()`.
+- `PagamentoService` e `FormaPagamentoRepository` organizam a camada de regras de negócio e acesso ao dado em memória.
+- `Aplicacao` demonstra a aplicação de herança com `Funcionario` e o polimorfismo com a lista de pagamentos de `FormaPagamento`.
+
+## Como executar
+
+1. Navegue até o diretório do projeto Maven Back-end:
+
+```bash
+cd back-end/ecommerce-pedidos-swift
 ```
 
----
+2. Compile o projeto utilizando o Apache Maven:
 
-## Como rodar o projeto
+```bash
+mvn clean compile
+```
 
-> *Seção em construção. As instruções detalhadas de configuração, compilação e execução da aplicação serão adicionadas nas próximas etapas do desenvolvimento.*
+3. Execute a aplicação de demonstração (`Aplicacao`):
 
----
+```bash
+mvn exec:java -Dexec.mainClass="com.ecommerce.pedidos.swift.Aplicacao"
+```
 
-## Roadmap do projeto (por aula)
+4. Para executar os testes:
 
-| Aula | Entrega Prevista | Status |
-|:---:|---|:---:|
-| **01** | Repositório criado, estruturado, com README e commit inicial | 🟢 Concluído |
-| **02** | Fluxo de branches e primeiro Pull Request revisado | ⏳ Pendente |
-| **03** | Classe utilitária (`Utils`) do domínio | ⏳ Pendente |
-| **04** | Classes de domínio inicial (`Produto`, `Cliente`, `Pedido`, `ItemPedido`) | ⏳ Pendente |
-| **05** | Encapsulamento e abstração aplicados | ⏳ Pendente |
-| **06** | Hierarquia de formas de pagamento (herança) | ⏳ Pendente |
-| **07** | Relacionamentos entre classes do domínio | ⏳ Pendente |
-| **08** | Módulo de pagamento polimórfico | ⏳ Pendente |
-| **09** | Tratamento de exceções e validações | ⏳ Pendente |
-| **10** | Suíte de testes unitários | ⏳ Pendente |
-| **11** | Suíte de testes de integração + relatório de cobertura | ⏳ Pendente |
-| **12** | Persistência: conexão, operações Create e Read | ⏳ Pendente |
-| **13** | Persistência: operações Update, Delete e padrão DAO/Repository | ⏳ Pendente |
-| **14** | Migração e estruturação com Spring Boot | ⏳ Pendente |
-| **15** | API REST completa + pipeline de CI/CD | ⏳ Pendente |
-| **16** | Entrega final, documentação consolidada e apresentação | ⏳ Pendente |
+```bash
+mvn test
+```
 
----
+## Observações e próximas tarefas
 
-## Combinado da equipe (ética e convivência)
+- O modelo de pagamento foi estendido com herança e polimorfismo (`FormaPagamento` + filhas).
+- A estrutura de aplicação agora contempla convenções de camada em estilo Spring Boot, com `repository`, `service` e `controller`.
+- A classe `Aplicacao` continua como exemplo de uso manual para demonstração; a evolução natural é a exposição de uma API REST e a integração com persistência.
 
-1. **Transparência e Comunicação:** Alinhamento contínuo sobre o andamento das tarefas via GitHub e canal oficial de comunicação da equipe.
-2. **Comprometimento com Prazos:** Cumprimento rigoroso do cronograma de entregas estabelecido no roadmap das aulas.
-3. **Qualidade de Código:** Revisão criteriosa em todos os Pull Requests (Code Review) antes de realizar o *merge* na branch principal (`main`).
+## Roadmap de desenvolvimento (atualizado)
 
----
-
-## Licença
-
-Projeto estritamente acadêmico — **Faculdade de Tecnologia SENAI "Antonio Adolpho Lobbe"**. Todos os direitos reservados aos autores e à instituição.
+- [x] Estrutura inicial do projeto
+- [x] Modelagem de domínio básica (Produto, Cliente, Pedido, ItemPedido)
+- [x] Simulação de compra, controle de estoque e validações (Aula 04 e 05)
+- [x] Hierarquia de classes de pagamento com `FormaPagamento`, `Pix`, `Boleto` e `CartaoCredito` (Aula 06)
+- [ ] Tratamento avançado de exceções e validações adicionais
+- [ ] Testes automatizados mais completos
+- [ ] Persistência com banco de dados
+- [ ] API REST e integração front-end

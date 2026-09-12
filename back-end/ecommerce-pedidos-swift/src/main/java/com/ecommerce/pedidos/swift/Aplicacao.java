@@ -1,44 +1,47 @@
 package com.ecommerce.pedidos.swift;
 
-import com.ecommerce.pedidos.swift.util.PedidoUtils;
+import com.ecommerce.pedidos.model.Boleto;
+import com.ecommerce.pedidos.model.CartaoCredito;
+import com.ecommerce.pedidos.model.Cliente;
+import com.ecommerce.pedidos.model.FormaPagamento;
+import com.ecommerce.pedidos.model.Funcionario;
+import com.ecommerce.pedidos.model.Pix;
+import com.ecommerce.pedidos.model.Produto;
+import com.ecommerce.pedidos.service.PagamentoService;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public class Aplicacao {
 
     public static void main(String[] args) {
-        System.out.println("=== EXECUÇÃO DE CASOS DE TESTE MANUAL (AULA 03) ===\n");
+        System.out.println("=== DEMONSTRAÇÃO DE HERANÇA E POLIMORFISMO (AULA 06) ===\n");
 
-        System.out.println("Cenário 1: Pedido Padrão (3 itens, peso 4.2 kg)");
-        String[] produtos1 = {"Teclado Mecânico", "Monitor IPS 24", "  mouse gamer  "};
-        double[] precos1 = {150.00, 899.90, 79.50};
-        int[] quantidades1 = {1, 2, 3};
-        executarCasoDeTeste(produtos1, precos1, quantidades1, 4.2);
+        Cliente cliente = new Cliente("Ana Souza", "12345678909", "ana@ecommerce.com", "11987654321", "Rua das Flores, 10");
+        System.out.println(cliente.getIdentificacao());
 
-        System.out.println("\nCenário 2: Pedido Muito Leve (0.3 kg)");
-        String[] produtos2 = {"Película Protetora"};
-        double[] precos2 = {15.00};
-        int[] quantidades2 = {1};
-        executarCasoDeTeste(produtos2, precos2, quantidades2, 0.3);
+        Produto produto = new Produto("PROD-100", "Notebook", new BigDecimal("3200.00"), 5);
+        System.out.println(produto);
 
-        System.out.println("\nCenário 3: Subtotal Elevado (Acima do teto de R$ 300,00)");
-        String[] produtos3 = {"Placa de Vídeo RTX"};
-        double[] precos3 = {2500.00};
-        int[] quantidades3 = {1};
-        executarCasoDeTeste(produtos3, precos3, quantidades3, 2.0);
+        Funcionario funcionario = new Funcionario("Maria Silva", "98765432100", "F-001", "Analista");
+        System.out.println(funcionario.getIdentificacao());
 
-        System.out.println("\nCenário 4: Desconto no Teto Máximo (Subtotal de R$ 900.00)");
-        String[] produtos4 = {"Notebook Estudo"};
-        double[] precos4 = {900.00};
-        int[] quantidades4 = {1};
-        executarCasoDeTeste(produtos4, precos4, quantidades4, 1.8);
-    }
+        System.out.println("\n=== DEMONSTRAÇÃO DE HERANÇA DE PAGAMENTO ===");
+        FormaPagamento[] pagamentos = {
+            new Pix(new BigDecimal("150.00"), "cliente@email.com", "EMAIL"),
+            new Boleto(new BigDecimal("300.00"), LocalDate.now().plusDays(3), "123456789"),
+            new CartaoCredito(new BigDecimal("899.90"), "**** 1234", "Visa", 3)
+        };
 
-    private static void executarCasoDeTeste(String[] produtos, double[] precos, int[] quantidades, double peso) {
-        String nPedido = PedidoUtils.gerarNumeroDoPedido();
-        double subtotal = PedidoUtils.calcularSubtotal(precos, quantidades);
-        double frete = PedidoUtils.calcularFrete(peso, subtotal);
-        double desconto = PedidoUtils.calcularDesconto(subtotal);
+        for (FormaPagamento pagamento : pagamentos) {
+            System.out.println(pagamento.getResumo());
+            pagamento.processar();
+        }
 
-        String recibo = PedidoUtils.montarRecibo(produtos, precos, quantidades, nPedido, subtotal, frete, desconto);
-        System.out.println(recibo);
+        PagamentoService service = new PagamentoService();
+        service.registrar(new Pix(new BigDecimal("50.00"), "cliente@novo.com", "EMAIL"));
+        service.registrar(new Boleto(new BigDecimal("70.00"), LocalDate.now().plusDays(7), "987654321"));
+        service.registrar(new CartaoCredito(new BigDecimal("120.00"), "**** 4444", "Mastercard", 2));
+        System.out.println("Pagamentos registrados: " + service.listarPagamentos().size());
+        service.processarTodos();
     }
 }
