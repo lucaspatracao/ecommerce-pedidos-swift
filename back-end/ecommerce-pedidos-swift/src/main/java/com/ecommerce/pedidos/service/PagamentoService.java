@@ -3,7 +3,9 @@ package com.ecommerce.pedidos.service;
 import com.ecommerce.pedidos.model.FormaPagamento;
 import com.ecommerce.pedidos.repository.FormaPagamentoRepository;
 import java.util.List;
+import org.springframework.stereotype.Service;
 
+@Service
 public class PagamentoService {
     private final FormaPagamentoRepository repository;
 
