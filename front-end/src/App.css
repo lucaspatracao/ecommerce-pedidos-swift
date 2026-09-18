@@ -690,6 +690,7 @@ tbody tr:hover {
 }
 
 @media (max-width: 1100px) {
+
   .metrics-grid,
   .payments-grid,
   .double-grid,
@@ -716,6 +717,7 @@ tbody tr:hover {
 }
 
 @media (max-width: 720px) {
+
   .topbar,
   .main-panel {
     padding-left: 16px;
