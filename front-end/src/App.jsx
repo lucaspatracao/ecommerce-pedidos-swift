@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
+import logo from './assets/logo.png'
 import './App.css'
 import {
   buscarDashboard,
@@ -37,7 +38,7 @@ const estadoInicialDashboard = {
   pedidosRecentes: [],
 }
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       <AppShell />
@@ -54,6 +55,9 @@ function AppShell() {
   const [dashboard, setDashboard] = useState(estadoInicialDashboard)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  
+  // Estado para gerenciar a minimização
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
   const carregarDados = async () => {
     setLoading(true)
@@ -123,10 +127,17 @@ function AppShell() {
   }
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand-box">
-          <div className="brand-mark">S</div>
+    // Adicionada a classe condicional no shell para ajustar o layout principal do Grid
+    <div className={`app-shell ${isCollapsed ? 'sidebar-collapsed' : ''}`}>
+      
+      {/* Correção crucial: Injetada a classe '.is-collapsed' exata esperada pelo seu CSS */}
+      <aside className={`sidebar ${isCollapsed ? 'is-collapsed' : ''}`}>
+        
+        {/* Clique na brand-box inverte o estado. Adicionado o ponteiro via estilo inline */}
+        <div className="brand-box" onClick={() => setIsCollapsed(!isCollapsed)} style={{ cursor: 'pointer' }}>
+          <div className="brand-mark">
+            <img src={logo} alt="Logotipo da Marca" />
+          </div>
           <div>
             <span className="brand-name">Swift</span>
             <small>E-commerce</small>
@@ -140,12 +151,14 @@ function AppShell() {
               to={item.to}
               end={item.exact}
               className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}
+              title={item.label} // Adicionado conforme o comentário do seu CSS para gerar Tooltips nativos
             >
               {item.label}
             </NavLink>
           ))}
         </nav>
 
+        {/* Mantido o HTML sem alterações de remoção do React para que a animação flua pelo CSS */}
         <div className="sidebar-summary">
           <span className="label">Resumo rápido</span>
           <div>
@@ -193,5 +206,3 @@ function AppShell() {
     </div>
   )
 }
-
-export default App
