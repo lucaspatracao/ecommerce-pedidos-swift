@@ -1,8 +1,6 @@
 import com.ecommerce.pedidos.model.Cliente;
-import com.ecommerce.pedidos.model.ItemPedido;
 import com.ecommerce.pedidos.model.Pedido;
 import com.ecommerce.pedidos.model.Produto;
-import com.ecommerce.pedidos.model.SituacaoPedido;
 import java.math.BigDecimal;
 
 public class App {
@@ -50,20 +48,17 @@ public class App {
 
         System.out.println("\n--- PEDIDO E ITEM ---");
         Pedido pedido = new Pedido(cliente);
-        ItemPedido item = new ItemPedido(produtoValido, 3);
-        boolean adicionado = pedido.adicionarItem(item);
-        System.out.println("Item adicionado? " + adicionado);
-        System.out.println("Subtotal: R$ " + item.calcularSubtotal());
+        pedido.adicionarItem(produtoValido, 3);
+        System.out.println("Subtotal: R$ " + pedido.getItens().get(0).calcularSubtotal());
         System.out.println("Total do pedido: R$ " + pedido.calcularValorTotal());
 
         System.out.println("\n--- LISTA DE ITENS SOMENTE LEITURA ---");
         try {
-            pedido.getItens().add(new ItemPedido(produtoValido, 1));
+            pedido.getItens().clear();
         } catch (UnsupportedOperationException e) {
             System.out.println("Lista protegida: " + e.getClass().getSimpleName());
         }
 
-        pedido.setSituacao(SituacaoPedido.PAGO);
         System.out.println("Pedido: " + pedido.getSituacao());
     }
 }
