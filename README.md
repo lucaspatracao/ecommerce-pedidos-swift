@@ -153,6 +153,23 @@ O Front-end não deve criar ou inventar informações que não tenham sido retor
 
 ---
 
+### Relacionamentos (Aula 07)
+
+| Relacionamento | Tipo | Multiplicidade | Regra no código |
+| :--- | :--- | :--- | :--- |
+| `Pedido` → `Cliente` | Associação | `1 : 1` | Todo pedido exige um cliente no construtor. |
+| `Pedido` → `ItemPedido` | Composição | `1 : 0..*` | O pedido cria os itens e expõe somente uma lista imutável. |
+| `ItemPedido` → `Produto` | Associação | `1 : 1` | O produto é obrigatório e fica final no item. |
+| `Pedido` → `FormaPagamento` | Associação opcional | `1 : 0..1` | O pagamento só é guardado após processamento aprovado. |
+| `Categoria` → `Produto` | Agregação | `1 : 0..*` | A categoria mantém produtos, mas não os cria nem destrói. |
+| `Cliente` → `Endereco` | Associação opcional | `1 : 0..1` | O endereço pode ser nulo e é validado quando informado. |
+
+Itens repetidos do mesmo produto são consolidados em um único `ItemPedido`. A nova quantidade é somada, o estoque é baixado somente pela quantidade adicional e o preço praticado permanece o da primeira inclusão. Essa decisão evita linhas duplicadas no pedido e preserva o preço histórico da transação.
+
+**Status da Aula 07:** concluída na branch `feature/relacionamentos`, com composição, associação, agregação, controle de estoque, cancelamento e validações demonstrados em `Aplicacao.java`.
+
+---
+
 ### Fluxo de Trabalho e Versionamento Combinado
 
 Para assegurar a integridade da branch principal (`main`), estabelecemos o seguinte fluxo colaborativo:
@@ -316,7 +333,7 @@ Camada de domínio / serviços / persistência
 | **04** | Classes de domínio inicial (Produto, Cliente, Pedido, ItemPedido) | 🟢 Concluído |
 | **05** | Encapsulamento e abstração aplicados | 🟢 Concluído |
 | **06** | Hierarquia de formas de pagamento (herança) | 🟢 Concluído |
-| **07** | Relacionamentos entre classes do domínio | ⏳ Pendente |
+| **07** | Relacionamentos entre classes do domínio | 🟢 Concluído |
 | **08** | Módulo de pagamento polimórfico | ⏳ Pendente |
 | **09** | Tratamento de exceções e validações | ⏳ Pendente |
 | **10** | Suíte de testes unitários | ⏳ Pendente |
