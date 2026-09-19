@@ -1,7 +1,6 @@
 package com.ecommerce.pedidos.service;
 
 import com.ecommerce.pedidos.model.Cliente;
-import com.ecommerce.pedidos.model.ItemPedido;
 import com.ecommerce.pedidos.model.Pedido;
 import com.ecommerce.pedidos.model.Produto;
 import com.ecommerce.pedidos.model.SituacaoPedido;
@@ -63,8 +62,7 @@ public class PedidoService {
                 throw new IllegalArgumentException("Estoque insuficiente para o produto " + produto.getNome());
             }
 
-            ItemPedido item = new ItemPedido(produto, itemRequest.quantidade());
-            pedido.adicionarItem(item);
+            pedido.adicionarItem(produto, itemRequest.quantidade());
         }
 
         pedidos.put(pedido.getNumero(), pedido);
@@ -76,7 +74,19 @@ public class PedidoService {
         if (pedido == null) {
             throw new IllegalArgumentException("Pedido não encontrado.");
         }
-        pedido.setSituacao(situacao);
+        if (situacao == null) {
+            throw new IllegalArgumentException("Situação do pedido é obrigatória.");
+        }
+        if (situacao == SituacaoPedido.CANCELADO) {
+            pedido.cancelar();
+            return;
+        }
+        if (situacao == SituacaoPedido.PAGO) {
+            throw new IllegalStateException("Pagamento deve ser processado com uma forma de pagamento");
+        }
+        if (situacao != SituacaoPedido.ABERTO || pedido.getSituacao() != SituacaoPedido.ABERTO) {
+            throw new IllegalStateException("Transição de situação inválida");
+        }
     }
 
     public BigDecimal calcularReceitaTotal() {

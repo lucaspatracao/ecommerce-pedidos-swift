@@ -7,9 +7,15 @@ package com.ecommerce.pedidos.model;
 public class Cliente extends Pessoa {
     private String email;
     private String telefone;
-    private String endereco;
+    private Endereco endereco;
 
     public Cliente(String nome, String cpf, String email, String telefone, String endereco) {
+        this(nome, cpf, email, telefone, endereco == null || endereco.isBlank()
+                ? null
+                : new Endereco(endereco, "Não informado", "Não informado"));
+    }
+
+    public Cliente(String nome, String cpf, String email, String telefone, Endereco endereco) {
         super(nome, cpf);
         setEmail(email);
         setTelefone(telefone);
@@ -63,19 +69,12 @@ public class Cliente extends Pessoa {
         this.telefone = telefoneValidado;
     }
 
-    public String getEndereco() {
+    public Endereco getEndereco() {
         return endereco;
     }
 
-    public void setEndereco(String endereco) {
-        if (endereco == null) {
-            throw new IllegalArgumentException("Endereço não pode ser nulo.");
-        }
-        String enderecoValidado = endereco.trim();
-        if (enderecoValidado.isEmpty()) {
-            throw new IllegalArgumentException("Endereço não pode estar vazio.");
-        }
-        this.endereco = enderecoValidado;
+    public void setEndereco(Endereco endereco) {
+        this.endereco = endereco;
     }
 
     /**

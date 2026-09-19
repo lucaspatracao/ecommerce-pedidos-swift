@@ -6,6 +6,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -16,15 +17,18 @@ import java.util.Objects;
 public class Pedido {
     private final String numero;
     private final Cliente cliente;
-    private final List<ItemPedido> itens;
+    private final List<ItemPedido> itens = new ArrayList<>();
     private final LocalDate data;
     private SituacaoPedido situacao;
+    private FormaPagamento formaPagamento;
     private static int totalDePedidosCriados = 0;
 
     public Pedido(Cliente cliente) {
         this.numero = PedidoUtils.gerarNumeroDoPedido();
-        this.cliente = Objects.requireNonNull(cliente, "Cliente do pedido não pode ser nulo.");
-        this.itens = new ArrayList<>();
+        if (cliente == null) {
+            throw new IllegalArgumentException("Pedido exige um cliente");
+        }
+        this.cliente = cliente;
         this.data = LocalDate.now();
         this.situacao = SituacaoPedido.ABERTO;
         totalDePedidosCriados++;
@@ -66,11 +70,8 @@ public class Pedido {
         return situacao;
     }
 
-    public void setSituacao(SituacaoPedido situacao) {
-        if (situacao == null) {
-            throw new IllegalArgumentException("Situação do pedido não pode ser nula.");
-        }
-        this.situacao = situacao;
+    public FormaPagamento getFormaPagamento() {
+        return formaPagamento;
     }
 
     /**
@@ -79,17 +80,25 @@ public class Pedido {
      * @param item o item a ser adicionado ao pedido
      * @return true se o item foi adicionado com sucesso; false caso contrário
      */
-    public boolean adicionarItem(ItemPedido item) {
-        if (item == null) {
-            return false;
+    public void adicionarItem(Produto produto, int quantidade) {
+        if (produto == null) {
+            throw new IllegalArgumentException("Produto é obrigatório");
         }
-        Produto produto = item.getProduto();
-        if (!produto.temEstoqueDisponivel(item.getQuantidade())) {
-            return false;
+        if (quantidade <= 0) {
+            throw new IllegalArgumentException("A quantidade deve ser maior que zero.");
         }
-        itens.add(item);
-        produto.baixarEstoque(item.getQuantidade());
-        return true;
+        if (!produto.temEstoqueDisponivel(quantidade)) {
+            throw new IllegalStateException("Estoque insuficiente: " + produto.getNome());
+        }
+        produto.baixarEstoque(quantidade);
+
+        for (ItemPedido item : itens) {
+            if (item.getProduto().getCodigo().equals(produto.getCodigo())) {
+                item.setQuantidade(item.getQuantidade() + quantidade);
+                return;
+            }
+        }
+        itens.add(new ItemPedido(produto, quantidade));
     }
 
     /**
@@ -98,6 +107,9 @@ public class Pedido {
      * @throws IndexOutOfBoundsException se o índice for inválido
      */
     public void removerItem(int index) {
+        if (situacao != SituacaoPedido.ABERTO) {
+            throw new IllegalStateException("Somente pedidos abertos podem remover itens");
+        }
         if (index < 0 || index >= itens.size()) {
             throw new IndexOutOfBoundsException("Índice do item inválido: " + index);
         }
@@ -111,6 +123,45 @@ public class Pedido {
             total = total.add(item.calcularSubtotal());
         }
         return total.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    public List<ItemPedido> getItensOrdenadosPorSubtotal() {
+        return itens.stream()
+                .sorted(Comparator.comparing(ItemPedido::calcularSubtotal))
+                .toList();
+    }
+
+    public void pagarCom(FormaPagamento formaPagamento) {
+        if (formaPagamento == null) {
+            throw new IllegalArgumentException("Forma de pagamento é obrigatória");
+        }
+        if (situacao != SituacaoPedido.ABERTO) {
+            throw new IllegalStateException("Pedido cancelado ou já pago não pode ser pago");
+        }
+        if (itens.isEmpty()) {
+            throw new IllegalStateException("Pedido sem itens não pode ser pago");
+        }
+        if (formaPagamento.getValor().compareTo(calcularValorTotal()) != 0) {
+            throw new IllegalStateException("Valor do pagamento deve ser igual ao total do pedido");
+        }
+        if (!formaPagamento.processar()) {
+            throw new IllegalStateException("Pagamento recusado");
+        }
+        this.formaPagamento = formaPagamento;
+        this.situacao = SituacaoPedido.PAGO;
+    }
+
+    public void cancelar() {
+        if (situacao == SituacaoPedido.CANCELADO) {
+            throw new IllegalStateException("Pedido já está cancelado");
+        }
+        for (ItemPedido item : itens) {
+            item.getProduto().adicionarEstoque(item.getQuantidade());
+        }
+        if (formaPagamento != null) {
+            formaPagamento.setSituacao(SituacaoPagamento.ESTORNADO);
+        }
+        situacao = SituacaoPedido.CANCELADO;
     }
 
     @Override

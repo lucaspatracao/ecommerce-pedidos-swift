@@ -1,8 +1,6 @@
 package com.ecommerce.pedidos.model;
 
 import java.math.BigDecimal;
-import java.util.Objects;
-
 /**
  * Associa um produto a um carrinho de compras, registrando a quantidade de
  * itens
@@ -14,8 +12,11 @@ public class ItemPedido {
     private int quantidade;
     private final BigDecimal precoPraticado;
 
-    public ItemPedido(Produto produto, int quantidade) {
-        this.produto = Objects.requireNonNull(produto, "Produto do item não pode ser nulo.");
+    ItemPedido(Produto produto, int quantidade) {
+        if (produto == null) {
+            throw new IllegalArgumentException("Produto do item é obrigatório");
+        }
+        this.produto = produto;
         setQuantidade(quantidade);
         this.precoPraticado = produto.getPreco().setScale(2, java.math.RoundingMode.HALF_UP);
     }
@@ -32,7 +33,7 @@ public class ItemPedido {
         return precoPraticado;
     }
 
-    public void setQuantidade(int quantidade) {
+    void setQuantidade(int quantidade) {
         if (quantidade <= 0) {
             throw new IllegalArgumentException("Quantidade do item deve ser maior que zero.");
         }

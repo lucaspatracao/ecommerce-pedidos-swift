@@ -316,7 +316,7 @@ Camada de domínio / serviços / persistência
 | **04** | Classes de domínio inicial (Produto, Cliente, Pedido, ItemPedido) | 🟢 Concluído |
 | **05** | Encapsulamento e abstração aplicados | 🟢 Concluído |
 | **06** | Hierarquia de formas de pagamento (herança) | 🟢 Concluído |
-| **07** | Relacionamentos entre classes do domínio | ⏳ Pendente |
+| **07** | Relacionamentos entre classes do domínio | 🟢 Concluído |
 | **08** | Módulo de pagamento polimórfico | ⏳ Pendente |
 | **09** | Tratamento de exceções e validações | ⏳ Pendente |
 | **10** | Suíte de testes unitários | ⏳ Pendente |

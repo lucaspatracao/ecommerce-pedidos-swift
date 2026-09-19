@@ -1,47 +1,76 @@
 package com.ecommerce.pedidos.swift.util;
 
-import com.ecommerce.pedidos.model.Boleto;
-import com.ecommerce.pedidos.model.CartaoCredito;
 import com.ecommerce.pedidos.model.Cliente;
-import com.ecommerce.pedidos.model.FormaPagamento;
-import com.ecommerce.pedidos.model.Funcionario;
 import com.ecommerce.pedidos.model.Pix;
+import com.ecommerce.pedidos.model.Pedido;
 import com.ecommerce.pedidos.model.Produto;
-import com.ecommerce.pedidos.service.PagamentoService;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 
 public class Aplicacao {
 
     public static void main(String[] args) {
-        System.out.println("=== DEMONSTRAÇÃO DE HERANÇA E POLIMORFISMO (AULA 06) ===\n");
+        Cliente cliente = new Cliente("Ana Souza", "12345678909", "ana@ecommerce.com", "11987654321", (String) null);
 
-        Cliente cliente = new Cliente("Ana Souza", "12345678909", "ana@ecommerce.com", "11987654321", "Rua das Flores, 10");
-        System.out.println(cliente.getIdentificacao());
+        verificarExcecao("pedido sem cliente", IllegalArgumentException.class, () -> new Pedido(null));
 
-        Produto produto = new Produto("PROD-100", "Notebook", new BigDecimal("3200.00"), 5);
-        System.out.println(produto);
+        Pedido pedidoNulo = new Pedido(cliente);
+        verificarExcecao("adicionarItem com produto null", IllegalArgumentException.class,
+                () -> pedidoNulo.adicionarItem(null, 1));
+        verificarExcecao("quantidade zero", IllegalArgumentException.class,
+                () -> pedidoNulo.adicionarItem(new Produto("ZERO", "Produto zero", new BigDecimal("10.00"), 1), 0));
+        verificarExcecao("quantidade negativa", IllegalArgumentException.class,
+                () -> pedidoNulo.adicionarItem(new Produto("NEG", "Produto negativo", new BigDecimal("10.00"), 1), -1));
+        verificarExcecao("quantidade maior que o estoque", IllegalStateException.class,
+                () -> pedidoNulo.adicionarItem(new Produto("EST", "Estoque curto", new BigDecimal("10.00"), 1), 2));
 
-        Funcionario funcionario = new Funcionario("Maria Silva", "98765432100", "F-001", "Analista");
-        System.out.println(funcionario.getIdentificacao());
+        verificarExcecao("pagar pedido sem itens", IllegalStateException.class,
+            () -> pedidoNulo.pagarCom(new Pix(BigDecimal.ONE, "a@b.com", "EMAIL")));
 
-        System.out.println("\n=== DEMONSTRAÇÃO DE HERANÇA DE PAGAMENTO ===");
-        FormaPagamento[] pagamentos = {
-            new Pix(new BigDecimal("150.00"), "cliente@email.com", "EMAIL"),
-            new Boleto(new BigDecimal("300.00"), LocalDate.now().plusDays(3), "123456789"),
-            new CartaoCredito(new BigDecimal("899.90"), "**** 1234", "Visa", 3)
-        };
+        Pedido pedidoCancelado = new Pedido(cliente);
+        Produto produtoCancelado = new Produto("CAN", "Produto cancelado", new BigDecimal("10.00"), 2);
+        pedidoCancelado.adicionarItem(produtoCancelado, 1);
+        pedidoCancelado.cancelar();
+        verificarExcecao("pagar pedido cancelado", IllegalStateException.class,
+                () -> pedidoCancelado.pagarCom(new Pix(new BigDecimal("10.00"), "a@b.com", "EMAIL")));
 
-        for (FormaPagamento pagamento : pagamentos) {
-            System.out.println(pagamento.getResumo());
-            pagamento.processar();
+        Pedido pedidoLista = new Pedido(cliente);
+        pedidoLista.adicionarItem(new Produto("LIS", "Produto da lista", new BigDecimal("10.00"), 1), 1);
+        verificarExcecao("getItens().clear()", UnsupportedOperationException.class,
+                () -> pedidoLista.getItens().clear());
+
+        Pedido pedidoTotal = new Pedido(cliente);
+        pedidoTotal.adicionarItem(new Produto("TOT", "Produto dez", new BigDecimal("10.00"), 2), 2);
+        pedidoTotal.adicionarItem(new Produto("CIN", "Produto cinco", new BigDecimal("5.50"), 1), 1);
+        verificarCondicao("total calculado manualmente", new BigDecimal("25.50").compareTo(pedidoTotal.calcularValorTotal()) == 0);
+
+        Pedido pedidoRepetido = new Pedido(cliente);
+        Produto produtoRepetido = new Produto("REP", "Produto repetido", new BigDecimal("10.00"), 5);
+        pedidoRepetido.adicionarItem(produtoRepetido, 1);
+        pedidoRepetido.adicionarItem(produtoRepetido, 2);
+        verificarCondicao("item repetido soma a quantidade", pedidoRepetido.getItens().size() == 1
+                && pedidoRepetido.getItens().get(0).getQuantidade() == 3);
+
+        Produto produtoEstoque = new Produto("DEV", "Produto devolvido", new BigDecimal("10.00"), 3);
+        Pedido pedidoEstoque = new Pedido(cliente);
+        pedidoEstoque.adicionarItem(produtoEstoque, 2);
+        pedidoEstoque.cancelar();
+        verificarCondicao("cancelar devolve o estoque", produtoEstoque.getQuantidadeEmEstoque() == 3);
+    }
+
+    private static void verificarExcecao(String cenario, Class<? extends Throwable> tipoEsperado, Runnable acao) {
+        try {
+            acao.run();
+            System.out.println("FALHOU: " + cenario);
+        } catch (Throwable erro) {
+            if (tipoEsperado.isInstance(erro)) {
+                System.out.println("OK: " + cenario);
+            } else {
+                System.out.println("FALHOU: " + cenario + " (" + erro.getClass().getSimpleName() + ")");
+            }
         }
+    }
 
-        PagamentoService service = new PagamentoService();
-        service.registrar(new Pix(new BigDecimal("50.00"), "cliente@novo.com", "EMAIL"));
-        service.registrar(new Boleto(new BigDecimal("70.00"), LocalDate.now().plusDays(7), "987654321"));
-        service.registrar(new CartaoCredito(new BigDecimal("120.00"), "**** 4444", "Mastercard", 2));
-        System.out.println("Pagamentos registrados: " + service.listarPagamentos().size());
-        service.processarTodos();
+    private static void verificarCondicao(String cenario, boolean resultado) {
+        System.out.println((resultado ? "OK: " : "FALHOU: ") + cenario);
     }
 }

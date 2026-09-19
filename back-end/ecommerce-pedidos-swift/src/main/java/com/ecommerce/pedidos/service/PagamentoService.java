@@ -1,28 +1,33 @@
 package com.ecommerce.pedidos.service;
 
 import com.ecommerce.pedidos.model.FormaPagamento;
-import java.util.ArrayList;
-import java.util.Collections;
+import com.ecommerce.pedidos.repository.FormaPagamentoRepository;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
+@Service
 public class PagamentoService {
+    private final FormaPagamentoRepository repository;
 
-    private final List<FormaPagamento> pagamentos = new ArrayList<>();
+    @Autowired
+    public PagamentoService(FormaPagamentoRepository repository) {
+        this.repository = repository;
+    }
 
-    public void registrar(FormaPagamento pagamento) {
-        if (pagamento == null) {
-            throw new IllegalArgumentException("Pagamento não pode ser nulo");
-        }
-        pagamentos.add(pagamento);
+    public void registrar(FormaPagamento formaPagamento) {
+        repository.adicionar(formaPagamento);
     }
 
     public List<FormaPagamento> listarPagamentos() {
-        return Collections.unmodifiableList(pagamentos);
+        return repository.listarTodos();
     }
 
-    public void processarTodos() {
-        for (FormaPagamento p : pagamentos) {
-            p.processar();
+    public boolean processarTodos() {
+        boolean sucesso = true;
+        for (FormaPagamento formaPagamento : repository.listarTodos()) {
+            sucesso = formaPagamento.processar() && sucesso;
         }
+        return sucesso;
     }
 }
