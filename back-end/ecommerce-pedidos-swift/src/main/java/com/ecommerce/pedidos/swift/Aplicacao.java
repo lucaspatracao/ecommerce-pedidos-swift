@@ -17,40 +17,40 @@ public class Aplicacao {
         verificarExcecao("adicionarItem com produto null", IllegalArgumentException.class,
                 () -> pedidoNulo.adicionarItem(null, 1));
         verificarExcecao("quantidade zero", IllegalArgumentException.class,
-                () -> pedidoNulo.adicionarItem(new Produto("ZERO", "Produto zero", 10.00, 1), 0));
+                () -> pedidoNulo.adicionarItem(new Produto("ZERO", "Produto zero", new BigDecimal("10.00"), 1), 0));
         verificarExcecao("quantidade negativa", IllegalArgumentException.class,
-                () -> pedidoNulo.adicionarItem(new Produto("NEG", "Produto negativo", 10.00, 1), -1));
+                () -> pedidoNulo.adicionarItem(new Produto("NEG", "Produto negativo", new BigDecimal("10.00"), 1), -1));
         verificarExcecao("quantidade maior que o estoque", IllegalStateException.class,
-                () -> pedidoNulo.adicionarItem(new Produto("EST", "Estoque curto", 10.00, 1), 2));
+                () -> pedidoNulo.adicionarItem(new Produto("EST", "Estoque curto", new BigDecimal("10.00"), 1), 2));
 
         verificarExcecao("pagar pedido sem itens", IllegalStateException.class,
             () -> pedidoNulo.pagarCom(new Pix(BigDecimal.ONE, "a@b.com", "EMAIL")));
 
         Pedido pedidoCancelado = new Pedido(cliente);
-        Produto produtoCancelado = new Produto("CAN", "Produto cancelado", 10.00, 2);
+        Produto produtoCancelado = new Produto("CAN", "Produto cancelado", new BigDecimal("10.00"), 2);
         pedidoCancelado.adicionarItem(produtoCancelado, 1);
         pedidoCancelado.cancelar();
         verificarExcecao("pagar pedido cancelado", IllegalStateException.class,
                 () -> pedidoCancelado.pagarCom(new Pix(new BigDecimal("10.00"), "a@b.com", "EMAIL")));
 
         Pedido pedidoLista = new Pedido(cliente);
-        pedidoLista.adicionarItem(new Produto("LIS", "Produto da lista", 10.00, 1), 1);
+        pedidoLista.adicionarItem(new Produto("LIS", "Produto da lista", new BigDecimal("10.00"), 1), 1);
         verificarExcecao("getItens().clear()", UnsupportedOperationException.class,
                 () -> pedidoLista.getItens().clear());
 
         Pedido pedidoTotal = new Pedido(cliente);
-        pedidoTotal.adicionarItem(new Produto("TOT", "Produto dez", 10.00, 2), 2);
-        pedidoTotal.adicionarItem(new Produto("CIN", "Produto cinco", 5.50, 1), 1);
+        pedidoTotal.adicionarItem(new Produto("TOT", "Produto dez", new BigDecimal("10.00"), 2), 2);
+        pedidoTotal.adicionarItem(new Produto("CIN", "Produto cinco", new BigDecimal("5.50"), 1), 1);
         verificarCondicao("total calculado manualmente", new BigDecimal("25.50").compareTo(pedidoTotal.calcularValorTotal()) == 0);
 
         Pedido pedidoRepetido = new Pedido(cliente);
-        Produto produtoRepetido = new Produto("REP", "Produto repetido", 10.00, 5);
+        Produto produtoRepetido = new Produto("REP", "Produto repetido", new BigDecimal("10.00"), 5);
         pedidoRepetido.adicionarItem(produtoRepetido, 1);
         pedidoRepetido.adicionarItem(produtoRepetido, 2);
         verificarCondicao("item repetido soma a quantidade", pedidoRepetido.getItens().size() == 1
                 && pedidoRepetido.getItens().get(0).getQuantidade() == 3);
 
-        Produto produtoEstoque = new Produto("DEV", "Produto devolvido", 10.00, 3);
+        Produto produtoEstoque = new Produto("DEV", "Produto devolvido", new BigDecimal("10.00"), 3);
         Pedido pedidoEstoque = new Pedido(cliente);
         pedidoEstoque.adicionarItem(produtoEstoque, 2);
         pedidoEstoque.cancelar();

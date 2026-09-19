@@ -44,6 +44,9 @@ public class PedidoController {
 
     @PutMapping("/pedidos/{numero}/status")
     public Pedido atualizarStatus(@PathVariable String numero, @RequestBody AtualizarStatusRequest request) {
+        if (request == null || request.status() == null || request.status().isBlank()) {
+            throw new IllegalArgumentException("Status do pedido é obrigatório.");
+        }
         pedidoService.atualizarStatus(numero, SituacaoPedido.valueOf(request.status()));
         return pedidoService.buscarPorNumero(numero);
     }

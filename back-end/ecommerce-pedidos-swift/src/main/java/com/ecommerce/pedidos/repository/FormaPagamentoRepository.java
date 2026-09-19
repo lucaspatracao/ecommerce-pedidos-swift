@@ -3,7 +3,9 @@ package com.ecommerce.pedidos.repository;
 import com.ecommerce.pedidos.model.FormaPagamento;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.stereotype.Repository;
 
+@Repository
 public class FormaPagamentoRepository {
     private final List<FormaPagamento> pagamentos = new ArrayList<>();
 

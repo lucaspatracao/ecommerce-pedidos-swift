@@ -5,6 +5,7 @@ import com.ecommerce.pedidos.model.FormaPagamento;
 import com.ecommerce.pedidos.model.Boleto;
 import com.ecommerce.pedidos.model.Pix;
 import com.ecommerce.pedidos.service.PagamentoService;
+import com.ecommerce.pedidos.service.PedidoService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -25,9 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 @CrossOrigin(origins = {"http://localhost:5173", "http://127.0.0.1:5173"})
 public class PagamentoController {
     private final PagamentoService service;
+    private final PedidoService pedidoService;
 
-    public PagamentoController() {
-        this.service = new PagamentoService();
+    public PagamentoController(PagamentoService service, PedidoService pedidoService) {
+        this.service = service;
+        this.pedidoService = pedidoService;
     }
 
     @GetMapping("/pagamentos")
@@ -59,6 +62,13 @@ public class PagamentoController {
 
     @PostMapping("/pagamentos")
     public ResponseEntity<Map<String, Object>> registrar(@RequestBody PagamentoRequest request) {
+        if (request == null || request.pedidoNumero() == null || request.pedidoNumero().isBlank()) {
+            throw new IllegalArgumentException("Número do pedido é obrigatório para registrar o pagamento.");
+        }
+        if (request.tipo() == null || request.tipo().isBlank()) {
+            throw new IllegalArgumentException("Tipo de pagamento é obrigatório.");
+        }
+
         FormaPagamento pagamento;
 
         switch (request.tipo()) {
@@ -81,6 +91,11 @@ public class PagamentoController {
             default -> throw new IllegalArgumentException("Tipo de pagamento inválido.");
         }
 
+        var pedido = pedidoService.buscarPorNumero(request.pedidoNumero());
+        if (pedido == null) {
+            throw new IllegalArgumentException("Pedido não encontrado.");
+        }
+        pedido.pagarCom(pagamento);
         service.registrar(pagamento);
         Map<String, Object> resposta = new HashMap<>();
         resposta.put("mensagem", "Pagamento registrado com sucesso.");
@@ -97,7 +112,8 @@ public class PagamentoController {
         String vencimento,
         String codigo,
         String chave,
-        String tipoChave
+        String tipoChave,
+        String pedidoNumero
     ) {
     }
 }

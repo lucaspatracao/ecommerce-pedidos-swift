@@ -46,7 +46,7 @@ public class ClienteController {
     public Cliente atualizar(@PathVariable String cpf, @RequestBody ClienteRequest request) {
         Cliente clienteAtualizado = new Cliente(
             request.nome(),
-            request.cpf(),
+            cpf,
             request.email(),
             request.telefone(),
             request.endereco()

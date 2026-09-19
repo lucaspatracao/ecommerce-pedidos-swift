@@ -1,7 +1,5 @@
 package com.ecommerce.pedidos.model;
 
-import com.fasterxml.jackson.annotation.JsonValue;
-
 public class Endereco {
     private final String logradouro;
     private final String cidade;
@@ -25,10 +23,9 @@ public class Endereco {
         return cep;
     }
 
-    @JsonValue
     @Override
     public String toString() {
-        return logradouro;
+        return String.format("%s, %s - CEP: %s", logradouro, cidade, cep);
     }
 
     private String validar(String valor, String campo) {
