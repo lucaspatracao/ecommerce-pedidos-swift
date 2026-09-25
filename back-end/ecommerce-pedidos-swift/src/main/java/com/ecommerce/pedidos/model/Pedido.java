@@ -131,9 +131,9 @@ public class Pedido {
                 .toList();
     }
 
-    public void pagarCom(FormaPagamento formaPagamento) {
-        if (formaPagamento == null) {
-            throw new IllegalArgumentException("Forma de pagamento é obrigatória");
+    public void pagar(ProcessadorPagamento processador) {
+        if (processador == null) {
+            throw new IllegalArgumentException("Processador de pagamento é obrigatório");
         }
         if (situacao != SituacaoPedido.ABERTO) {
             throw new IllegalStateException("Pedido cancelado ou já pago não pode ser pago");
@@ -141,14 +141,25 @@ public class Pedido {
         if (itens.isEmpty()) {
             throw new IllegalStateException("Pedido sem itens não pode ser pago");
         }
-        if (formaPagamento.getValor().compareTo(calcularValorTotal()) != 0) {
-            throw new IllegalStateException("Valor do pagamento deve ser igual ao total do pedido");
-        }
-        if (!formaPagamento.processar()) {
+
+        BigDecimal valorTotal = calcularValorTotal();
+        if (!processador.processar(valorTotal)) {
             throw new IllegalStateException("Pagamento recusado");
         }
-        this.formaPagamento = formaPagamento;
+
+        this.formaPagamento = (FormaPagamento) processador;
         this.situacao = SituacaoPedido.PAGO;
+    }
+
+    public void pagar() {
+        if (formaPagamento == null) {
+            throw new IllegalStateException("Pedido não possui forma de pagamento definida");
+        }
+        pagar(formaPagamento);
+    }
+
+    public void pagarCom(FormaPagamento formaPagamento) {
+        pagar((ProcessadorPagamento) formaPagamento);
     }
 
     public void cancelar() {
