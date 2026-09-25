@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
-public abstract class FormaPagamento {
+public abstract class FormaPagamento implements ProcessadorPagamento {
     private BigDecimal valor;
     private LocalDateTime dataDoPagamento;
     private SituacaoPagamento situacao;
@@ -53,6 +53,28 @@ public abstract class FormaPagamento {
             throw new IllegalArgumentException("Situação do pagamento não pode ser nula.");
         }
         this.situacao = situacao;
+    }
+
+    @Override
+    public boolean processar(BigDecimal valor) {
+        setValor(valor);
+        return processar();
+    }
+
+    @Override
+    public String getComprovante() {
+        return String.format("%s | valor: %s | data: %s | status: %s",
+                getDescricao(), getValor(), getDataDoPagamento(), getSituacao());
+    }
+
+    @Override
+    public String getDescricao() {
+        return getClass().getSimpleName();
+    }
+
+    @Override
+    public boolean permiteParcelamento() {
+        return false;
     }
 
     public abstract boolean processar();
