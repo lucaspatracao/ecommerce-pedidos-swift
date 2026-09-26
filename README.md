@@ -32,13 +32,26 @@ A solução também possui uma interface administrativa para consumo e apresenta
 * **Gerenciamento de Produtos:** Cadastro, atualização, consulta e controle de disponibilidade.
 * **Gerenciamento de Clientes:** Cadastro, edição de dados cadastrais e histórico de compras.
 * **Gestão de Pedidos:** Abertura, inclusão de itens, cálculo de totais, alteração de status e cancelamento.
-* **Processamento de Pagamentos:** Suporte a múltiplos métodos (Cartão de Crédito, Boleto Bancário e Pix).
+* **Processamento de Pagamentos:** Suporte a múltiplos métodos (Cartão de Crédito, Boleto Bancário, Pix e Vale Compras), com arquitetura polimórfica.
 * **Dashboard:** Visualização de informações gerais do sistema, pedidos recentes, clientes, produtos e indicadores disponíveis.
 * **Interface Administrativa:** Interface web para consulta e gerenciamento das informações do sistema.
 * **Integração Front-end / Back-end:** Consumo dos endpoints reais da API REST pelo Front-end.
 * **Garantia de Qualidade:** Testes automatizados unitários e de integração com relatórios de cobertura.
 * **Integração Contínua (CI/CD):** Pipeline para execução de build e testes automatizados.
 * **API RESTful:** Endpoints estruturados para integração e consumo pela aplicação Front-end e futuras aplicações.
+
+---
+
+### Pagamento Polimórfico e Princípio Aberto/Fechado
+
+A camada de pagamentos foi estruturada com um contrato comum para desacoplar o pedido da implementação concreta de cada meio de pagamento.
+
+- `ProcessadorPagamento` define o contrato mínimo para processar o valor e expor comprovante/descrição.
+- `FormaPagamento` atua como base comum da hierarquia e mantém os atributos compartilhados.
+- `Pix`, `Boleto`, `CartaoCredito` e `ValeCompras` implementam o processamento específico de cada modalidade.
+- `Pedido` recebe qualquer `ProcessadorPagamento` em vez de depender de tipos concretos, reduzindo acoplamento e facilitando extensão.
+
+Esse desenho permite adicionar novas formas de pagamento sem alterar a lógica central do pedido, respeitando o princípio aberto/fechado (OCP).
 
 ---
 
@@ -334,7 +347,7 @@ Camada de domínio / serviços / persistência
 | **05** | Encapsulamento e abstração aplicados | 🟢 Concluído |
 | **06** | Hierarquia de formas de pagamento (herança) | 🟢 Concluído |
 | **07** | Relacionamentos entre classes do domínio | 🟢 Concluído |
-| **08** | Módulo de pagamento polimórfico | ⏳ Pendente |
+| **08** | Módulo de pagamento polimórfico | 🟢 Concluído |
 | **09** | Tratamento de exceções e validações | ⏳ Pendente |
 | **10** | Suíte de testes unitários | ⏳ Pendente |
 | **11** | Suíte de testes de integração + relatório de cobertura | ⏳ Pendente |
