@@ -1,4 +1,4 @@
-package com.ecommerce.pedidos.swift.util;
+package com.ecommerce.pedidos.swift;
 
 import com.ecommerce.pedidos.model.Boleto;
 import com.ecommerce.pedidos.model.CartaoCredito;

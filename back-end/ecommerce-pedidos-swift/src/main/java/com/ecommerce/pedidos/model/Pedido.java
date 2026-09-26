@@ -20,7 +20,7 @@ public class Pedido {
     private final List<ItemPedido> itens = new ArrayList<>();
     private final LocalDate data;
     private SituacaoPedido situacao;
-    private FormaPagamento formaPagamento;
+    private ProcessadorPagamento formaPagamento;
     private static int totalDePedidosCriados = 0;
 
     public Pedido(Cliente cliente) {
@@ -70,7 +70,7 @@ public class Pedido {
         return situacao;
     }
 
-    public FormaPagamento getFormaPagamento() {
+    public ProcessadorPagamento getFormaPagamento() {
         return formaPagamento;
     }
 
@@ -147,7 +147,7 @@ public class Pedido {
             throw new IllegalStateException("Pagamento recusado");
         }
 
-        this.formaPagamento = (FormaPagamento) processador;
+        this.formaPagamento = processador;
         this.situacao = SituacaoPedido.PAGO;
     }
 
@@ -159,6 +159,12 @@ public class Pedido {
     }
 
     public void pagarCom(FormaPagamento formaPagamento) {
+        if (formaPagamento == null) {
+            throw new IllegalArgumentException("Forma de pagamento é obrigatória");
+        }
+        if (formaPagamento.getValor().compareTo(calcularValorTotal()) != 0) {
+            throw new IllegalStateException("Valor do pagamento deve ser igual ao total do pedido");
+        }
         pagar((ProcessadorPagamento) formaPagamento);
     }
 
@@ -169,8 +175,8 @@ public class Pedido {
         for (ItemPedido item : itens) {
             item.getProduto().adicionarEstoque(item.getQuantidade());
         }
-        if (formaPagamento != null) {
-            formaPagamento.setSituacao(SituacaoPagamento.ESTORNADO);
+        if (formaPagamento instanceof FormaPagamento pagamento) {
+            pagamento.setSituacao(SituacaoPagamento.ESTORNADO);
         }
         situacao = SituacaoPedido.CANCELADO;
     }
