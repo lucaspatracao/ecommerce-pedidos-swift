@@ -20,7 +20,7 @@ public class Pedido {
     private final List<ItemPedido> itens = new ArrayList<>();
     private final LocalDate data;
     private SituacaoPedido situacao;
-    private FormaPagamento formaPagamento;
+    private ProcessadorPagamento formaPagamento;
     private static int totalDePedidosCriados = 0;
 
     public Pedido(Cliente cliente) {
@@ -70,7 +70,7 @@ public class Pedido {
         return situacao;
     }
 
-    public FormaPagamento getFormaPagamento() {
+    public ProcessadorPagamento getFormaPagamento() {
         return formaPagamento;
     }
 
@@ -131,9 +131,9 @@ public class Pedido {
                 .toList();
     }
 
-    public void pagarCom(FormaPagamento formaPagamento) {
-        if (formaPagamento == null) {
-            throw new IllegalArgumentException("Forma de pagamento é obrigatória");
+    public void pagar(ProcessadorPagamento processador) {
+        if (processador == null) {
+            throw new IllegalArgumentException("Processador de pagamento é obrigatório");
         }
         if (situacao != SituacaoPedido.ABERTO) {
             throw new IllegalStateException("Pedido cancelado ou já pago não pode ser pago");
@@ -141,14 +141,31 @@ public class Pedido {
         if (itens.isEmpty()) {
             throw new IllegalStateException("Pedido sem itens não pode ser pago");
         }
+
+        BigDecimal valorTotal = calcularValorTotal();
+        if (!processador.processar(valorTotal)) {
+            throw new IllegalStateException("Pagamento recusado");
+        }
+
+        this.formaPagamento = processador;
+        this.situacao = SituacaoPedido.PAGO;
+    }
+
+    public void pagar() {
+        if (formaPagamento == null) {
+            throw new IllegalStateException("Pedido não possui forma de pagamento definida");
+        }
+        pagar(formaPagamento);
+    }
+
+    public void pagarCom(FormaPagamento formaPagamento) {
+        if (formaPagamento == null) {
+            throw new IllegalArgumentException("Forma de pagamento é obrigatória");
+        }
         if (formaPagamento.getValor().compareTo(calcularValorTotal()) != 0) {
             throw new IllegalStateException("Valor do pagamento deve ser igual ao total do pedido");
         }
-        if (!formaPagamento.processar()) {
-            throw new IllegalStateException("Pagamento recusado");
-        }
-        this.formaPagamento = formaPagamento;
-        this.situacao = SituacaoPedido.PAGO;
+        pagar((ProcessadorPagamento) formaPagamento);
     }
 
     public void cancelar() {
@@ -158,8 +175,8 @@ public class Pedido {
         for (ItemPedido item : itens) {
             item.getProduto().adicionarEstoque(item.getQuantidade());
         }
-        if (formaPagamento != null) {
-            formaPagamento.setSituacao(SituacaoPagamento.ESTORNADO);
+        if (formaPagamento instanceof FormaPagamento pagamento) {
+            pagamento.setSituacao(SituacaoPagamento.ESTORNADO);
         }
         situacao = SituacaoPedido.CANCELADO;
     }

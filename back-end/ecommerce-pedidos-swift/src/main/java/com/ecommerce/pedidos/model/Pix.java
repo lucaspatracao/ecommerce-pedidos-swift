@@ -1,6 +1,7 @@
 package com.ecommerce.pedidos.model;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 public class Pix extends FormaPagamento {
     private String chave;
@@ -37,8 +38,20 @@ public class Pix extends FormaPagamento {
     @Override
     public boolean processar() {
         System.out.println("Processando Pix para a chave " + chave + " (tipo " + tipoDaChave + ")");
+        setDataDoPagamento(LocalDateTime.now());
         setSituacao(SituacaoPagamento.APROVADO);
         return true;
+    }
+
+    @Override
+    public String getComprovante() {
+        return "COMPROVANTE PIX | chave=" + chave + " | tipo=" + tipoDaChave + " | valor=R$ " + getValor()
+                + " | data=" + getDataDoPagamento();
+    }
+
+    @Override
+    public String getDescricao() {
+        return "Pix";
     }
 
     @Override

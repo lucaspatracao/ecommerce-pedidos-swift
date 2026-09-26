@@ -2,6 +2,7 @@ package com.ecommerce.pedidos.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public class Boleto extends FormaPagamento {
     private String codigoDeBarras;
@@ -41,8 +42,20 @@ public class Boleto extends FormaPagamento {
     @Override
     public boolean processar() {
         System.out.println("Processando boleto com vencimento " + dataDeVencimento + " e código " + codigoDeBarras);
+        setDataDoPagamento(LocalDateTime.now());
         setSituacao(SituacaoPagamento.APROVADO);
         return true;
+    }
+
+    @Override
+    public String getComprovante() {
+        return "COMPROVANTE BOLETO | codigo=" + codigoDeBarras + " | vencimento=" + dataDeVencimento
+                + " | valor=R$ " + getValor() + " | data=" + getDataDoPagamento();
+    }
+
+    @Override
+    public String getDescricao() {
+        return "Boleto";
     }
 
     @Override

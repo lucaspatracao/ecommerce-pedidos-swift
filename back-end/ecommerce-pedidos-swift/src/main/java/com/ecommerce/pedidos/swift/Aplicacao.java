@@ -1,10 +1,16 @@
-package com.ecommerce.pedidos.swift.util;
+package com.ecommerce.pedidos.swift;
 
+import com.ecommerce.pedidos.model.Boleto;
+import com.ecommerce.pedidos.model.CartaoCredito;
 import com.ecommerce.pedidos.model.Cliente;
 import com.ecommerce.pedidos.model.Pix;
 import com.ecommerce.pedidos.model.Pedido;
+import com.ecommerce.pedidos.model.ProcessadorPagamento;
 import com.ecommerce.pedidos.model.Produto;
+import com.ecommerce.pedidos.model.ValeCompras;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 
 public class Aplicacao {
 
@@ -24,7 +30,7 @@ public class Aplicacao {
                 () -> pedidoNulo.adicionarItem(new Produto("EST", "Estoque curto", new BigDecimal("10.00"), 1), 2));
 
         verificarExcecao("pagar pedido sem itens", IllegalStateException.class,
-            () -> pedidoNulo.pagarCom(new Pix(BigDecimal.ONE, "a@b.com", "EMAIL")));
+                () -> pedidoNulo.pagarCom(new Pix(BigDecimal.ONE, "a@b.com", "EMAIL")));
 
         Pedido pedidoCancelado = new Pedido(cliente);
         Produto produtoCancelado = new Produto("CAN", "Produto cancelado", new BigDecimal("10.00"), 2);
@@ -55,6 +61,25 @@ public class Aplicacao {
         pedidoEstoque.adicionarItem(produtoEstoque, 2);
         pedidoEstoque.cancelar();
         verificarCondicao("cancelar devolve o estoque", produtoEstoque.getQuantidadeEmEstoque() == 3);
+
+        simularLoopPolimorfico(cliente);
+    }
+
+    private static void simularLoopPolimorfico(Cliente cliente) {
+        List<ProcessadorPagamento> processadores = List.of(
+                new Pix(new BigDecimal("50.00"), "ana@ecommerce.com", "EMAIL"),
+                new Boleto(new BigDecimal("50.00"), LocalDate.now().plusDays(5), "12345678901234567890"),
+                new CartaoCredito(new BigDecimal("50.00"), "**** 1234", "Visa", 3),
+                new ValeCompras(new BigDecimal("50.00"), "VALE-001", "Loja Swift")
+        );
+
+        for (ProcessadorPagamento processador : processadores) {
+            Pedido pedido = new Pedido(cliente);
+            pedido.adicionarItem(new Produto("SIM", "Produto do laço", new BigDecimal("50.00"), 10), 1);
+            pedido.pagar(processador);
+            String status = pedido.getSituacao().name();
+            System.out.printf("OK: %s -> %s | %s%n", processador.getDescricao(), status, processador.getComprovante());
+        }
     }
 
     private static void verificarExcecao(String cenario, Class<? extends Throwable> tipoEsperado, Runnable acao) {
