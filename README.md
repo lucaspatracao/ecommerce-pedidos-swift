@@ -347,7 +347,7 @@ Camada de domínio / serviços / persistência
 | **05** | Encapsulamento e abstração aplicados | 🟢 Concluído |
 | **06** | Hierarquia de formas de pagamento (herança) | 🟢 Concluído |
 | **07** | Relacionamentos entre classes do domínio | 🟢 Concluído |
-| **08** | Módulo de pagamento polimórfico | ⏳ Pendente |
+| **08** | Módulo de pagamento polimórfico | 🟢 Concluído |
 | **09** | Tratamento de exceções e validações | ⏳ Pendente |
 | **10** | Suíte de testes unitários | ⏳ Pendente |
 | **11** | Suíte de testes de integração + relatório de cobertura | ⏳ Pendente |
