@@ -126,7 +126,7 @@ export function DashboardPage({ dashboard = {}, pedidos = [], produtos = [], loa
                         <strong>{produto.nome}</strong>
                         <span>{produto.quantidadeEmEstoque} unidades restantes</span>
                       </div>
-                      <span className="badge badge-soft">Baixo</span>
+                      <span className="badge badge-critical">Baixo</span>
                     </li>
                   ))}
                 </ul>

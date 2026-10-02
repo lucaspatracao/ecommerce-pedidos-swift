@@ -583,8 +583,11 @@ th,
   grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
 }
 
+/* Assimétrico: o painel com tabela (Clientes/Produtos cadastrados) precisa
+   de mais espaço que o formulário, senão Nome/CPF/Ações espremem e a
+   tabela quebra em 3 linhas ou corta colunas (ver erro-2/erro-3). */
 .double-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(320px, 1fr) minmax(380px, 1.35fr);
 }
 
 .actions-row {
@@ -890,6 +893,20 @@ tbody tr:last-child td {
   border-bottom: 0;
 }
 
+/* CPF, telefone e ações não devem quebrar linha (o que empurrava a tabela
+   para um scroll horizontal apertado em painéis estreitos). Nome e e-mail
+   continuam livres para quebrar, mas com uma largura mínima legível. */
+td:has(.inline-actions),
+table td:nth-child(3),
+table td:nth-child(4) {
+  white-space: nowrap;
+}
+
+table th:first-child,
+table td:first-child {
+  min-width: 160px;
+}
+
 .product-name {
   display: flex;
   flex-direction: column;
@@ -967,6 +984,14 @@ tbody tr:last-child td {
 .badge-soft {
   background: var(--orange-100);
   color: var(--orange-700);
+}
+
+/* Estoque crítico é um ALERTA, não uma tag de marca: .badge-soft (laranja)
+   é usado em outros contextos como rótulo neutro e aqui confundia. Usa a
+   mesma semântica de .status-danger (âmbar/vermelho = atenção). */
+.badge-critical {
+  background: var(--danger-100);
+  color: var(--danger-700);
 }
 
 
