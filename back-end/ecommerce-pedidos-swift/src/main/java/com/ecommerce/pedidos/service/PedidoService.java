@@ -1,12 +1,11 @@
 package com.ecommerce.pedidos.service;
 
+import com.ecommerce.pedidos.excecao.EstoqueInsuficienteException;
 import com.ecommerce.pedidos.model.Cliente;
 import com.ecommerce.pedidos.model.Pedido;
 import com.ecommerce.pedidos.model.Produto;
 import com.ecommerce.pedidos.model.SituacaoPedido;
-import com.ecommerce.pedidos.swift.util.PedidoUtils;
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +61,11 @@ public class PedidoService {
                 throw new IllegalArgumentException("Estoque insuficiente para o produto " + produto.getNome());
             }
 
-            pedido.adicionarItem(produto, itemRequest.quantidade());
+            try {
+                pedido.adicionarItem(produto, itemRequest.quantidade());
+            } catch (EstoqueInsuficienteException e) {
+                throw new IllegalArgumentException(e.getMessage(), e);
+            }
         }
 
         pedidos.put(pedido.getNumero(), pedido);

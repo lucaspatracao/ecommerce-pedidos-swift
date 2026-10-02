@@ -1,5 +1,6 @@
 package com.ecommerce.pedidos.model;
 
+import com.ecommerce.pedidos.excecao.EstoqueInsuficienteException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Objects;
@@ -70,8 +71,8 @@ public class Produto {
         if (preco == null) {
             throw new IllegalArgumentException("Preço do produto não pode ser nulo.");
         }
-        if (preco.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Preço do produto não pode ser negativo.");
+        if (preco.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Preço deve ser positivo, recebido: " + preco);
         }
         this.preco = preco.setScale(2, RoundingMode.HALF_UP);
     }
@@ -82,7 +83,7 @@ public class Produto {
 
     public void setQuantidadeEmEstoque(int quantidadeEmEstoque) {
         if (quantidadeEmEstoque < 0) {
-            throw new IllegalArgumentException("Quantidade em estoque não pode ser negativa.");
+            throw new IllegalArgumentException("Estoque não pode ser negativo, recebido: " + quantidadeEmEstoque);
         }
         this.quantidadeEmEstoque = quantidadeEmEstoque;
     }
@@ -111,12 +112,12 @@ public class Produto {
     /**
      * Reduz o estoque apos uma venda confirmada.
      */
-    public void baixarEstoque(int quantidade) {
+    public void baixarEstoque(int quantidade) throws EstoqueInsuficienteException {
         if (quantidade <= 0) {
-            throw new IllegalArgumentException("Quantidade para baixa no estoque deve ser positiva.");
+            throw new IllegalArgumentException("Quantidade deve ser positiva, recebido: " + quantidade);
         }
-        if (quantidade > quantidadeEmEstoque) {
-            throw new IllegalArgumentException("Quantidade solicitada excede o estoque disponível.");
+        if (quantidade > this.quantidadeEmEstoque) {
+            throw new EstoqueInsuficienteException(this, quantidade);
         }
         this.quantidadeEmEstoque -= quantidade;
     }

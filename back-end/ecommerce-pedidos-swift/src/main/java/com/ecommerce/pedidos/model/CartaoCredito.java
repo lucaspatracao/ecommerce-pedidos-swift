@@ -67,7 +67,6 @@ public class CartaoCredito extends FormaPagamento {
             setSituacao(SituacaoPagamento.RECUSADO);
             return false;
         }
-        System.out.println("Processando cartão " + bandeira + " no número " + numeroMascarado + " em " + quantidadeDeParcelas + " parcela(s)");
         setDataDoPagamento(LocalDateTime.now());
         setSituacao(SituacaoPagamento.APROVADO);
         limiteDisponivel = limiteDisponivel.subtract(getValor());

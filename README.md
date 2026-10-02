@@ -390,3 +390,63 @@ As próximas evoluções do projeto estão concentradas em:
 ### Licença
 
 Projeto estritamente acadêmico — **Faculdade de Tecnologia SENAI "Antonio Adolpho Lobbe"**. Todos os direitos reservados aos autores e à instituição.
+
+---
+
+### Tratamento de Exceções de Negócio e Regras de Domínio
+
+Durante a fase de refinamento do domínio, o projeto adotou uma hierarquia de exceções própria para separar erro técnico de erro de negócio.
+
+#### Pacote de exceções
+
+O pacote é `com.ecommerce.pedidos.excecao` e contém:
+
+- `ECommerceException` — raiz do domínio, estende `Exception` e aceita mensagem e causa.
+- `EstoqueInsuficienteException` — representa falta de estoque com dados do produto e da quantidade solicitada.
+- `PagamentoRecusadoException` — representa recusa de processamento com a forma de pagamento e o motivo.
+- `ClienteNaoEncontradoException` — identificador buscado do cliente.
+- `PedidoInvalidoException` — pedido inválido, usado em situações de negócio como pedido já pago ou inconsistente.
+
+#### Critério checked × unchecked
+
+A equipe definiu um único critério para todo o projeto:
+
+- `Estoque insuficiente` → `checked` (`ECommerceException` / `EstoqueInsuficienteException`)
+  - Quem chamou pode tentar outro produto ou quantidade.
+- `Pagamento recusado` → `checked` (`PagamentoRecusadoException`)
+  - Quem chamou pode sugerir outra forma de pagamento.
+- `Pedido já pago` → `unchecked` (`IllegalStateException`)
+  - Erro de uso da classe, não uma situação de negócio recuperável no runtime.
+- `Produto nulo em adicionarItem` → `unchecked` (`IllegalArgumentException`)
+  - Defeito de quem chamou.
+- `Preço negativo em Produto` → `unchecked` (`IllegalArgumentException`)
+  - Nenhuma reação automática em runtime resolve isso.
+
+#### Regras de negócio aplicadas
+
+- `Produto.baixarEstoque(int quantidade)`:
+  - quantidade negativa ou zero → `IllegalArgumentException`
+  - quantidade maior que o estoque → `EstoqueInsuficienteException`
+- `Pedido.adicionarItem(Produto produto, int quantidade)`:
+  - produto nulo → `IllegalArgumentException`
+  - quantidade inválida → `IllegalArgumentException`
+  - pedido fora de `ABERTO` → `IllegalStateException`
+  - estoque indisponível → `EstoqueInsuficienteException`
+- `Pedido.pagar(ProcessadorPagamento processador)`:
+  - processador nulo → `IllegalArgumentException`
+  - pedido sem itens → `IllegalStateException`
+  - pedido fora de `ABERTO` → `IllegalStateException`
+  - processamento recusado → `PagamentoRecusadoException`
+  - em caso de recusa, o pedido permanece `ABERTO` e não muda de situação.
+
+#### Limpeza de antipadrões
+
+Também foram eliminados padrões problemáticos do código:
+
+- remoção de `catch (Exception e)` genéricos sem resolução;
+- remoção de `printStackTrace()` e de depuração espalhada;
+- remoção de `System.out.println` dentro dos processadores de pagamento, mantendo os dados no próprio comprovante e na mensagem da exceção.
+
+A camada HTTP (`ApiExceptionHandler`) passa a traduzir essas exceções de domínio em respostas amigáveis para o cliente, sem mascarar o problema original.
+
+---

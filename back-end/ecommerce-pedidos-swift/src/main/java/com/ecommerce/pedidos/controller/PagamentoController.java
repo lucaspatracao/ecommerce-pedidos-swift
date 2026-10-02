@@ -1,5 +1,6 @@
 package com.ecommerce.pedidos.controller;
 
+import com.ecommerce.pedidos.excecao.PagamentoRecusadoException;
 import com.ecommerce.pedidos.model.CartaoCredito;
 import com.ecommerce.pedidos.model.FormaPagamento;
 import com.ecommerce.pedidos.model.Boleto;
@@ -61,7 +62,7 @@ public class PagamentoController {
     }
 
     @PostMapping("/pagamentos")
-    public ResponseEntity<Map<String, Object>> registrar(@RequestBody PagamentoRequest request) {
+    public ResponseEntity<Map<String, Object>> registrar(@RequestBody PagamentoRequest request) throws PagamentoRecusadoException {
         if (request == null || request.pedidoNumero() == null || request.pedidoNumero().isBlank()) {
             throw new IllegalArgumentException("Número do pedido é obrigatório para registrar o pagamento.");
         }

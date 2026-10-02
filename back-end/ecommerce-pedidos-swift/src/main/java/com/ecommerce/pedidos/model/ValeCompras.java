@@ -37,7 +37,6 @@ public class ValeCompras extends FormaPagamento {
 
     @Override
     public boolean processar() {
-        System.out.println("Processando vale-compras " + codigo + " emitido por " + emissor);
         setDataDoPagamento(LocalDateTime.now());
         setSituacao(SituacaoPagamento.APROVADO);
         return true;
