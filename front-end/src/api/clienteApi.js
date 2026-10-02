@@ -6,8 +6,10 @@ const api = axios.create({
 })
 
 const tratarErro = (error, mensagemPadrao) => {
-  if (error?.response?.data?.message) {
-    return error.response.data.message
+  // O back-end (ApiExceptionHandler) devolve { "erro": "..." }, não { "message": "..." }.
+  // Por isso a UI sempre mostrava o texto genérico do Axios, escondendo a causa real.
+  if (error?.response?.data?.erro) {
+    return error.response.data.erro
   }
 
   if (error?.message) {

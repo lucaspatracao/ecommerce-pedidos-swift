@@ -9,15 +9,29 @@ const estadoInicial = {
   endereco: '',
 }
 
+// O back-end devolve `endereco` como objeto { logradouro, cidade, cep } (ver
+// Cliente.java), mas o formulário tem um único campo de texto e o DTO de
+// escrita (ClienteController.ClienteRequest) espera `endereco` como String.
+// Sem essa conversão, o input exibia "[object Object]" e o PUT enviava o
+// objeto de volta, quebrando a deserialização no Jackson com 400.
+const enderecoParaTexto = (endereco) => {
+  if (!endereco) return ''
+  if (typeof endereco === 'string') return endereco
+  return endereco.logradouro ?? ''
+}
+
+const normalizarCliente = (cliente) =>
+  cliente ? { ...cliente, endereco: enderecoParaTexto(cliente.endereco) } : estadoInicial
+
 export function ClienteForm({ cliente = null, onClienteSalvo, onCancelarEdicao }) {
-  const [form, setForm] = useState(cliente ?? estadoInicial)
+  const [form, setForm] = useState(normalizarCliente(cliente))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [mensagem, setMensagem] = useState('')
   const [erro, setErro] = useState('')
   const isEdicao = Boolean(cliente)
 
   useEffect(() => {
-    setForm(cliente ?? estadoInicial)
+    setForm(normalizarCliente(cliente))
   }, [cliente])
 
   const handleChange = (event) => {
