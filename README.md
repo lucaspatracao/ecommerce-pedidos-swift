@@ -348,7 +348,7 @@ Camada de domínio / serviços / persistência
 | **06** | Hierarquia de formas de pagamento (herança) | 🟢 Concluído |
 | **07** | Relacionamentos entre classes do domínio | 🟢 Concluído |
 | **08** | Módulo de pagamento polimórfico | 🟢 Concluído |
-| **09** | Tratamento de exceções e validações | ⏳ Pendente |
+| **09** | Tratamento de exceções e validações | 🟢 Concluído |
 | **10** | Suíte de testes unitários | ⏳ Pendente |
 | **11** | Suíte de testes de integração + relatório de cobertura | ⏳ Pendente |
 | **12** | Persistência: conexão, operações Create e Read | ⏳ Pendente |
