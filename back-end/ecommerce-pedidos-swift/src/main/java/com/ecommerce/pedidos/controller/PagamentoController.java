@@ -95,7 +95,14 @@ public class PagamentoController {
         if (pedido == null) {
             throw new IllegalArgumentException("Pedido não encontrado.");
         }
-        pedido.pagarCom(pagamento);
+        try {
+            pedido.pagarCom(pagamento);
+        } catch (Exception ex) {
+            if (ex instanceof RuntimeException runtime) {
+                throw runtime;
+            }
+            throw new IllegalStateException(ex.getMessage(), ex);
+        }
         service.registrar(pagamento);
         Map<String, Object> resposta = new HashMap<>();
         resposta.put("mensagem", "Pagamento registrado com sucesso.");

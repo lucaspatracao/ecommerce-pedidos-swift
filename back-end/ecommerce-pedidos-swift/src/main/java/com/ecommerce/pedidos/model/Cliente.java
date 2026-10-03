@@ -42,8 +42,8 @@ public class Cliente extends Pessoa {
         if (emailValidado.isEmpty()) {
             throw new IllegalArgumentException("E-mail não pode estar vazio.");
         }
-        if (!emailValidado.contains("@")) {
-            throw new IllegalArgumentException("E-mail deve conter '@'.");
+        if (!emailValidado.contains("@") || emailValidado.indexOf('@') == 0 || emailValidado.indexOf('@') == emailValidado.length() - 1) {
+            throw new IllegalArgumentException("E-mail inválido: " + emailValidado);
         }
         if (!emailValidado.contains(".")) {
             throw new IllegalArgumentException("E-mail deve conter domínio válido.");

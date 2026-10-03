@@ -37,7 +37,6 @@ public class Pix extends FormaPagamento {
 
     @Override
     public boolean processar() {
-        System.out.println("Processando Pix para a chave " + chave + " (tipo " + tipoDaChave + ")");
         setDataDoPagamento(LocalDateTime.now());
         setSituacao(SituacaoPagamento.APROVADO);
         return true;

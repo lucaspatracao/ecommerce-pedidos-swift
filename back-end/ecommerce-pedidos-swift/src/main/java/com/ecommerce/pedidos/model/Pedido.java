@@ -1,5 +1,7 @@
 package com.ecommerce.pedidos.model;
 
+import com.ecommerce.pedidos.excecao.EstoqueInsuficienteException;
+import com.ecommerce.pedidos.excecao.PagamentoRecusadoException;
 import com.ecommerce.pedidos.swift.util.PedidoUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -8,7 +10,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Consolida o carrinho de compras do cliente e gerencia o ciclo comercial e
@@ -48,6 +49,7 @@ public class Pedido {
 
     /**
      * Obtém a lista de itens do pedido de forma imutável.
+     *
      * @return cópia não modificável da lista de itens
      */
     public List<ItemPedido> getItens() {
@@ -56,6 +58,7 @@ public class Pedido {
 
     /**
      * Retorna o número total de itens no pedido.
+     *
      * @return quantidade de itens
      */
     public int quantidadeDeItens() {
@@ -77,19 +80,22 @@ public class Pedido {
     /**
      * Tenta adicionar um item ao pedido, dando baixa no estoque do produto
      * correspondente.
-     * @param item o item a ser adicionado ao pedido
-     * @return true se o item foi adicionado com sucesso; false caso contrário
+     *
+     * @param produto   o produto a ser adicionado ao pedido
+     * @param quantidade a quantidade solicitada
+     * @throws EstoqueInsuficienteException quando o estoque não basta para atender a venda
      */
-    public void adicionarItem(Produto produto, int quantidade) {
+    public void adicionarItem(Produto produto, int quantidade) throws EstoqueInsuficienteException {
         if (produto == null) {
             throw new IllegalArgumentException("Produto é obrigatório");
         }
         if (quantidade <= 0) {
-            throw new IllegalArgumentException("A quantidade deve ser maior que zero.");
+            throw new IllegalArgumentException("Quantidade deve ser positiva");
         }
-        if (!produto.temEstoqueDisponivel(quantidade)) {
-            throw new IllegalStateException("Estoque insuficiente: " + produto.getNome());
+        if (situacao != SituacaoPedido.ABERTO) {
+            throw new IllegalStateException("Não é possível adicionar itens a pedido " + situacao);
         }
+
         produto.baixarEstoque(quantidade);
 
         for (ItemPedido item : itens) {
@@ -103,6 +109,7 @@ public class Pedido {
 
     /**
      * Remove um item do pedido e devolver a quantidade ao estoque do produto.
+     *
      * @param index o índice do item a ser removido
      * @throws IndexOutOfBoundsException se o índice for inválido
      */
@@ -131,12 +138,12 @@ public class Pedido {
                 .toList();
     }
 
-    public void pagar(ProcessadorPagamento processador) {
+    public void pagar(ProcessadorPagamento processador) throws PagamentoRecusadoException {
         if (processador == null) {
-            throw new IllegalArgumentException("Processador de pagamento é obrigatório");
+            throw new IllegalArgumentException("Processador é obrigatório");
         }
         if (situacao != SituacaoPedido.ABERTO) {
-            throw new IllegalStateException("Pedido cancelado ou já pago não pode ser pago");
+            throw new IllegalStateException("Pedido " + situacao + " não pode ser pago");
         }
         if (itens.isEmpty()) {
             throw new IllegalStateException("Pedido sem itens não pode ser pago");
@@ -144,21 +151,21 @@ public class Pedido {
 
         BigDecimal valorTotal = calcularValorTotal();
         if (!processador.processar(valorTotal)) {
-            throw new IllegalStateException("Pagamento recusado");
+            throw new PagamentoRecusadoException(processador.getDescricao(), "processador retornou recusa");
         }
 
         this.formaPagamento = processador;
         this.situacao = SituacaoPedido.PAGO;
     }
 
-    public void pagar() {
+    public void pagar() throws PagamentoRecusadoException {
         if (formaPagamento == null) {
             throw new IllegalStateException("Pedido não possui forma de pagamento definida");
         }
         pagar(formaPagamento);
     }
 
-    public void pagarCom(FormaPagamento formaPagamento) {
+    public void pagarCom(FormaPagamento formaPagamento) throws PagamentoRecusadoException {
         if (formaPagamento == null) {
             throw new IllegalArgumentException("Forma de pagamento é obrigatória");
         }

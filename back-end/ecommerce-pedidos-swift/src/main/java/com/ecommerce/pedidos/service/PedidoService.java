@@ -1,12 +1,11 @@
 package com.ecommerce.pedidos.service;
 
+import com.ecommerce.pedidos.excecao.EstoqueInsuficienteException;
 import com.ecommerce.pedidos.model.Cliente;
 import com.ecommerce.pedidos.model.Pedido;
 import com.ecommerce.pedidos.model.Produto;
 import com.ecommerce.pedidos.model.SituacaoPedido;
-import com.ecommerce.pedidos.swift.util.PedidoUtils;
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +37,7 @@ public class PedidoService {
         return pedidos.get(numero.trim());
     }
 
-    public Pedido criarPedido(String clienteCpf, List<ItemPedidoRequest> itens) {
+    public Pedido criarPedido(String clienteCpf, List<ItemPedidoRequest> itens) throws EstoqueInsuficienteException {
         Objects.requireNonNull(clienteCpf, "CPF do cliente não pode ser nulo.");
         Cliente cliente = clienteService.buscarPorCpf(clienteCpf);
         if (cliente == null) {
@@ -61,7 +60,6 @@ public class PedidoService {
             if (!produto.temEstoqueDisponivel(itemRequest.quantidade())) {
                 throw new IllegalArgumentException("Estoque insuficiente para o produto " + produto.getNome());
             }
-
             pedido.adicionarItem(produto, itemRequest.quantidade());
         }
 

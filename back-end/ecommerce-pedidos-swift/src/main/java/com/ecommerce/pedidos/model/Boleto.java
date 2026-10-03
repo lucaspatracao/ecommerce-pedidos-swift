@@ -41,7 +41,6 @@ public class Boleto extends FormaPagamento {
 
     @Override
     public boolean processar() {
-        System.out.println("Processando boleto com vencimento " + dataDeVencimento + " e código " + codigoDeBarras);
         setDataDoPagamento(LocalDateTime.now());
         setSituacao(SituacaoPagamento.APROVADO);
         return true;
