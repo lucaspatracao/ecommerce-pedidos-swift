@@ -37,7 +37,7 @@ public class PedidoService {
         return pedidos.get(numero.trim());
     }
 
-    public Pedido criarPedido(String clienteCpf, List<ItemPedidoRequest> itens) {
+    public Pedido criarPedido(String clienteCpf, List<ItemPedidoRequest> itens) throws EstoqueInsuficienteException {
         Objects.requireNonNull(clienteCpf, "CPF do cliente não pode ser nulo.");
         Cliente cliente = clienteService.buscarPorCpf(clienteCpf);
         if (cliente == null) {
@@ -60,12 +60,7 @@ public class PedidoService {
             if (!produto.temEstoqueDisponivel(itemRequest.quantidade())) {
                 throw new IllegalArgumentException("Estoque insuficiente para o produto " + produto.getNome());
             }
-
-            try {
-                pedido.adicionarItem(produto, itemRequest.quantidade());
-            } catch (EstoqueInsuficienteException e) {
-                throw new IllegalArgumentException(e.getMessage(), e);
-            }
+            pedido.adicionarItem(produto, itemRequest.quantidade());
         }
 
         pedidos.put(pedido.getNumero(), pedido);

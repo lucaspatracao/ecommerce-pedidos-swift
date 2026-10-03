@@ -9,6 +9,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    @ExceptionHandler(ECommerceException.class)
+    public ResponseEntity<Map<String, String>> handleDomainException(ECommerceException exception) {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(Map.of("erro", exception.getMessage()));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleBadRequest(IllegalArgumentException exception) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -18,12 +24,6 @@ public class ApiExceptionHandler {
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, String>> handleConflict(IllegalStateException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(Map.of("erro", exception.getMessage()));
-    }
-
-    @ExceptionHandler(ECommerceException.class)
-    public ResponseEntity<Map<String, String>> handleDomainException(ECommerceException exception) {
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
                 .body(Map.of("erro", exception.getMessage()));
     }
 }

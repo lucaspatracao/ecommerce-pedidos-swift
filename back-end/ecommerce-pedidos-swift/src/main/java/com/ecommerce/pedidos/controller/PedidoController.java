@@ -1,5 +1,6 @@
 package com.ecommerce.pedidos.controller;
 
+import com.ecommerce.pedidos.excecao.EstoqueInsuficienteException;
 import com.ecommerce.pedidos.model.Pedido;
 import com.ecommerce.pedidos.model.SituacaoPedido;
 import com.ecommerce.pedidos.service.PedidoService;
@@ -37,7 +38,7 @@ public class PedidoController {
     }
 
     @PostMapping("/pedidos")
-    public ResponseEntity<Pedido> criar(@RequestBody PedidoRequest request) {
+    public ResponseEntity<Pedido> criar(@RequestBody PedidoRequest request) throws EstoqueInsuficienteException {
         Pedido pedido = pedidoService.criarPedido(request.clienteCpf(), request.itens());
         return ResponseEntity.status(HttpStatus.CREATED).body(pedido);
     }

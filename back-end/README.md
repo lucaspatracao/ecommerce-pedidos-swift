@@ -388,7 +388,6 @@ O pacote é `com.ecommerce.pedidos.excecao` e contém:
 - `EstoqueInsuficienteException` — representa falta de estoque com dados do produto e da quantidade solicitada.
 - `PagamentoRecusadoException` — representa recusa de processamento com a forma de pagamento e o motivo.
 - `ClienteNaoEncontradoException` — identificador buscado do cliente.
-- `PedidoInvalidoException` — pedido inválido, usado em situações de negócio como pedido já pago ou inconsistente.
 
 #### Critério checked × unchecked
 
