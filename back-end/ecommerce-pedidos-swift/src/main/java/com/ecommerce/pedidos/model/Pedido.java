@@ -2,6 +2,7 @@ package com.ecommerce.pedidos.model;
 
 import com.ecommerce.pedidos.excecao.EstoqueInsuficienteException;
 import com.ecommerce.pedidos.excecao.PagamentoRecusadoException;
+import com.ecommerce.pedidos.excecao.PedidoInvalidoException;
 import com.ecommerce.pedidos.swift.util.PedidoUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -138,15 +139,15 @@ public class Pedido {
                 .toList();
     }
 
-    public void pagar(ProcessadorPagamento processador) throws PagamentoRecusadoException {
+    public void pagar(ProcessadorPagamento processador) throws PagamentoRecusadoException, PedidoInvalidoException {
         if (processador == null) {
             throw new IllegalArgumentException("Processador é obrigatório");
         }
         if (situacao != SituacaoPedido.ABERTO) {
-            throw new IllegalStateException("Pedido " + situacao + " não pode ser pago");
+            throw new PedidoInvalidoException("Pedido " + situacao + " não pode ser pago");
         }
         if (itens.isEmpty()) {
-            throw new IllegalStateException("Pedido sem itens não pode ser pago");
+            throw new PedidoInvalidoException("Pedido sem itens não pode ser pago");
         }
 
         BigDecimal valorTotal = calcularValorTotal();
@@ -158,14 +159,14 @@ public class Pedido {
         this.situacao = SituacaoPedido.PAGO;
     }
 
-    public void pagar() throws PagamentoRecusadoException {
+    public void pagar() throws PagamentoRecusadoException, PedidoInvalidoException {
         if (formaPagamento == null) {
             throw new IllegalStateException("Pedido não possui forma de pagamento definida");
         }
         pagar(formaPagamento);
     }
 
-    public void pagarCom(FormaPagamento formaPagamento) throws PagamentoRecusadoException {
+    public void pagarCom(FormaPagamento formaPagamento) throws PagamentoRecusadoException, PedidoInvalidoException {
         if (formaPagamento == null) {
             throw new IllegalArgumentException("Forma de pagamento é obrigatória");
         }
