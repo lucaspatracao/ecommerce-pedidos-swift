@@ -330,9 +330,9 @@ Camada de domínio / serviços / persistência
 | **05** | Encapsulamento e abstração aplicados | 🟢 Concluído |
 | **06** | Hierarquia de formas de pagamento (herança) | 🟢 Concluído |
 | **07** | Relacionamentos entre classes do domínio | 🟢 Concluído |
-| **08** | Módulo de pagamento polimórfico | ⏳ Pendente |
-| **09** | Tratamento de exceções e validações | ⏳ Pendente |
-| **10** | Suíte de testes unitários | ⏳ Pendente |
+| **08** | Módulo de pagamento polimórfico | 🟢 Concluído |
+| **09** | Tratamento de exceções e validações | 🟢 Concluído |
+| **10** | Suíte de testes unitários | 🟢 Concluído |
 | **11** | Suíte de testes de integração + relatório de cobertura | ⏳ Pendente |
 | **12** | Persistência: conexão, operações Create e Read | ⏳ Pendente |
 | **13** | Persistência: operações Update, Delete e padrão DAO/Repository | ⏳ Pendente |
@@ -388,6 +388,7 @@ O pacote é `com.ecommerce.pedidos.excecao` e contém:
 - `EstoqueInsuficienteException` — representa falta de estoque com dados do produto e da quantidade solicitada.
 - `PagamentoRecusadoException` — representa recusa de processamento com a forma de pagamento e o motivo.
 - `ClienteNaoEncontradoException` — identificador buscado do cliente.
+- `PedidoInvalidoException` — representa pedido inválido para pagamento, como pedido sem itens ou fora do estado `ABERTO`.
 
 #### Critério checked × unchecked
 
@@ -416,10 +417,14 @@ A equipe definiu um único critério para todo o projeto:
   - estoque indisponível → `EstoqueInsuficienteException`
 - `Pedido.pagar(ProcessadorPagamento processador)`:
   - processador nulo → `IllegalArgumentException`
-  - pedido sem itens → `IllegalStateException`
-  - pedido fora de `ABERTO` → `IllegalStateException`
+  - pedido sem itens → `PedidoInvalidoException`
+  - pedido fora de `ABERTO` → `PedidoInvalidoException`
   - processamento recusado → `PagamentoRecusadoException`
   - em caso de recusa, o pedido permanece `ABERTO` e não muda de situação.
+
+#### Estado atual da qualidade
+
+A suíte de testes unitários do domínio foi implementada para `Produto`, `Cliente`, `ItemPedido`, `Pedido` e formas de pagamento, cobrindo cenários felizes e de falha com `assertThrows`, além de validar o mapeamento de exceções da Aula 09. O backend já está com a suíte configurada e executando via Maven em `mvn test`, com cobertura de domínio validada pelo JaCoCo.
 
 #### Limpeza de antipadrões
 
