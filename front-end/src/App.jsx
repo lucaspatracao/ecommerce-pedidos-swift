@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import logo from './assets/logo.png'
 import './App.css'
 import {
@@ -55,9 +55,8 @@ function AppShell() {
   const [dashboard, setDashboard] = useState(estadoInicialDashboard)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  
-  // Estado para gerenciar a minimização
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const navigate = useNavigate()
 
   const carregarDados = async () => {
     setLoading(true)
@@ -126,14 +125,13 @@ function AppShell() {
     }
   }
 
+  const handleNovoPedido = () => {
+    navigate('/pedidos/novo')
+  }
+
   return (
-    // Adicionada a classe condicional no shell para ajustar o layout principal do Grid
     <div className={`app-shell ${isCollapsed ? 'sidebar-collapsed' : ''}`}>
-      
-      {/* Correção crucial: Injetada a classe '.is-collapsed' exata esperada pelo seu CSS */}
       <aside className={`sidebar ${isCollapsed ? 'is-collapsed' : ''}`}>
-        
-        {/* Clique na brand-box inverte o estado. Adicionado o ponteiro via estilo inline */}
         <div className="brand-box" onClick={() => setIsCollapsed(!isCollapsed)} style={{ cursor: 'pointer' }}>
           <div className="brand-mark">
             <img src={logo} alt="Logotipo da Marca" />
@@ -151,14 +149,13 @@ function AppShell() {
               to={item.to}
               end={item.exact}
               className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}
-              title={item.label} // Adicionado conforme o comentário do seu CSS para gerar Tooltips nativos
+              title={item.label}
             >
               {item.label}
             </NavLink>
           ))}
         </nav>
 
-        {/* Mantido o HTML sem alterações de remoção do React para que a animação flua pelo CSS */}
         <div className="sidebar-summary">
           <span className="label">Resumo rápido</span>
           <div>
@@ -185,7 +182,7 @@ function AppShell() {
 
           <div className="topbar-actions">
             <button type="button" className="btn btn-ghost" onClick={carregarDados}>Atualizar</button>
-            <button type="button" className="btn btn-primary">Novo pedido</button>
+            <button type="button" className="btn btn-primary" onClick={handleNovoPedido}>Novo pedido</button>
           </div>
         </header>
 
@@ -197,6 +194,7 @@ function AppShell() {
             <Route path="/clientes" element={<ClientesPage clientes={clientes} loading={loading} error={error} onClienteSalvo={handleClienteSalvo} onClienteDelete={handleClienteExcluido} />} />
             <Route path="/produtos" element={<ProdutosPage produtos={produtos} loading={loading} error={error} onProdutoSalvo={handleProdutoSalvo} onProdutoDelete={handleProdutoExcluido} />} />
             <Route path="/pedidos" element={<PedidosPage pedidos={pedidos} loading={loading} error={error} />} />
+            <Route path="/pedidos/novo" element={<PedidosPage pedidos={pedidos} loading={loading} error={error} />} />
             <Route path="/pagamentos" element={<PagamentosPage pagamentos={pagamentos} loading={loading} error={error} />} />
             <Route path="/pedido/:id" element={<DetalhePedidoPage pedidos={pedidos} />} />
             <Route path="/historico" element={<HistoricoPage historico={historico} loading={loading} error={error} />} />

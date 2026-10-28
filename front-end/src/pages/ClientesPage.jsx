@@ -53,7 +53,7 @@ export function ClientesPage({ clientes = [], loading, error, onClienteSalvo, on
           ) : clientesFiltrados.length === 0 ? (
             <div className="empty-panel">Nenhum cliente cadastrado ainda.</div>
           ) : (
-            <div className="table-wrapper">
+            <div className="table-responsive">
               <table>
                 <thead>
                   <tr>

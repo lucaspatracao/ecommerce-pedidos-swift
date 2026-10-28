@@ -9,19 +9,24 @@ const estadoInicial = {
   endereco: '',
 }
 
-// O back-end devolve `endereco` como objeto { logradouro, cidade, cep } (ver
-// Cliente.java), mas o formulário tem um único campo de texto e o DTO de
-// escrita (ClienteController.ClienteRequest) espera `endereco` como String.
-// Sem essa conversão, o input exibia "[object Object]" e o PUT enviava o
-// objeto de volta, quebrando a deserialização no Jackson com 400.
-const enderecoParaTexto = (endereco) => {
+const extrairEnderecoTexto = (endereco) => {
   if (!endereco) return ''
-  if (typeof endereco === 'string') return endereco
-  return endereco.logradouro ?? ''
+  if (typeof endereco === 'string') return endereco.trim()
+  if (typeof endereco === 'object') {
+    return endereco.logradouro || endereco.rua || endereco.endereco || ''
+  }
+  return ''
 }
 
-const normalizarCliente = (cliente) =>
-  cliente ? { ...cliente, endereco: enderecoParaTexto(cliente.endereco) } : estadoInicial
+const normalizarCliente = (cliente) => {
+  if (!cliente) return estadoInicial
+
+  return {
+    ...cliente,
+    cpf: cliente.cpf || cliente.documento || '',
+    endereco: extrairEnderecoTexto(cliente.endereco),
+  }
+}
 
 export function ClienteForm({ cliente = null, onClienteSalvo, onCancelarEdicao }) {
   const [form, setForm] = useState(normalizarCliente(cliente))
@@ -47,7 +52,7 @@ export function ClienteForm({ cliente = null, onClienteSalvo, onCancelarEdicao }
 
     try {
       const clienteSalvo = isEdicao
-        ? await atualizarCliente(cliente.cpf, form)
+        ? await atualizarCliente(cliente.cpf || cliente.documento, form)
         : await cadastrarCliente(form)
 
       setMensagem(isEdicao ? 'Cliente atualizado com sucesso.' : 'Cliente cadastrado com sucesso.')

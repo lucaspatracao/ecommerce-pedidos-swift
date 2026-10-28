@@ -148,7 +148,7 @@ export function ProdutosPage({ produtos = [], loading, error, onProdutoSalvo, on
           ) : produtosFiltrados.length === 0 ? (
             <div className="empty-panel">Nenhum produto cadastrado ainda.</div>
           ) : (
-            <div className="table-wrapper">
+            <div className="table-responsive">
               <table>
                 <thead>
                   <tr>
