@@ -9,15 +9,34 @@ const estadoInicial = {
   endereco: '',
 }
 
+const extrairEnderecoTexto = (endereco) => {
+  if (!endereco) return ''
+  if (typeof endereco === 'string') return endereco.trim()
+  if (typeof endereco === 'object') {
+    return endereco.logradouro || endereco.rua || endereco.endereco || ''
+  }
+  return ''
+}
+
+const normalizarCliente = (cliente) => {
+  if (!cliente) return estadoInicial
+
+  return {
+    ...cliente,
+    cpf: cliente.cpf || cliente.documento || '',
+    endereco: extrairEnderecoTexto(cliente.endereco),
+  }
+}
+
 export function ClienteForm({ cliente = null, onClienteSalvo, onCancelarEdicao }) {
-  const [form, setForm] = useState(cliente ?? estadoInicial)
+  const [form, setForm] = useState(normalizarCliente(cliente))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [mensagem, setMensagem] = useState('')
   const [erro, setErro] = useState('')
   const isEdicao = Boolean(cliente)
 
   useEffect(() => {
-    setForm(cliente ?? estadoInicial)
+    setForm(normalizarCliente(cliente))
   }, [cliente])
 
   const handleChange = (event) => {
@@ -33,7 +52,7 @@ export function ClienteForm({ cliente = null, onClienteSalvo, onCancelarEdicao }
 
     try {
       const clienteSalvo = isEdicao
-        ? await atualizarCliente(cliente.cpf, form)
+        ? await atualizarCliente(cliente.cpf || cliente.documento, form)
         : await cadastrarCliente(form)
 
       setMensagem(isEdicao ? 'Cliente atualizado com sucesso.' : 'Cliente cadastrado com sucesso.')
