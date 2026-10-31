@@ -439,18 +439,19 @@ A equipe definiu um único critério para todo o projeto:
   - processamento recusado → `PagamentoRecusadoException`
   - em caso de recusa, o pedido permanece `ABERTO` e não muda de situação.
 
-#### Estado atual da qualidade
+#### Status da Aula 12
 
-A suíte de testes unitários do domínio foi implementada para `Produto`, `Cliente`, `ItemPedido`, `Pedido` e formas de pagamento, cobrindo cenários felizes e de falha com `assertThrows`, além de validar o mapeamento de exceções da Aula 09. O backend já está com a suíte configurada e executando via Maven em `mvn test`, com cobertura de domínio validada pelo JaCoCo.
+O backend do projeto foi modernizado e padronizado para atender aos requisitos da aula atual:
 
-#### Limpeza de antipadrões
+- os subpacotes foram unificados em Português, com `modelo`, `servico`, `repositorio`, `excecao`, `controller` e `swift` em uso consistente;
+- a suíte de testes cobre os fluxos de domínio e foi ampliada com o teste de integração `PedidoIntegracaoTest`, isolando o ciclo de criação do pedido e processamento de pagamento;
+- a persistência inicial foi configurada com a dependência oficial do MySQL e a classe `ConexaoFactory` via JDBC, preparadas para a etapa de armazenamento real em banco de dados.
 
-Também foram eliminados padrões problemáticos do código:
+O fluxo recomendado para validação é:
 
-- remoção de `catch (Exception e)` genéricos sem resolução;
-- remoção de `printStackTrace()` e de depuração espalhada;
-- remoção de `System.out.println` dentro dos processadores de pagamento, mantendo os dados no próprio comprovante e na mensagem da exceção.
-
-A camada HTTP (`ApiExceptionHandler`) passa a traduzir essas exceções de domínio em respostas amigáveis para o cliente, sem mascarar o problema original.
+```bash
+git switch feat/aula-12-refatoracao
+mvn clean test
+```
 
 ---

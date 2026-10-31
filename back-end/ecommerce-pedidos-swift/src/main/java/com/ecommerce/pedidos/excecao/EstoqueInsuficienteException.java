@@ -1,6 +1,6 @@
 package com.ecommerce.pedidos.excecao;
 
-import com.ecommerce.pedidos.model.Produto;
+import com.ecommerce.pedidos.modelo.Produto;
 
 public class EstoqueInsuficienteException extends ECommerceException {
     private final Produto produto;

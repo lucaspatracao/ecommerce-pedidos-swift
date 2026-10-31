@@ -1,7 +1,7 @@
 package com.ecommerce.pedidos.controller;
 
-import com.ecommerce.pedidos.model.Produto;
-import com.ecommerce.pedidos.service.ProdutoService;
+import com.ecommerce.pedidos.modelo.Produto;
+import com.ecommerce.pedidos.servico.ProdutoService;
 import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.http.HttpStatus;

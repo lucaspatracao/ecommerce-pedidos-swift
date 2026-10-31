@@ -1,11 +1,11 @@
 package com.ecommerce.pedidos.controller;
 
-import com.ecommerce.pedidos.model.CartaoCredito;
-import com.ecommerce.pedidos.model.FormaPagamento;
-import com.ecommerce.pedidos.model.Boleto;
-import com.ecommerce.pedidos.model.Pix;
-import com.ecommerce.pedidos.service.PagamentoService;
-import com.ecommerce.pedidos.service.PedidoService;
+import com.ecommerce.pedidos.modelo.Boleto;
+import com.ecommerce.pedidos.modelo.CartaoCredito;
+import com.ecommerce.pedidos.modelo.FormaPagamento;
+import com.ecommerce.pedidos.modelo.Pix;
+import com.ecommerce.pedidos.servico.PagamentoService;
+import com.ecommerce.pedidos.servico.PedidoService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;

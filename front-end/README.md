@@ -321,7 +321,7 @@ Camada de domínio / serviços / persistência
 | **09** | Tratamento de exceções e validações | ⏳ Pendente |
 | **10** | Suíte de testes unitários | ⏳ Pendente |
 | **11** | Suíte de testes de integração + relatório de cobertura | ⏳ Pendente |
-| **12** | Persistência: conexão, operações Create e Read | ⏳ Pendente |
+| **12** | Persistência: conexão, operações Create e Read | 🟢 Concluído |
 | **13** | Persistência: operações Update, Delete e padrão DAO/Repository | ⏳ Pendente |
 | **14** | Migração e estruturação com Spring Boot | 🟢 Concluído |
 | **15** | API REST completa + integração com Front-end + pipeline de CI/CD | 🟡 Em desenvolvimento |
@@ -360,3 +360,17 @@ As próximas evoluções do projeto estão concentradas em:
 ### Licença
 
 Projeto estritamente acadêmico — **Faculdade de Tecnologia SENAI "Antonio Adolpho Lobbe"**. Todos os direitos reservados aos autores e à instituição.
+
+---
+
+### Status da Aula 12
+
+O projeto foi atualizado para refletir a consolidação da arquitetura em Java e da etapa de persistência inicial:
+
+- os subpacotes do backend foram padronizados em Português (`modelo`, `servico`, `repositorio`, `excecao` e `controller`);
+- a estrutura de testes foi reforçada com testes unitários e um novo teste de integração que valida o fluxo de Pedido/Pagamento;
+- a persistência inicial foi preparada com a dependência do MySQL e a classe `ConexaoFactory` via JDBC.
+
+Este README acompanha o estado atual do projeto, mantendo a interface conectada ao backend e sinalizando os avanços do ciclo de desenvolvimento.
+
+---

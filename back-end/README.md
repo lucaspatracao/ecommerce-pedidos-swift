@@ -422,6 +422,20 @@ A equipe definiu um único critério para todo o projeto:
   - processamento recusado → `PagamentoRecusadoException`
   - em caso de recusa, o pedido permanece `ABERTO` e não muda de situação.
 
+#### Status da Aula 12
+
+O backend passou por uma etapa de padronização e expansão para contemplar a Aula 12:
+
+- os subpacotes foram padronizados em Português (`modelo`, `servico`, `repositorio`, `excecao`, `controller` e `swift`);
+- a execução de testes foi reforçada com o novo teste de integração de pedido e pagamento, além da suíte unitária já existente;
+- a base para persistência em banco de dados foi iniciada com a dependência do MySQL e a classe `ConexaoFactory` utilizando JDBC.
+
+A validação continua sendo realizada com o comando:
+
+```bash
+mvn clean test
+```
+
 #### Estado atual da qualidade
 
 A suíte de testes unitários do domínio foi implementada para `Produto`, `Cliente`, `ItemPedido`, `Pedido` e formas de pagamento, cobrindo cenários felizes e de falha com `assertThrows`, além de validar o mapeamento de exceções da Aula 09. O backend já está com a suíte configurada e executando via Maven em `mvn test`, com cobertura de domínio validada pelo JaCoCo.
