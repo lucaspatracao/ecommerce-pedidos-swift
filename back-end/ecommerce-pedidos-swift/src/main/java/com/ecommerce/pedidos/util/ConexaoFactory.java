@@ -14,11 +14,28 @@ public final class ConexaoFactory {
     }
 
     public static Connection getConnection() throws SQLException {
+        return getConnection(obterValor("DB_URL", "db.url"));
+    }
+
+    /**
+     * Abre uma conexão com outra URL (ex.: banco de testes), reaproveitando
+     * usuário e senha configurados.
+     */
+    public static Connection getConnection(String url) throws SQLException {
         return DriverManager.getConnection(
-                obterValor("DB_URL", "db.url"),
+                url,
                 obterValor("DB_USERNAME", "db.username"),
                 obterValor("DB_PASSWORD", "db.password")
         );
+    }
+
+    /** Lê uma configuração: variável de ambiente, propriedade de sistema ou application.properties. */
+    public static String obterConfiguracao(String variavelAmbiente, String chavePropriedade, String padrao) {
+        try {
+            return obterValor(variavelAmbiente, chavePropriedade);
+        } catch (IllegalStateException ausente) {
+            return padrao;
+        }
     }
 
     private static Properties carregarConfiguracao() {
