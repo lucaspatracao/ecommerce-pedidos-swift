@@ -1,6 +1,6 @@
 package com.ecommerce.pedidos.controller;
 
-import com.ecommerce.pedidos.service.DashboardService;
+import com.ecommerce.pedidos.servico.DashboardService;
 import java.util.Map;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;

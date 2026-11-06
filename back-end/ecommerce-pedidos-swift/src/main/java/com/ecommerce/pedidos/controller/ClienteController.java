@@ -1,7 +1,7 @@
 package com.ecommerce.pedidos.controller;
 
-import com.ecommerce.pedidos.model.Cliente;
-import com.ecommerce.pedidos.service.ClienteService;
+import com.ecommerce.pedidos.modelo.Cliente;
+import com.ecommerce.pedidos.servico.ClienteService;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

@@ -1,7 +1,7 @@
 package com.ecommerce.pedidos.controller;
 
-import com.ecommerce.pedidos.model.Pedido;
-import com.ecommerce.pedidos.service.PedidoService;
+import com.ecommerce.pedidos.modelo.Pedido;
+import com.ecommerce.pedidos.servico.PedidoService;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

@@ -1,10 +1,10 @@
 package com.ecommerce.pedidos.controller;
 
 import com.ecommerce.pedidos.excecao.EstoqueInsuficienteException;
-import com.ecommerce.pedidos.model.Pedido;
-import com.ecommerce.pedidos.model.SituacaoPedido;
-import com.ecommerce.pedidos.service.PedidoService;
-import com.ecommerce.pedidos.service.PedidoService.ItemPedidoRequest;
+import com.ecommerce.pedidos.modelo.Pedido;
+import com.ecommerce.pedidos.modelo.SituacaoPedido;
+import com.ecommerce.pedidos.servico.PedidoService;
+import com.ecommerce.pedidos.servico.PedidoService.ItemPedidoRequest;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
