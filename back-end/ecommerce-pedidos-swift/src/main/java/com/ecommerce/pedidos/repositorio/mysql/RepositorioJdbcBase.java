@@ -9,6 +9,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Base comum dos repositórios JDBC. Padroniza: PreparedStatement sempre com
@@ -111,6 +112,18 @@ abstract class RepositorioJdbcBase {
     protected static void exigirLinhaAfetada(int linhasAfetadas, String entidade, Object identificador) {
         if (linhasAfetadas == 0) {
             throw RepositorioException.naoEncontrado(entidade, identificador);
+        }
+    }
+
+    /** Troca a mensagem genérica de chave duplicada por uma mensagem de negócio. */
+    protected static <T> T comMensagemDuplicado(String mensagem, Supplier<T> operacao) {
+        try {
+            return operacao.get();
+        } catch (RepositorioException e) {
+            if (e.getTipo() == RepositorioException.Tipo.DUPLICADO) {
+                throw RepositorioException.duplicado(mensagem, e.getCause());
+            }
+            throw e;
         }
     }
 }
