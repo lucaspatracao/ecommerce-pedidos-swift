@@ -447,7 +447,7 @@ O backend do projeto foi modernizado e padronizado para atender aos requisitos d
 - a suíte de testes cobre os fluxos de domínio e foi ampliada com o teste de integração `PedidoIntegracaoTest`, isolando o ciclo de criação do pedido e processamento de pagamento;
 - a persistência inicial foi configurada com a dependência oficial do MySQL e a classe `ConexaoFactory` via JDBC, preparadas para a etapa de armazenamento real em banco de dados.
 
-O fluxo recomendado para validação é:
+A validação recomendada é:
 
 ```bash
 git switch feat/aula-12-refatoracao
