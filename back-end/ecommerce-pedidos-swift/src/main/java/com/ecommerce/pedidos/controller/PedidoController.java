@@ -9,12 +9,14 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -28,8 +30,15 @@ public class PedidoController {
     }
 
     @GetMapping("/pedidos")
-    public List<Pedido> listar() {
-        return pedidoService.listarTodos();
+    public List<Pedido> listar(
+            @RequestParam(required = false) String situacao,
+            @RequestParam(required = false) Integer pagina,
+            @RequestParam(required = false) Integer tamanho) {
+        var paginacao = ParametrosConsulta.pagina(pagina, tamanho);
+        if (situacao != null && !situacao.isBlank()) {
+            return pedidoService.listarPorSituacao(SituacaoPedido.valueOf(situacao.trim().toUpperCase()), paginacao);
+        }
+        return pedidoService.listar(paginacao);
     }
 
     @GetMapping("/pedidos/{numero}")
@@ -37,6 +46,7 @@ public class PedidoController {
         return pedidoService.buscarPorNumero(numero);
     }
 
+    /** Finalização transacional: pedido + itens + baixa de estoque, tudo ou nada. */
     @PostMapping("/pedidos")
     public ResponseEntity<Pedido> criar(@RequestBody PedidoRequest request) throws EstoqueInsuficienteException {
         Pedido pedido = pedidoService.criarPedido(request.clienteCpf(), request.itens());
@@ -50,6 +60,24 @@ public class PedidoController {
         }
         pedidoService.atualizarStatus(numero, SituacaoPedido.valueOf(request.status()));
         return pedidoService.buscarPorNumero(numero);
+    }
+
+    /** Cancela (pedido pago não é excluído; muda de situação e devolve o estoque). */
+    @PostMapping("/pedidos/{numero}/cancelar")
+    public Pedido cancelar(@PathVariable String numero) {
+        return pedidoService.cancelar(numero);
+    }
+
+    /** Exclui pedido em aberto (itens saem em cascata). Pago/cancelado: 409. */
+    @DeleteMapping("/pedidos/{numero}")
+    public ResponseEntity<Void> excluir(@PathVariable String numero) {
+        pedidoService.excluir(numero);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/pedidos/{numero}/itens/{itemId}")
+    public Pedido removerItem(@PathVariable String numero, @PathVariable Long itemId) {
+        return pedidoService.removerItem(numero, itemId);
     }
 
     public record PedidoRequest(String clienteCpf, List<ItemPedidoRequest> itens) {

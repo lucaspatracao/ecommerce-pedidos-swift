@@ -1,5 +1,6 @@
 package com.ecommerce.pedidos.controller;
 
+import com.ecommerce.pedidos.excecao.ECommerceException;
 import com.ecommerce.pedidos.modelo.Boleto;
 import com.ecommerce.pedidos.modelo.CartaoCredito;
 import com.ecommerce.pedidos.modelo.FormaPagamento;
@@ -61,7 +62,8 @@ public class PagamentoController {
     }
 
     @PostMapping("/pagamentos")
-    public ResponseEntity<Map<String, Object>> registrar(@RequestBody PagamentoRequest request) {
+    public ResponseEntity<Map<String, Object>> registrar(@RequestBody PagamentoRequest request)
+            throws ECommerceException {
         if (request == null || request.pedidoNumero() == null || request.pedidoNumero().isBlank()) {
             throw new IllegalArgumentException("Número do pedido é obrigatório para registrar o pagamento.");
         }
@@ -91,18 +93,8 @@ public class PagamentoController {
             default -> throw new IllegalArgumentException("Tipo de pagamento inválido.");
         }
 
-        var pedido = pedidoService.buscarPorNumero(request.pedidoNumero());
-        if (pedido == null) {
-            throw new IllegalArgumentException("Pedido não encontrado.");
-        }
-        try {
-            pedido.pagarCom(pagamento);
-        } catch (Exception ex) {
-            if (ex instanceof RuntimeException runtime) {
-                throw runtime;
-            }
-            throw new IllegalStateException(ex.getMessage(), ex);
-        }
+        // Processa o pagamento e grava a situação PAGO na mesma transação.
+        pedidoService.registrarPagamento(request.pedidoNumero(), pagamento);
         service.registrar(pagamento);
         Map<String, Object> resposta = new HashMap<>();
         resposta.put("mensagem", "Pagamento registrado com sucesso.");

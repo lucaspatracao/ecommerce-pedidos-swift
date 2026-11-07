@@ -10,6 +10,8 @@ import java.util.Objects;
  * fisico.
  */
 public class Produto {
+    private Long id;
+    private int versao;
     private final String codigo;
     private String nome;
     private String descricao;
@@ -34,6 +36,31 @@ public class Produto {
 
     public static int getTotalDeProdutosCriados() {
         return totalDeProdutosCriados;
+    }
+
+
+    /**
+     * Identificador gerado pelo banco. {@code null} significa "ainda não
+     * persistido" — é o que o repositório usa para decidir entre INSERT e UPDATE.
+     */
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    /** Versão usada no controle de concorrência otimista. */
+    public int getVersao() {
+        return versao;
+    }
+
+    public void setVersao(int versao) {
+        if (versao < 0) {
+            throw new IllegalArgumentException("Versão não pode ser negativa.");
+        }
+        this.versao = versao;
     }
 
     public String getCodigo() {

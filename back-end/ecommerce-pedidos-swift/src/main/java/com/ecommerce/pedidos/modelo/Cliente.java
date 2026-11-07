@@ -8,6 +8,8 @@ public class Cliente extends Pessoa {
     private String email;
     private String telefone;
     private Endereco endereco;
+    private Long id;
+    private boolean ativo = true;
 
     public Cliente(String nome, String cpf, String email, String telefone, String endereco) {
         this(nome, cpf, email, telefone, endereco == null || endereco.isBlank()
@@ -20,6 +22,28 @@ public class Cliente extends Pessoa {
         setEmail(email);
         setTelefone(telefone);
         setEndereco(endereco);
+    }
+
+
+    /**
+     * Identificador gerado pelo banco. {@code null} significa "ainda não
+     * persistido" — é o que o repositório usa para decidir entre INSERT e UPDATE.
+     */
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    /** {@code false} quando o cliente foi inativado (soft delete). */
+    public boolean isAtivo() {
+        return ativo;
+    }
+
+    public void setAtivo(boolean ativo) {
+        this.ativo = ativo;
     }
 
     public String getCpf() {
