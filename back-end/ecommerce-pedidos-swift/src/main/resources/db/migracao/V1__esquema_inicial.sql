@@ -10,7 +10,7 @@ CREATE TABLE cliente (
     telefone   VARCHAR(20)  NOT NULL,
     logradouro VARCHAR(200) NULL,
     cidade     VARCHAR(100) NULL,
-    cep        VARCHAR(10)  NULL,
+    cep        VARCHAR(20)  NULL,
     CONSTRAINT pk_cliente PRIMARY KEY (id),
     CONSTRAINT uk_cliente_cpf UNIQUE (cpf),
     CONSTRAINT uk_cliente_email UNIQUE (email)
