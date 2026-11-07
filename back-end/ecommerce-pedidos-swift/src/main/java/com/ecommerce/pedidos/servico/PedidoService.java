@@ -126,7 +126,9 @@ public class PedidoService {
     private void baixarEstoque(Connection conexao, Produto produto, int quantidade)
             throws EstoqueInsuficienteException {
         if (!produtoRepository.baixarEstoque(conexao, produto.getId(), quantidade)) {
-            Produto atual = produtoRepository.buscarPorId(conexao, produto.getId(), Visibilidade.TODOS)
+            // Leitura com bloqueio: mostra o estoque realmente disponível agora,
+            // não o valor do snapshot lido no início da transação.
+            Produto atual = produtoRepository.buscarPorIdParaAtualizacao(conexao, produto.getId())
                 .orElse(produto);
             throw new EstoqueInsuficienteException(atual, quantidade);
         }

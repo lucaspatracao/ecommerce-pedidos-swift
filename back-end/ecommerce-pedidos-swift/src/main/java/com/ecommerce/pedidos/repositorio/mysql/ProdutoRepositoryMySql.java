@@ -184,6 +184,15 @@ public class ProdutoRepositoryMySql extends RepositorioJdbcBase implements Produ
     }
 
     @Override
+    public Optional<Produto> buscarPorIdParaAtualizacao(Connection conexao, Long id) {
+        if (id == null) {
+            return Optional.empty();
+        }
+        return consultarUm(conexao, select(Visibilidade.TODOS, "p.id = ?") + " FOR UPDATE",
+            statement -> statement.setLong(1, id), this::mapear);
+    }
+
+    @Override
     public Optional<Produto> buscarPorCodigo(Connection conexao, String codigo) {
         return buscarPorCodigo(conexao, codigo, Visibilidade.ATIVOS);
     }

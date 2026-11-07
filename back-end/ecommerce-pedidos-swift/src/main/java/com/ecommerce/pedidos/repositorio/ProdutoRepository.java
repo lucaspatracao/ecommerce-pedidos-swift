@@ -55,6 +55,13 @@ public interface ProdutoRepository {
 
     Optional<Produto> buscarPorId(Connection conexao, Long id, Visibilidade visibilidade);
 
+    /**
+     * Leitura com bloqueio ({@code SELECT ... FOR UPDATE}): devolve o valor
+     * mais recente confirmado no banco, inclusive dentro de uma transação
+     * REPEATABLE READ, e trava a linha até o fim da transação.
+     */
+    Optional<Produto> buscarPorIdParaAtualizacao(Connection conexao, Long id);
+
     Optional<Produto> buscarPorCodigo(Connection conexao, String codigo);
 
     Optional<Produto> buscarPorCodigo(Connection conexao, String codigo, Visibilidade visibilidade);

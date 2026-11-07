@@ -180,6 +180,11 @@ public class BancoEmMemoria {
         }
 
         @Override
+        public Optional<Produto> buscarPorIdParaAtualizacao(Connection conexao, Long id) {
+            return buscarPorId(conexao, id, Visibilidade.TODOS);
+        }
+
+        @Override
         public Optional<Produto> buscarPorCodigo(Connection conexao, String codigo) {
             return buscarPorCodigo(conexao, codigo, Visibilidade.ATIVOS);
         }
