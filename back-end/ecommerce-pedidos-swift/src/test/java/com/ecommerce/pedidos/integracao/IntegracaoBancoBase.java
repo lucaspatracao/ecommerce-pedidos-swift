@@ -83,6 +83,11 @@ public abstract class IntegracaoBancoBase {
         }
     }
 
+    /** URL do banco de testes (para apontar a aplicação Spring para ele). */
+    protected static String urlTeste() {
+        return urlTeste;
+    }
+
     protected static Connection abrirConexao() throws SQLException {
         return ConexaoFactory.getConnection(urlTeste);
     }
