@@ -61,7 +61,7 @@ Esse desenho permite adicionar novas formas de pagamento sem alterar a lógica c
 * **Gerenciador de Build e Dependências:** Apache Maven
 * **Framework Web:** Spring Boot
 * **API:** REST
-* **Testes:** JUnit 5
+* **Testes:** JUnit 5, Spring MockMvc, Surefire/Failsafe e JaCoCo
 * **Front-end:** React
 * **Build / Desenvolvimento Front-end:** Vite
 * **Controle de Versão e Colaboração:** Git & GitHub
@@ -329,19 +329,89 @@ for f in V1__*.sql V2__*.sql V3__*.sql V4__*.sql; do mysql -u root -p ecommerce 
 
 ```bash
 cd back-end/ecommerce-pedidos-swift
-mvn clean test                                  # tudo (unidade + integração com MySQL)
-mvn clean test -DexcludedGroups=integracao      # só os testes que não usam banco
+mvn clean test      # só a suíte de unidade (sem banco)
+mvn clean verify    # unidade + integração com MySQL + relatório de cobertura
 ```
 
 - Os testes de integração (tag `integracao`, pacote `integracao/`) usam um banco **separado**, `ecommerce_test`. Ele é criado se não existir, o esquema é recriado pelas próprias migrations e os dados são limpos após cada teste. A URL é configurável por `DB_TEST_URL`; usuário e senha vêm de `DB_USERNAME`/`DB_PASSWORD` ou do `application.properties`.
-- Se o MySQL não estiver acessível, os testes de integração são **ignorados** (não falham).
+- Se o MySQL não estiver acessível, os testes de integração são **ignorados** (não falham). Detalhes das suítes e da cobertura na seção da Aula 11.
 - Os serviços também são testados sem banco, com repositórios em memória (`apoio/BancoEmMemoria`).
 
 Cenários cobertos: atualizar e conferir o valor gravado; atualizar id inexistente (erro de domínio); excluir e confirmar vazio; RESTRICT com mensagem de negócio; CASCADE; soft delete fora das listagens; preço histórico; concorrência otimista; paginação; e os **4 cenários de transação**: sucesso completo, falha ao gravar o segundo item, falha ao baixar estoque e estoque insuficiente no meio do laço (venda concorrente em outra conexão). Nos cenários de falha, o teste confirma que nenhum pedido, item ou alteração de estoque permaneceu.
 
-**Resultado atual:** 73 testes, 0 falhas (41 sem banco + 32 de integração).
+**Resultado na entrega da Aula 13:** 73 testes, 0 falhas (41 sem banco + 32 de integração). Com a Aula 11, a suíte passou a ter 113 testes (ver abaixo).
 
 **Status da Aula 13:** concluída na branch `feature/crud-completo`.
+
+---
+
+### Suíte de Testes de Integração e Relatório de Cobertura (Aula 11)
+
+Os testes foram separados em duas suítes, no padrão do Maven, e a cobertura passou a ser medida e exigida para o projeto inteiro.
+
+#### As duas suítes
+
+| Suíte | Plugin | Comando | Precisa de MySQL? | O que cobre |
+| :--- | :--- | :--- | :---: | :--- |
+| **Unidade** | Surefire | `mvn test` | Não | Domínio, exceções, `PedidoUtils`, regras dos serviços (com repositórios em memória), tradução de erros, mapeamento HTTP |
+| **Integração** | Failsafe | `mvn verify` | Sim | Repositórios contra o MySQL real, transações e rollback, e a **API REST ponta a ponta** (HTTP → controller → serviço → repositório → banco) |
+
+- A separação é feita pela tag JUnit `@Tag("integracao")`: o Surefire exclui a tag e o Failsafe roda só ela.
+- `mvn verify` executa as duas suítes, nesta ordem, e depois verifica a cobertura.
+- Os testes de integração usam o banco separado `ecommerce_test` (criado automaticamente, recriado pelas migrations e limpo após cada teste). URL configurável por `DB_TEST_URL`.
+
+#### Testes de integração da API (`ApiIntegracaoTest`)
+
+Sobem o contexto Spring completo (`@SpringBootTest` + `MockMvc`), inclusive a aplicação automática das migrations, e conferem tanto o código HTTP quanto o que ficou gravado no banco:
+
+- **Produtos:** cadastrar → buscar → atualizar → atualização parcial de estoque; versão desatualizada (409); soft delete e reativação; exclusão definitiva (204 se nunca vendido, 409 se vendido); busca por nome, paginação, parâmetros inválidos (400), código duplicado (409), produto inexistente (404).
+- **Clientes:** buscar e atualizar; atualizar inexistente (404); excluir com pedidos (409 com a mensagem de negócio); inativar/reativar mantendo o histórico de pedidos; CPF duplicado (409); excluir duas vezes (204 e depois 404).
+- **Pedidos e pagamentos:** estoque insuficiente (422, nada gravado); cliente/produto inexistente (404); pedido sem itens (400); pagar → tentar excluir (409) → cancelar (estoque devolvido) → cancelar de novo (409); pagamento com valor errado (409) ou tipo inválido (400); remover item e excluir pedido em aberto (estoque devolvido); dashboard e histórico.
+
+#### Relatório de cobertura (JaCoCo)
+
+Após `mvn verify`, abra no navegador:
+
+| Relatório | Arquivo |
+| :--- | :--- |
+| Suíte de unidade | `back-end/ecommerce-pedidos-swift/target/site/jacoco/index.html` |
+| Suíte de integração | `back-end/ecommerce-pedidos-swift/target/site/jacoco-it/index.html` |
+| **Total (unidade + integração)** | `back-end/ecommerce-pedidos-swift/target/site/jacoco-total/index.html` |
+
+Cada relatório também gera `jacoco.csv` e `jacoco.xml` (úteis para CI). As classes de entrada sem lógica (`EcommercePedidosSwiftApplication` e `swift/Aplicacao`) ficam fora da métrica.
+
+**Regras verificadas no build:**
+
+| Regra | Fase | Mínimo |
+| :--- | :--- | :--- |
+| Pacotes `modelo` e `excecao` cobertos pela suíte de unidade | `mvn test` | 70% de linhas por pacote |
+| Projeto inteiro (unidade + integração) | `mvn verify` | 85% de linhas e 65% de ramos |
+
+Os mínimos totais ficam nas propriedades `cobertura.minima.linhas` e `cobertura.minima.ramos` do `pom.xml`.
+
+> **Correção:** a regra de 70% do domínio (Aula 10) usava nomes com ponto (`com.ecommerce.pedidos.modelo.*`), mas o JaCoCo espera caminhos de classe com barra (`com/ecommerce/pedidos/modelo/**`). Com isso a regra não verificava nenhuma classe e sempre passava, mesmo com `modelo` em 69% e `excecao` em 56%. O padrão foi corrigido e os testes que faltavam foram escritos (`DominioComplementarTest`, `ExcecoesTest`, `PedidoUtilsTest`).
+
+#### Resultado atual
+
+| Suíte | Testes | Falhas | Cobertura de linhas | Cobertura de ramos |
+| :--- | :---: | :---: | :---: | :---: |
+| Unidade | 67 | 0 | 44,0% | 43,3% |
+| Integração | 46 | 0 | 75,6% | 51,1% |
+| **Total** | **113** | **0** | **90,8%** | **71,8%** |
+
+Cobertura total por pacote: `controller` 90%, `servico` 90%, `repositorio` 98%, `repositorio.mysql` 89%, `modelo` 92%, `excecao` 100%, `swift.util` 100%. Antes desta etapa, a cobertura total era de 64% de linhas e 46% de ramos, com os controllers praticamente sem testes (7%).
+
+#### Como rodar
+
+```bash
+cd back-end/ecommerce-pedidos-swift
+mvn clean test      # só a suíte de unidade (rápida, sem banco)
+mvn clean verify    # unidade + integração + relatórios + verificação de cobertura (precisa do MySQL)
+```
+
+Se o MySQL não estiver acessível, os testes de integração são ignorados; nesse caso o `mvn verify` falha na regra de cobertura total, de propósito, para que um build sem a suíte de integração não passe despercebido. Sem banco, use `mvn test`.
+
+**Status da Aula 11:** concluída na branch `feature/crud-completo`.
 
 ---
 
@@ -520,7 +590,7 @@ Camada de domínio / serviços / persistência
 | **08** | Módulo de pagamento polimórfico | 🟢 Concluído |
 | **09** | Tratamento de exceções e validações | 🟢 Concluído |
 | **10** | Suíte de testes unitários | 🟢 Concluído |
-| **11** | Suíte de testes de integração + relatório de cobertura | ⏳ Pendente |
+| **11** | Suíte de testes de integração + relatório de cobertura | 🟢 Concluído |
 | **12** | Persistência: conexão, operações Create e Read | 🟢 Concluído |
 | **13** | Persistência: operações Update, Delete e padrão DAO/Repository | 🟢 Concluído |
 | **14** | Migração e estruturação com Spring Boot | 🟢 Concluído |
