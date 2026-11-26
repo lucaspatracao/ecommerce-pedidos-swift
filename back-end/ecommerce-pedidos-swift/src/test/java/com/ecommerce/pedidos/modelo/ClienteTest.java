@@ -13,7 +13,7 @@ class ClienteTest {
 
     @BeforeEach
     void setUp() {
-        cliente = new Cliente("Maria Silva", "12345678909", "maria@email.com", "11999999999", new Endereco("Rua A", "São Paulo", "01000-000"));
+        cliente = new Cliente("Maria Silva", "89910440261", "maria@email.com", "11999999999", new Endereco("Rua A", "São Paulo", "01000-000"));
     }
 
     @Test
@@ -23,7 +23,7 @@ class ClienteTest {
         // Act
         // Assert
         assertEquals("Maria Silva", cliente.getNome());
-        assertEquals("12345678909", cliente.getCpf());
+        assertEquals("89910440261", cliente.getCpf());
         assertEquals("maria@email.com", cliente.getEmail());
         assertEquals("11999999999", cliente.getTelefone());
     }
@@ -34,7 +34,7 @@ class ClienteTest {
         // Arrange
         // Act
         // Assert
-        assertThrows(IllegalArgumentException.class, () -> new Cliente("   ", "12345678909", "maria@email.com", "11999999999", new Endereco("Rua A", "São Paulo", "01000-000")));
+        assertThrows(IllegalArgumentException.class, () -> new Cliente("   ", "89910440261", "maria@email.com", "11999999999", new Endereco("Rua A", "São Paulo", "01000-000")));
     }
 
     @Test
@@ -43,7 +43,7 @@ class ClienteTest {
         // Arrange
         // Act
         // Assert
-        assertThrows(IllegalArgumentException.class, () -> new Cliente("Maria Silva", "12345678909", "mariaemail.com", "11999999999", new Endereco("Rua A", "São Paulo", "01000-000")));
+        assertThrows(IllegalArgumentException.class, () -> new Cliente("Maria Silva", "89910440261", "mariaemail.com", "11999999999", new Endereco("Rua A", "São Paulo", "01000-000")));
     }
 
     @Test

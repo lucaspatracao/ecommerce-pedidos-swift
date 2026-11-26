@@ -36,11 +36,11 @@ public class ProdutoDAO {
                 Produto produto = new Produto(
                     resultSet.getString("codigo"),
                     resultSet.getString("nome"),
+                    resultSet.getString("descricao"),
                     resultSet.getBigDecimal("preco"),
                     resultSet.getInt("quantidade_em_estoque")
                 );
-                produto.setDescricao(resultSet.getString("descricao"));
-                produto.setAtivo(resultSet.getBoolean("ativo"));
+                produto.definirDisponibilidade(resultSet.getBoolean("ativo"));
                 produtos.add(produto);
             }
         }

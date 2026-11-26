@@ -1,24 +1,35 @@
 package com.ecommerce.pedidos.modelo;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 /**
- * Associa um produto a um carrinho de compras, registrando a quantidade de
- * itens
- * e o valor praticado no momento exato da criacao da transacao.
- * Imutável após criação (exceto quantidade).
+ * Linha do pedido: um produto, a quantidade e o preço praticado.
+ *
+ * <p>O preço é copiado do produto no momento da compra. Se o produto mudar
+ * de preço depois, os pedidos antigos continuam com o valor que foi cobrado.</p>
+ *
+ * <p>O construtor é de pacote: itens só nascem por {@link Pedido#adicionarItem},
+ * que também cuida do estoque.</p>
  */
 public class ItemPedido {
-    private final Produto produto;
+    private Pedido pedido;
+    private Produto produto;
     private int quantidade;
-    private final BigDecimal precoPraticado;
+    private BigDecimal precoPraticado;
 
-    ItemPedido(Produto produto, int quantidade) {
+    ItemPedido(Pedido pedido, Produto produto, int quantidade) {
         if (produto == null) {
             throw new IllegalArgumentException("Produto do item é obrigatório");
         }
+        this.pedido = pedido;
         this.produto = produto;
-        setQuantidade(quantidade);
-        this.precoPraticado = produto.getPreco().setScale(2, java.math.RoundingMode.HALF_UP);
+        this.quantidade = validarQuantidade(quantidade);
+        this.precoPraticado = produto.getPreco().setScale(2, RoundingMode.HALF_UP);
+    }
+
+    ItemPedido(Produto produto, int quantidade) {
+        this(null, produto, quantidade);
     }
 
     public Produto getProduto() {
@@ -33,16 +44,21 @@ public class ItemPedido {
         return precoPraticado;
     }
 
-    void setQuantidade(int quantidade) {
+    void aumentarQuantidade(int adicional) {
+        this.quantidade = validarQuantidade(this.quantidade + adicional);
+    }
+
+    /** Regra de negócio: subtotal = preço praticado × quantidade. */
+    public BigDecimal calcularSubtotal() {
+        return precoPraticado.multiply(BigDecimal.valueOf(quantidade))
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private static int validarQuantidade(int quantidade) {
         if (quantidade <= 0) {
             throw new IllegalArgumentException("Quantidade do item deve ser maior que zero.");
         }
-        this.quantidade = quantidade;
-    }
-
-    public BigDecimal calcularSubtotal() {
-        return precoPraticado.multiply(BigDecimal.valueOf(quantidade))
-                .setScale(2, java.math.RoundingMode.HALF_UP);
+        return quantidade;
     }
 
     @Override

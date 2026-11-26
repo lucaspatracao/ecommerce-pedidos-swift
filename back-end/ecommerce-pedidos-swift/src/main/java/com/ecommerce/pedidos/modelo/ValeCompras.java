@@ -1,45 +1,39 @@
 package com.ecommerce.pedidos.modelo;
 
+import com.ecommerce.pedidos.util.Utils;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
+/**
+ * Quarta forma de pagamento. Existe para mostrar o princípio aberto/fechado:
+ * foi adicionada sem alterar {@code Pedido} nem o serviço de pagamento.
+ */
 public class ValeCompras extends FormaPagamento {
     private String codigo;
     private String emissor;
 
     public ValeCompras(BigDecimal valor, String codigo, String emissor) {
         super(valor);
-        setCodigo(codigo);
-        setEmissor(emissor);
+        this.codigo = Utils.textoObrigatorio(codigo, "Código do vale-compras");
+        this.emissor = Utils.textoObrigatorio(emissor, "Emissor do vale-compras");
     }
 
     public String getCodigo() {
         return codigo;
     }
 
-    public void setCodigo(String codigo) {
-        if (codigo == null || codigo.isBlank()) {
-            throw new IllegalArgumentException("Código do vale-compras é obrigatório");
-        }
-        this.codigo = codigo.trim();
-    }
-
     public String getEmissor() {
         return emissor;
     }
 
-    public void setEmissor(String emissor) {
-        if (emissor == null || emissor.isBlank()) {
-            throw new IllegalArgumentException("Emissor do vale-compras é obrigatório");
-        }
-        this.emissor = emissor.trim();
+    @Override
+    public boolean processar() {
+        aprovar();
+        return true;
     }
 
     @Override
-    public boolean processar() {
-        setDataDoPagamento(LocalDateTime.now());
-        setSituacao(SituacaoPagamento.APROVADO);
-        return true;
+    public String descreverMetodo() {
+        return "Vale " + emissor + " (" + codigo + ")";
     }
 
     @Override
@@ -51,10 +45,5 @@ public class ValeCompras extends FormaPagamento {
     @Override
     public String getDescricao() {
         return "ValeCompras";
-    }
-
-    @Override
-    public boolean permiteParcelamento() {
-        return false;
     }
 }

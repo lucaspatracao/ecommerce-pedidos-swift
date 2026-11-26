@@ -1,51 +1,48 @@
 package com.ecommerce.pedidos.modelo;
 
-import java.util.Objects;
+import com.ecommerce.pedidos.util.Utils;
 
+/**
+ * Superclasse abstrata de quem é "pessoa" no sistema (Aula 06).
+ *
+ * <p>Concentra o que {@link Cliente} e {@link Funcionario} têm em comum
+ * (nome e documento). É abstrata porque não existe "uma pessoa genérica":
+ * todo objeto concreto é um cliente ou um funcionário.</p>
+ */
 public abstract class Pessoa {
     private String nome;
     private String documento;
 
     protected Pessoa(String nome, String documento) {
-        setNome(nome);
-        setDocumento(documento);
+        alterarNome(nome);
+        this.documento = validarDocumento(documento);
     }
 
     public String getNome() {
         return nome;
     }
 
-    public void setNome(String nome) {
-        if (nome == null || nome.trim().isEmpty()) {
-            throw new IllegalArgumentException("Nome não pode ser nulo ou vazio.");
-        }
-        this.nome = nome.trim();
-    }
-
     public String getDocumento() {
         return documento;
     }
 
-    public void setDocumento(String documento) {
-        String documentoValidado = validarTextoObrigatorio(documento, "Documento");
-        if (!documentoValidado.matches("\\d+")) {
-            throw new IllegalArgumentException("Documento deve conter apenas dígitos.");
-        }
-        this.documento = documentoValidado;
+    /** Só as subclasses podem trocar o nome, sempre passando pela validação. */
+    protected final void alterarNome(String nome) {
+        this.nome = Utils.textoObrigatorio(nome, "Nome");
     }
 
-    protected String validarTextoObrigatorio(String valor, String nomeCampo) {
-        Objects.requireNonNull(valor, nomeCampo + " não pode ser nulo.");
-        String valorNormalizado = valor.trim();
-        if (valorNormalizado.isBlank()) {
-            throw new IllegalArgumentException(nomeCampo + " não pode estar em branco.");
+    private static String validarDocumento(String documento) {
+        String valor = Utils.textoObrigatorio(documento, "Documento");
+        if (!valor.matches("\\d+")) {
+            throw new IllegalArgumentException("Documento deve conter apenas dígitos.");
         }
-        return valorNormalizado;
+        return valor;
     }
 
     public String getResumo() {
         return nome + " (" + documento + ")";
     }
 
+    /** Cada tipo de pessoa decide como se identifica (polimorfismo). */
     public abstract String getIdentificacao();
 }

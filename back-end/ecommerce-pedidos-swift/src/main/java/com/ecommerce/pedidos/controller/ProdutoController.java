@@ -33,34 +33,31 @@ public class ProdutoController {
 
     @PostMapping
     public ResponseEntity<Produto> cadastrar(@RequestBody ProdutoRequest request) {
-        Produto produto = new Produto(
-            request.codigo(),
-            request.nome(),
-            new BigDecimal(request.preco()),
-            request.estoque()
-        );
-        produto.setDescricao(request.descricao());
-        produto.setAtivo(request.disponivel());
-        return ResponseEntity.status(HttpStatus.CREATED).body(produtoService.salvar(produto));
+        return ResponseEntity.status(HttpStatus.CREATED).body(produtoService.salvar(paraProduto(request)));
     }
 
     @PutMapping("/{codigo}")
     public Produto atualizar(@PathVariable("codigo") String codigo, @RequestBody ProdutoRequest request) {
-        Produto produtoAtualizado = new Produto(
-            request.codigo(),
-            request.nome(),
-            new BigDecimal(request.preco()),
-            request.estoque()
-        );
-        produtoAtualizado.setDescricao(request.descricao());
-        produtoAtualizado.setAtivo(request.disponivel());
-        return produtoService.atualizar(codigo, produtoAtualizado);
+        return produtoService.atualizar(codigo, paraProduto(request));
     }
 
     @DeleteMapping("/{codigo}")
     public ResponseEntity<Void> excluir(@PathVariable("codigo") String codigo) {
         produtoService.excluir(codigo);
         return ResponseEntity.noContent().build();
+    }
+
+    private static Produto paraProduto(ProdutoRequest request) {
+        Produto produto = new Produto(
+            request.codigo(),
+            request.nome(),
+            request.descricao(),
+            new BigDecimal(request.preco()),
+            request.estoque()
+        );
+        // "disponivel" ausente no JSON = produto disponível.
+        produto.definirDisponibilidade(!Boolean.FALSE.equals(request.disponivel()));
+        return produto;
     }
 
     public record ProdutoRequest(

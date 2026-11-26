@@ -1,9 +1,13 @@
-package com.ecommerce.pedidos.swift.util;
+package com.ecommerce.pedidos.util;
 
 import java.time.Year;
 import java.util.Random;
 
-public class PedidoUtils {
+/**
+ * Cálculos auxiliares do pedido definidos na Aula 03 (frete, desconto, recibo).
+ * Classe utilitária: final e com construtor privado.
+ */
+public final class PedidoUtils {
 
     private static final double VALOR_POR_QUILO   = 7.50;
     private static final double FRETE_MINIMO      = 15.00;

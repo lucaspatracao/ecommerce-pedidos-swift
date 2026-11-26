@@ -1,35 +1,16 @@
 package com.ecommerce.pedidos.modelo;
 
+import com.ecommerce.pedidos.util.Utils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
+/** Pagamento por boleto: exige código de barras e vencimento que não esteja no passado. */
 public class Boleto extends FormaPagamento {
     private String codigoDeBarras;
     private LocalDate dataDeVencimento;
 
     public Boleto(BigDecimal valor, LocalDate dataDeVencimento, String codigoDeBarras) {
         super(valor);
-        setDataDeVencimento(dataDeVencimento);
-        setCodigoDeBarras(codigoDeBarras);
-    }
-
-    public String getCodigoDeBarras() {
-        return codigoDeBarras;
-    }
-
-    public void setCodigoDeBarras(String codigoDeBarras) {
-        if (codigoDeBarras == null || codigoDeBarras.isBlank()) {
-            throw new IllegalArgumentException("Código de barras é obrigatório");
-        }
-        this.codigoDeBarras = codigoDeBarras.trim();
-    }
-
-    public LocalDate getDataDeVencimento() {
-        return dataDeVencimento;
-    }
-
-    public void setDataDeVencimento(LocalDate dataDeVencimento) {
         if (dataDeVencimento == null) {
             throw new IllegalArgumentException("Data de vencimento é obrigatória");
         }
@@ -37,13 +18,27 @@ public class Boleto extends FormaPagamento {
             throw new IllegalArgumentException("Vencimento do boleto não pode ser no passado");
         }
         this.dataDeVencimento = dataDeVencimento;
+        this.codigoDeBarras = Utils.textoObrigatorio(codigoDeBarras, "Código de barras");
+    }
+
+    public String getCodigoDeBarras() {
+        return codigoDeBarras;
+    }
+
+    public LocalDate getDataDeVencimento() {
+        return dataDeVencimento;
+    }
+
+    /** Na simulação, o boleto emitido é considerado compensado na hora. */
+    @Override
+    public boolean processar() {
+        aprovar();
+        return true;
     }
 
     @Override
-    public boolean processar() {
-        setDataDoPagamento(LocalDateTime.now());
-        setSituacao(SituacaoPagamento.APROVADO);
-        return true;
+    public String descreverMetodo() {
+        return "Código: " + codigoDeBarras;
     }
 
     @Override

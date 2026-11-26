@@ -27,7 +27,7 @@ class PedidoIntegracaoTest {
         ProdutoService produtoService = new ProdutoService();
         PedidoService pedidoService = new PedidoService(clienteService, produtoService);
 
-        Cliente cliente = new Cliente("Bruno Silva", "12345678900", "bruno@email.com", "11999998888",
+        Cliente cliente = new Cliente("Bruno Silva", "37168330535", "bruno@email.com", "11999998888",
                 new Endereco("Rua C", "São Paulo", "01000-001"));
         clienteService.salvar(cliente);
 

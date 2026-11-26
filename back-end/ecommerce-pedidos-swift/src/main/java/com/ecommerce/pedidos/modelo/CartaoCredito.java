@@ -1,9 +1,13 @@
 package com.ecommerce.pedidos.modelo;
 
+import com.ecommerce.pedidos.util.Utils;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
+/** Pagamento com cartão: é o único que tem limite e permite parcelar. */
 public class CartaoCredito extends FormaPagamento {
+    private static final BigDecimal LIMITE_PADRAO = new BigDecimal("5000.00");
+    private static final int MAXIMO_PARCELAS = 12;
+
     private String numeroMascarado;
     private String bandeira;
     private int quantidadeDeParcelas;
@@ -11,66 +15,46 @@ public class CartaoCredito extends FormaPagamento {
 
     public CartaoCredito(BigDecimal valor, String numeroMascarado, String bandeira, int quantidadeDeParcelas) {
         super(valor);
-        setNumeroMascarado(numeroMascarado);
-        setBandeira(bandeira);
-        setQuantidadeDeParcelas(quantidadeDeParcelas);
-        this.limiteDisponivel = new BigDecimal("5000.00");
+        this.numeroMascarado = Utils.textoObrigatorio(numeroMascarado, "Número mascarado");
+        this.bandeira = Utils.textoObrigatorio(bandeira, "Bandeira");
+        if (quantidadeDeParcelas <= 0 || quantidadeDeParcelas > MAXIMO_PARCELAS) {
+            throw new IllegalArgumentException("Quantidade de parcelas deve estar entre 1 e 12");
+        }
+        this.quantidadeDeParcelas = quantidadeDeParcelas;
+        this.limiteDisponivel = LIMITE_PADRAO;
     }
 
     public String getNumeroMascarado() {
         return numeroMascarado;
     }
 
-    public void setNumeroMascarado(String numeroMascarado) {
-        if (numeroMascarado == null || numeroMascarado.isBlank()) {
-            throw new IllegalArgumentException("Número mascarado é obrigatório");
-        }
-        this.numeroMascarado = numeroMascarado.trim();
-    }
-
     public String getBandeira() {
         return bandeira;
-    }
-
-    public void setBandeira(String bandeira) {
-        if (bandeira == null || bandeira.isBlank()) {
-            throw new IllegalArgumentException("Bandeira é obrigatória");
-        }
-        this.bandeira = bandeira.trim();
     }
 
     public int getQuantidadeDeParcelas() {
         return quantidadeDeParcelas;
     }
 
-    public void setQuantidadeDeParcelas(int quantidadeDeParcelas) {
-        if (quantidadeDeParcelas <= 0 || quantidadeDeParcelas > 12) {
-            throw new IllegalArgumentException("Quantidade de parcelas deve estar entre 1 e 12");
-        }
-        this.quantidadeDeParcelas = quantidadeDeParcelas;
-    }
-
     public BigDecimal getLimiteDisponivel() {
         return limiteDisponivel;
     }
 
-    public void setLimiteDisponivel(BigDecimal limiteDisponivel) {
-        if (limiteDisponivel == null || limiteDisponivel.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Limite disponível inválido");
-        }
-        this.limiteDisponivel = limiteDisponivel;
-    }
-
+    /** Recusa se o valor passar do limite; caso contrário, aprova e consome o limite. */
     @Override
     public boolean processar() {
         if (getValor().compareTo(limiteDisponivel) > 0) {
-            setSituacao(SituacaoPagamento.RECUSADO);
+            recusar();
             return false;
         }
-        setDataDoPagamento(LocalDateTime.now());
-        setSituacao(SituacaoPagamento.APROVADO);
+        aprovar();
         limiteDisponivel = limiteDisponivel.subtract(getValor());
         return true;
+    }
+
+    @Override
+    public String descreverMetodo() {
+        return bandeira + " •••• " + numeroMascarado;
     }
 
     @Override
