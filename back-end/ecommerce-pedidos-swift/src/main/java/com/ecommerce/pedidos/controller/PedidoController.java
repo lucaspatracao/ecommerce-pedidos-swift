@@ -33,7 +33,7 @@ public class PedidoController {
     }
 
     @GetMapping("/pedidos/{numero}")
-    public Pedido buscarPorNumero(@PathVariable String numero) {
+    public Pedido buscarPorNumero(@PathVariable("numero") String numero) {
         return pedidoService.buscarPorNumero(numero);
     }
 
@@ -44,7 +44,7 @@ public class PedidoController {
     }
 
     @PutMapping("/pedidos/{numero}/status")
-    public Pedido atualizarStatus(@PathVariable String numero, @RequestBody AtualizarStatusRequest request) {
+    public Pedido atualizarStatus(@PathVariable("numero") String numero, @RequestBody AtualizarStatusRequest request) {
         if (request == null || request.status() == null || request.status().isBlank()) {
             throw new IllegalArgumentException("Status do pedido é obrigatório.");
         }

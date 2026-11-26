@@ -45,7 +45,7 @@ public class ProdutoController {
     }
 
     @PutMapping("/{codigo}")
-    public Produto atualizar(@PathVariable String codigo, @RequestBody ProdutoRequest request) {
+    public Produto atualizar(@PathVariable("codigo") String codigo, @RequestBody ProdutoRequest request) {
         Produto produtoAtualizado = new Produto(
             request.codigo(),
             request.nome(),
@@ -58,7 +58,7 @@ public class ProdutoController {
     }
 
     @DeleteMapping("/{codigo}")
-    public ResponseEntity<Void> excluir(@PathVariable String codigo) {
+    public ResponseEntity<Void> excluir(@PathVariable("codigo") String codigo) {
         produtoService.excluir(codigo);
         return ResponseEntity.noContent().build();
     }

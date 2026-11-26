@@ -13,6 +13,16 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>17</maven.compiler.release>
+    <!--
+      O projeto NÃO herda de spring-boot-starter-parent, então a flag -parameters
+      do javac não vem ligada por padrão. Sem ela, o Spring não descobre o nome
+      dos parâmetros por reflexão e falha com:
+      "Name for argument of type [java.lang.String] not specified".
+      Além desta propriedade, todo @PathVariable/@RequestParam recebe o nome
+      explícito (ex.: @PathVariable("cpf")), o que funciona mesmo quando a IDE
+      compila sem ler esta configuração.
+    -->
+    <maven.compiler.parameters>true</maven.compiler.parameters>
     <spring-boot.version>3.3.2</spring-boot.version>
   </properties>
 

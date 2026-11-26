@@ -43,7 +43,7 @@ public class ClienteController {
     }
 
     @PutMapping("/{cpf}")
-    public Cliente atualizar(@PathVariable String cpf, @RequestBody ClienteRequest request) {
+    public Cliente atualizar(@PathVariable("cpf") String cpf, @RequestBody ClienteRequest request) {
         Cliente clienteAtualizado = new Cliente(
             request.nome(),
             cpf,
@@ -55,7 +55,7 @@ public class ClienteController {
     }
 
     @DeleteMapping("/{cpf}")
-    public ResponseEntity<Void> excluir(@PathVariable String cpf) {
+    public ResponseEntity<Void> excluir(@PathVariable("cpf") String cpf) {
         clienteService.excluir(cpf);
         return ResponseEntity.noContent().build();
     }
