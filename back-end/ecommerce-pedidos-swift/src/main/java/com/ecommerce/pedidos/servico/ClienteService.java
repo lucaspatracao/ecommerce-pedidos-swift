@@ -1,6 +1,9 @@
 package com.ecommerce.pedidos.servico;
 
+import com.ecommerce.pedidos.excecao.ClienteNaoEncontradoException;
+import com.ecommerce.pedidos.excecao.ConflitoException;
 import com.ecommerce.pedidos.modelo.Cliente;
+import com.ecommerce.pedidos.util.Utils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -16,45 +19,36 @@ public class ClienteService {
         return new ArrayList<>(clientes.values());
     }
 
+    /** @throws ClienteNaoEncontradoException (404) se o CPF não estiver cadastrado */
     public Cliente buscarPorCpf(String cpf) {
-        if (cpf == null || cpf.isBlank()) {
-            throw new IllegalArgumentException("CPF do cliente não pode ser vazio.");
+        String chave = Utils.textoObrigatorio(cpf, "CPF do cliente");
+        Cliente cliente = clientes.get(chave);
+        if (cliente == null) {
+            throw new ClienteNaoEncontradoException(chave);
         }
-        return clientes.get(cpf.trim());
+        return cliente;
     }
 
+    /** @throws ConflitoException (409) se já existir cliente com o mesmo CPF */
     public Cliente salvar(Cliente cliente) {
         Objects.requireNonNull(cliente, "Cliente não pode ser nulo.");
-        String cpf = cliente.getCpf();
-        clientes.put(cpf, cliente);
+        if (clientes.putIfAbsent(cliente.getCpf(), cliente) != null) {
+            throw new ConflitoException("Já existe cliente cadastrado com o CPF " + cliente.getCpf());
+        }
         return cliente;
     }
 
     public Cliente atualizar(String cpf, Cliente clienteAtualizado) {
-        if (cpf == null || cpf.isBlank()) {
-            throw new IllegalArgumentException("CPF do cliente não pode ser vazio.");
-        }
         Objects.requireNonNull(clienteAtualizado, "Cliente atualizado não pode ser nulo.");
-
-        Cliente clienteExistente = clientes.get(cpf.trim());
-        if (clienteExistente == null) {
-            throw new IllegalArgumentException("Cliente não encontrado.");
-        }
-
-        String novoCpf = clienteAtualizado.getCpf();
-        if (!cpf.equalsIgnoreCase(novoCpf)) {
-            clientes.remove(cpf.trim());
-        }
-
-        clientes.put(novoCpf, clienteAtualizado);
-        return clienteAtualizado;
+        Cliente existente = buscarPorCpf(cpf);
+        existente.atualizarContato(clienteAtualizado.getNome(), clienteAtualizado.getEmail(),
+            clienteAtualizado.getTelefone(), clienteAtualizado.getEndereco());
+        return existente;
     }
 
-    public boolean excluir(String cpf) {
-        if (cpf == null || cpf.isBlank()) {
-            throw new IllegalArgumentException("CPF do cliente não pode ser vazio.");
-        }
-        return clientes.remove(cpf.trim()) != null;
+    public void excluir(String cpf) {
+        Cliente existente = buscarPorCpf(cpf);
+        clientes.remove(existente.getCpf());
     }
 
     public long contar() {

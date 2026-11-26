@@ -1,15 +1,16 @@
 package com.ecommerce.pedidos.servico;
 
-import com.ecommerce.pedidos.excecao.EstoqueInsuficienteException;
+import com.ecommerce.pedidos.excecao.ConflitoException;
+import com.ecommerce.pedidos.excecao.RecursoNaoEncontradoException;
 import com.ecommerce.pedidos.modelo.Cliente;
 import com.ecommerce.pedidos.modelo.Pedido;
 import com.ecommerce.pedidos.modelo.Produto;
 import com.ecommerce.pedidos.modelo.SituacaoPedido;
+import com.ecommerce.pedidos.util.Utils;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Service;
 
@@ -30,36 +31,29 @@ public class PedidoService {
             .toList();
     }
 
+    /** @throws RecursoNaoEncontradoException (404) se o número não existir */
     public Pedido buscarPorNumero(String numero) {
-        if (numero == null || numero.isBlank()) {
-            throw new IllegalArgumentException("Número do pedido não pode ser vazio.");
+        String chave = Utils.textoObrigatorio(numero, "Número do pedido");
+        Pedido pedido = pedidos.get(chave);
+        if (pedido == null) {
+            throw new RecursoNaoEncontradoException("Pedido", chave);
         }
-        return pedidos.get(numero.trim());
+        return pedido;
     }
 
-    public Pedido criarPedido(String clienteCpf, List<ItemPedidoRequest> itens) throws EstoqueInsuficienteException {
-        Objects.requireNonNull(clienteCpf, "CPF do cliente não pode ser nulo.");
+    public Pedido criarPedido(String clienteCpf, List<ItemPedidoRequest> itens) {
         Cliente cliente = clienteService.buscarPorCpf(clienteCpf);
-        if (cliente == null) {
-            throw new IllegalArgumentException("Cliente não encontrado para o CPF informado.");
-        }
-
-        Pedido pedido = new Pedido(cliente);
         if (itens == null || itens.isEmpty()) {
             throw new IllegalArgumentException("Pedido deve conter pelo menos um item.");
         }
 
+        Pedido pedido = new Pedido(cliente);
         for (ItemPedidoRequest itemRequest : itens) {
             Produto produto = produtoService.buscarPorCodigo(itemRequest.codigo());
-            if (produto == null) {
-                throw new IllegalArgumentException("Produto não encontrado: " + itemRequest.codigo());
+            if (!produto.isAtivo()) {
+                throw new ConflitoException("Produto indisponível para venda: " + produto.getCodigo());
             }
-            if (itemRequest.quantidade() <= 0) {
-                throw new IllegalArgumentException("Quantidade do item deve ser maior que zero.");
-            }
-            if (!produto.temEstoqueDisponivel(itemRequest.quantidade())) {
-                throw new IllegalArgumentException("Estoque insuficiente para o produto " + produto.getNome());
-            }
+            // Se faltar estoque, o próprio domínio lança EstoqueInsuficienteException (409).
             pedido.adicionarItem(produto, itemRequest.quantidade());
         }
 
@@ -69,9 +63,6 @@ public class PedidoService {
 
     public void atualizarStatus(String numero, SituacaoPedido situacao) {
         Pedido pedido = buscarPorNumero(numero);
-        if (pedido == null) {
-            throw new IllegalArgumentException("Pedido não encontrado.");
-        }
         if (situacao == null) {
             throw new IllegalArgumentException("Situação do pedido é obrigatória.");
         }
@@ -80,10 +71,10 @@ public class PedidoService {
             return;
         }
         if (situacao == SituacaoPedido.PAGO) {
-            throw new IllegalStateException("Pagamento deve ser processado com uma forma de pagamento");
+            throw new ConflitoException("Pagamento deve ser processado com uma forma de pagamento");
         }
         if (situacao != SituacaoPedido.ABERTO || pedido.getSituacao() != SituacaoPedido.ABERTO) {
-            throw new IllegalStateException("Transição de situação inválida");
+            throw new ConflitoException("Transição de situação inválida");
         }
     }
 

@@ -58,18 +58,8 @@ public class PagamentoController {
 
         FormaPagamento pagamento = fabrica.criar(request);
 
-        var pedido = pedidoService.buscarPorNumero(request.pedidoNumero());
-        if (pedido == null) {
-            throw new IllegalArgumentException("Pedido não encontrado.");
-        }
-        try {
-            pedido.pagarCom(pagamento);
-        } catch (Exception ex) {
-            if (ex instanceof RuntimeException runtime) {
-                throw runtime;
-            }
-            throw new IllegalStateException(ex.getMessage(), ex);
-        }
+        // Pedido inexistente → 404; pagamento recusado ou pedido já pago → 409 (ApiExceptionHandler).
+        pedidoService.buscarPorNumero(request.pedidoNumero()).pagarCom(pagamento);
         service.registrar(pagamento);
         Map<String, Object> resposta = new HashMap<>();
         resposta.put("mensagem", "Pagamento registrado com sucesso.");

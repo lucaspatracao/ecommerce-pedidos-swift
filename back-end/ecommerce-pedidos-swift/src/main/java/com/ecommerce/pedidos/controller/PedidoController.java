@@ -1,6 +1,5 @@
 package com.ecommerce.pedidos.controller;
 
-import com.ecommerce.pedidos.excecao.EstoqueInsuficienteException;
 import com.ecommerce.pedidos.modelo.Pedido;
 import com.ecommerce.pedidos.modelo.SituacaoPedido;
 import com.ecommerce.pedidos.servico.PedidoService;
@@ -38,7 +37,7 @@ public class PedidoController {
     }
 
     @PostMapping("/pedidos")
-    public ResponseEntity<Pedido> criar(@RequestBody PedidoRequest request) throws EstoqueInsuficienteException {
+    public ResponseEntity<Pedido> criar(@RequestBody PedidoRequest request) {
         Pedido pedido = pedidoService.criarPedido(request.clienteCpf(), request.itens());
         return ResponseEntity.status(HttpStatus.CREATED).body(pedido);
     }
@@ -48,7 +47,7 @@ public class PedidoController {
         if (request == null || request.status() == null || request.status().isBlank()) {
             throw new IllegalArgumentException("Status do pedido é obrigatório.");
         }
-        pedidoService.atualizarStatus(numero, SituacaoPedido.valueOf(request.status()));
+        pedidoService.atualizarStatus(numero, SituacaoPedido.deTexto(request.status()));
         return pedidoService.buscarPorNumero(numero);
     }
 

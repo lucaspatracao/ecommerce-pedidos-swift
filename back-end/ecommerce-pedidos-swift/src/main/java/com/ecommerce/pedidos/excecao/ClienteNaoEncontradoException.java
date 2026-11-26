@@ -1,14 +1,9 @@
 package com.ecommerce.pedidos.excecao;
 
-public class ClienteNaoEncontradoException extends ECommerceException {
-    private final String identificador;
+/** Especialização de 404 para cliente, identificado pelo CPF. */
+public class ClienteNaoEncontradoException extends RecursoNaoEncontradoException {
 
-    public ClienteNaoEncontradoException(String identificador) {
-        super("Cliente não encontrado: " + identificador);
-        this.identificador = identificador;
-    }
-
-    public String getIdentificador() {
-        return identificador;
+    public ClienteNaoEncontradoException(String cpf) {
+        super("Cliente", cpf);
     }
 }

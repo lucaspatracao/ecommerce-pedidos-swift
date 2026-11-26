@@ -87,7 +87,7 @@ public class Pedido {
      *
      * @throws EstoqueInsuficienteException quando o estoque não basta
      */
-    public void adicionarItem(Produto produto, int quantidade) throws EstoqueInsuficienteException {
+    public void adicionarItem(Produto produto, int quantidade) {
         if (produto == null) {
             throw new IllegalArgumentException("Produto é obrigatório");
         }
@@ -142,7 +142,7 @@ public class Pedido {
      * <p>O pedido não sabe se é Pix, boleto ou cartão: só chama
      * {@code processar}, e cada subclasse decide se aprova (polimorfismo).</p>
      */
-    public void pagar(FormaPagamento pagamento) throws PagamentoRecusadoException, PedidoInvalidoException {
+    public void pagar(FormaPagamento pagamento) {
         if (pagamento == null) {
             throw new IllegalArgumentException("Forma de pagamento é obrigatória");
         }
@@ -165,7 +165,7 @@ public class Pedido {
      * Variante usada pela API: o valor informado no pagamento precisa bater
      * com o total do pedido (evita pagar a menos ou a mais).
      */
-    public void pagarCom(FormaPagamento pagamento) throws PagamentoRecusadoException, PedidoInvalidoException {
+    public void pagarCom(FormaPagamento pagamento) {
         if (pagamento == null) {
             throw new IllegalArgumentException("Forma de pagamento é obrigatória");
         }

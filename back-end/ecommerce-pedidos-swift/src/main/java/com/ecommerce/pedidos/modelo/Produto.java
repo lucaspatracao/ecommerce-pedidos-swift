@@ -119,7 +119,7 @@ public class Produto {
     }
 
     /** Reduz o estoque após uma venda. */
-    public void baixarEstoque(int quantidade) throws EstoqueInsuficienteException {
+    public void baixarEstoque(int quantidade) {
         if (quantidade <= 0) {
             throw new IllegalArgumentException("Quantidade deve ser positiva, recebido: " + quantidade);
         }
