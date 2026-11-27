@@ -3,7 +3,7 @@ package com.ecommerce.pedidos.modelo;
 import com.ecommerce.pedidos.excecao.EstoqueInsuficienteException;
 import com.ecommerce.pedidos.excecao.PagamentoRecusadoException;
 import com.ecommerce.pedidos.excecao.PedidoInvalidoException;
-import com.ecommerce.pedidos.util.PedidoUtils;
+import com.ecommerce.pedidos.util.Utils;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -85,11 +85,16 @@ public class Pedido {
         // exigido pelo JPA
     }
 
-    public Pedido(Cliente cliente) {
+    /**
+     * @param numero número único do pedido (PED-ano-NNNNN). Na aplicação ele vem
+     *               da sequência do banco ({@code PedidoServiceImpl}); o pedido
+     *               não inventa o próprio número.
+     */
+    public Pedido(Cliente cliente, String numero) {
         if (cliente == null) {
             throw new IllegalArgumentException("Pedido exige um cliente");
         }
-        this.numero = PedidoUtils.gerarNumeroDoPedido();
+        this.numero = Utils.textoObrigatorio(numero, "Número do pedido");
         this.cliente = cliente;
         this.data = LocalDate.now();
         this.situacao = SituacaoPedido.ABERTO;
@@ -106,18 +111,6 @@ public class Pedido {
 
     public String getNumero() {
         return numero;
-    }
-
-    /**
-     * Sorteia outro número. O número é aleatório (PED-ano-NNNNN), então dois
-     * pedidos podem sortear o mesmo; o serviço chama este método até achar
-     * um número livre antes de gravar.
-     */
-    public void renovarNumero() {
-        if (id != null) {
-            throw new IllegalStateException("Pedido já gravado não pode trocar de número");
-        }
-        this.numero = PedidoUtils.gerarNumeroDoPedido();
     }
 
     public Cliente getCliente() {

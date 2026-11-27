@@ -10,14 +10,18 @@ import com.ecommerce.pedidos.modelo.Cliente;
 import com.ecommerce.pedidos.modelo.ItemPedido;
 import com.ecommerce.pedidos.modelo.Pedido;
 import com.ecommerce.pedidos.modelo.Produto;
+import com.ecommerce.pedidos.modelo.SequenciaPedido;
 import com.ecommerce.pedidos.modelo.SituacaoPedido;
 import com.ecommerce.pedidos.repositorio.ClienteRepository;
 import com.ecommerce.pedidos.repositorio.ItemPedidoRepository;
 import com.ecommerce.pedidos.repositorio.PedidoRepository;
 import com.ecommerce.pedidos.repositorio.ProdutoRepository;
+import com.ecommerce.pedidos.repositorio.SequenciaPedidoRepository;
+import com.ecommerce.pedidos.util.PedidoUtils;
 import com.ecommerce.pedidos.util.Utils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Year;
 import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -32,13 +36,16 @@ public class PedidoServiceImpl implements PedidoService {
     private final ClienteRepository clienteRepository;
     private final ProdutoRepository produtoRepository;
     private final ItemPedidoRepository itemPedidoRepository;
+    private final SequenciaPedidoRepository sequenciaPedidoRepository;
 
     public PedidoServiceImpl(PedidoRepository pedidoRepository, ClienteRepository clienteRepository,
-                             ProdutoRepository produtoRepository, ItemPedidoRepository itemPedidoRepository) {
+                             ProdutoRepository produtoRepository, ItemPedidoRepository itemPedidoRepository,
+                             SequenciaPedidoRepository sequenciaPedidoRepository) {
         this.pedidoRepository = pedidoRepository;
         this.clienteRepository = clienteRepository;
         this.produtoRepository = produtoRepository;
         this.itemPedidoRepository = itemPedidoRepository;
+        this.sequenciaPedidoRepository = sequenciaPedidoRepository;
     }
 
     /**
@@ -94,6 +101,9 @@ public class PedidoServiceImpl implements PedidoService {
      * <p>Os produtos são lidos COM BLOQUEIO: duas vendas simultâneas do mesmo
      * produto acontecem uma depois da outra, e a mensagem de estoque
      * insuficiente mostra o saldo real daquele momento.</p>
+     *
+     * <p>O número do pedido vem do contador do banco (ver {@link #proximoNumero()}),
+     * na mesma transação: se algo falhar, o número também volta.</p>
      */
     @Override
     @Transactional
@@ -107,7 +117,7 @@ public class PedidoServiceImpl implements PedidoService {
             .filter(Cliente::isAtivo)
             .orElseThrow(() -> new ClienteNaoEncontradoException(cpf));
 
-        Pedido pedido = new Pedido(cliente);
+        Pedido pedido = new Pedido(cliente, proximoNumero());
         for (ItemPedidoRequest item : request.itens()) {
             Produto produto = buscarProdutoParaVenda(item.codigo());
             if (!produto.isAtivo()) {
@@ -116,11 +126,21 @@ public class PedidoServiceImpl implements PedidoService {
             // Regra no domínio: baixa o estoque ou lança EstoqueInsuficienteException (409).
             pedido.adicionarItem(produto, item.quantidade() == null ? 0 : item.quantidade());
         }
-        // O número é sorteado; garante que não colide com um pedido existente (UNIQUE).
-        while (pedidoRepository.existsByNumero(pedido.getNumero())) {
-            pedido.renovarNumero();
-        }
         return PedidoResponse.de(pedidoRepository.saveAndFlush(pedido));
+    }
+
+    /**
+     * Próximo número do ano (PED-ano-NNNNN), a partir do contador
+     * {@code sequencia_pedido}. A linha do ano fica bloqueada até o fim da
+     * transação: pedidos simultâneos esperam a vez e recebem números
+     * diferentes, sem sorteio e sem nova tentativa.
+     */
+    private String proximoNumero() {
+        int ano = Year.now().getValue();
+        sequenciaPedidoRepository.criarSeNaoExistir(ano);
+        SequenciaPedido sequencia = sequenciaPedidoRepository.travar(ano)
+            .orElseThrow(() -> new IllegalStateException("Contador de pedidos do ano " + ano + " não encontrado."));
+        return PedidoUtils.formatarNumeroDoPedido(ano, sequencia.proximo());
     }
 
     @Override

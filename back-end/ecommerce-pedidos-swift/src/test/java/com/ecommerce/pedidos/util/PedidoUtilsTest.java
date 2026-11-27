@@ -15,10 +15,14 @@ import org.junit.jupiter.api.Test;
 class PedidoUtilsTest {
 
     @Test
-    @DisplayName("número do pedido segue o formato PED-ano-sequencial")
-    void deveGerarNumeroNoFormato() {
-        String numero = PedidoUtils.gerarNumeroDoPedido();
-        assertTrue(numero.matches("PED-" + Year.now().getValue() + "-\\d{5}"), numero);
+    @DisplayName("número do pedido segue o formato PED-ano-sequencial (5 dígitos com zeros à esquerda)")
+    void deveFormatarNumero() {
+        int ano = Year.now().getValue();
+        String numero = PedidoUtils.formatarNumeroDoPedido(ano, 42);
+        assertEquals("PED-" + ano + "-00042", numero);
+        assertTrue(numero.matches("PED-" + ano + "-\\d{5}"), numero);
+        assertEquals("PED-2026-99999", PedidoUtils.formatarNumeroDoPedido(2026, 99_999));
+        assertThrows(IllegalArgumentException.class, () -> PedidoUtils.formatarNumeroDoPedido(ano, 0));
     }
 
     @Test

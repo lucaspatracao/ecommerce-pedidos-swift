@@ -1,7 +1,5 @@
 package com.ecommerce.pedidos.util;
 
-import java.time.Year;
-import java.util.Random;
 
 /**
  * Cálculos auxiliares do pedido definidos na Aula 03 (frete, desconto, recibo).
@@ -19,11 +17,15 @@ public final class PedidoUtils {
         throw new UnsupportedOperationException("Esta é uma classe utilitária e não pode ser instanciada.");
     }
 
-    public static String gerarNumeroDoPedido() {
-        Random sorteio = new Random();
-        int sequencial = sorteio.nextInt(100000);
-        int anoAtual = Year.now().getValue();
-        return String.format("PED-%d-%05d", anoAtual, sequencial);
+    /**
+     * Monta o número do pedido no formato {@code PED-ano-NNNNN} (ex.: PED-2026-00042).
+     * O sequencial vem do banco (tabela {@code sequencia_pedido}), nunca de sorteio.
+     */
+    public static String formatarNumeroDoPedido(int ano, int sequencial) {
+        if (sequencial <= 0) {
+            throw new IllegalArgumentException("Sequencial do pedido deve ser maior que zero.");
+        }
+        return String.format("PED-%d-%05d", ano, sequencial);
     }
 
     public static double calcularSubtotal(double[] precos, int[] quantidades) {

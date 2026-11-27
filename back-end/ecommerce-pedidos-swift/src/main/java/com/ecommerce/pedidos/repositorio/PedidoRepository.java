@@ -42,8 +42,6 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
 
     Optional<Pedido> findByNumero(String numero);
 
-    boolean existsByNumero(String numero);
-
     /** Um pedido com tudo carregado: 1 consulta em vez de 4 ou mais. Evita N+1. */
     @Query(PEDIDO_COMPLETO + " where p.numero = :numero")
     Optional<Pedido> buscarCompletoPorNumero(@Param("numero") String numero);
