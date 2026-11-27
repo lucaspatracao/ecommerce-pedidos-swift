@@ -40,7 +40,7 @@ export function DetalhePedidoPage({ pedidos = [] }) {
             <div><span>Cliente</span><strong>{pedido.cliente?.nome || 'Cliente não informado'}</strong></div>
             <div><span>Data</span><strong>{pedido.data}</strong></div>
             <div><span>Quantidade de itens</span><strong>{pedido.itens?.length || 0}</strong></div>
-            <div><span>Valor total</span><strong>{formatCurrency(pedido.calcularValorTotal ? pedido.calcularValorTotal() : 0)}</strong></div>
+            <div><span>Valor total</span><strong>{formatCurrency(pedido.valorTotal ?? 0)}</strong></div>
           </div>
         </section>
 
@@ -59,7 +59,7 @@ export function DetalhePedidoPage({ pedidos = [] }) {
                     <strong>{item.produto.nome}</strong>
                     <span>{item.quantidade} unidade(s)</span>
                   </div>
-                  <strong>{formatCurrency(item.calcularSubtotal ? item.calcularSubtotal() : item.precoPraticado || 0)}</strong>
+                  <strong>{formatCurrency(item.subtotal ?? 0)}</strong>
                 </li>
               ))}
             </ul>

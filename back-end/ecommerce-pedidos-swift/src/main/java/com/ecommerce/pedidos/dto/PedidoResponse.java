@@ -2,6 +2,7 @@ package com.ecommerce.pedidos.dto;
 
 import com.ecommerce.pedidos.modelo.Pedido;
 import com.ecommerce.pedidos.modelo.SituacaoPedido;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -18,7 +19,10 @@ public record PedidoResponse(
     LocalDate data,
     SituacaoPedido situacao,
     Map<String, Object> formaPagamento,
-    List<ItemPedidoResponse> itensOrdenadosPorSubtotal
+    List<ItemPedidoResponse> itensOrdenadosPorSubtotal,
+    // Campo novo: o front exibia "calcularValorTotal()", um método Java que nunca
+    // existiu no JSON. O valor calculado pelo domínio agora vai pronto na resposta.
+    BigDecimal valorTotal
 ) {
 
     public static PedidoResponse de(Pedido pedido) {
@@ -29,7 +33,8 @@ public record PedidoResponse(
             pedido.getData(),
             pedido.getSituacao(),
             PagamentoDetalhe.de(pedido.getFormaPagamento()),
-            pedido.getItensOrdenadosPorSubtotal().stream().map(ItemPedidoResponse::de).toList()
+            pedido.getItensOrdenadosPorSubtotal().stream().map(ItemPedidoResponse::de).toList(),
+            pedido.calcularValorTotal()
         );
     }
 }

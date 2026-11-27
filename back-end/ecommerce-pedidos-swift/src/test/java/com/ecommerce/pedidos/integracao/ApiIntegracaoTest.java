@@ -293,6 +293,9 @@ class ApiIntegracaoTest {
                 .andExpect(jsonPath("$.pagamento.quantidadeDeParcelas").value(3));
 
             mvc.perform(get("/api/pedidos/{numero}", numero))
+                .andExpect(jsonPath("$.valorTotal").value(100.00))
+                .andExpect(jsonPath("$.itens[0].subtotal").value(100.00))
+                .andExpect(jsonPath("$.itens[0].precoPraticado").value(50.00))
                 .andExpect(jsonPath("$.situacao").value("PAGO"))
                 .andExpect(jsonPath("$.formaPagamento.situacao").value("APROVADO"));
 

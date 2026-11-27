@@ -54,7 +54,7 @@ export function PedidosPage({ pedidos = [], loading, error }) {
                     <td>{pedido.cliente?.nome || 'Cliente não informado'}</td>
                     <td>{pedido.data}</td>
                     <td>{pedido.itens?.length || 0}</td>
-                    <td>{formatCurrency(pedido.calcularValorTotal ? pedido.calcularValorTotal() : 0)}</td>
+                    <td>{formatCurrency(pedido.valorTotal ?? 0)}</td>
                     <td>
                       <span className={statusClassMap[pedido.situacao] || 'status'}>{pedido.situacao || 'Sem status'}</span>
                     </td>
