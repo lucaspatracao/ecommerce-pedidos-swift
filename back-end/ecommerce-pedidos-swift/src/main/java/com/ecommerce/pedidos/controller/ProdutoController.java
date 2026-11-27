@@ -7,8 +7,8 @@ import com.ecommerce.pedidos.dto.ProdutoResponse;
 import com.ecommerce.pedidos.servico.ProdutoService;
 import com.ecommerce.pedidos.servico.Visibilidade;
 import jakarta.validation.Valid;
+import java.net.URI;
 import java.util.List;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @RestController
 @RequestMapping("/api/produtos")
@@ -47,9 +48,12 @@ public class ProdutoController {
         return produtoService.buscarPorCodigo(codigo);
     }
 
+    /** 201 + {@code Location: /api/produtos/{codigo}} + o produto criado. */
     @PostMapping
-    public ResponseEntity<ProdutoResponse> cadastrar(@Valid @RequestBody ProdutoRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(produtoService.cadastrar(request));
+    public ResponseEntity<ProdutoResponse> cadastrar(@Valid @RequestBody ProdutoRequest request, UriComponentsBuilder uri) {
+        ProdutoResponse criado = produtoService.cadastrar(request);
+        URI endereco = uri.path("/api/produtos/{codigo}").buildAndExpand(criado.codigo()).toUri();
+        return ResponseEntity.created(endereco).body(criado);
     }
 
     /** Envie {@code versao} para o controle otimista: versão desatualizada → 409. */

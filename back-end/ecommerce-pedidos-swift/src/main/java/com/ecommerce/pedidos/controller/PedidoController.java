@@ -5,8 +5,8 @@ import com.ecommerce.pedidos.dto.PedidoRequest;
 import com.ecommerce.pedidos.dto.PedidoResponse;
 import com.ecommerce.pedidos.servico.PedidoService;
 import jakarta.validation.Valid;
+import java.net.URI;
 import java.util.List;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @RestController
 @RequestMapping("/api/pedidos")
@@ -40,9 +41,12 @@ public class PedidoController {
         return pedidoService.buscarPorNumero(numero);
     }
 
+    /** 201 + {@code Location: /api/pedidos/{numero}} + o pedido criado. */
     @PostMapping
-    public ResponseEntity<PedidoResponse> criar(@Valid @RequestBody PedidoRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(pedidoService.criar(request));
+    public ResponseEntity<PedidoResponse> criar(@Valid @RequestBody PedidoRequest request, UriComponentsBuilder uri) {
+        PedidoResponse criado = pedidoService.criar(request);
+        URI endereco = uri.path("/api/pedidos/{numero}").buildAndExpand(criado.numero()).toUri();
+        return ResponseEntity.created(endereco).body(criado);
     }
 
     /**
@@ -62,9 +66,10 @@ public class PedidoController {
         return ResponseEntity.noContent().build();
     }
 
-    /** Remove um item de pedido aberto e devolve o estoque. */
+    /** Remove um item de pedido aberto e devolve o estoque (204; o pedido atualizado está em GET /{numero}). */
     @DeleteMapping("/{numero}/itens/{itemId}")
-    public PedidoResponse removerItem(@PathVariable("numero") String numero, @PathVariable("itemId") Long itemId) {
-        return pedidoService.removerItem(numero, itemId);
+    public ResponseEntity<Void> removerItem(@PathVariable("numero") String numero, @PathVariable("itemId") Long itemId) {
+        pedidoService.removerItem(numero, itemId);
+        return ResponseEntity.noContent().build();
     }
 }

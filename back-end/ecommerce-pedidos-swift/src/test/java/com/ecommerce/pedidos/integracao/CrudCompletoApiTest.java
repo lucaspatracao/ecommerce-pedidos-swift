@@ -402,9 +402,8 @@ class CrudCompletoApiTest {
                 }
             }
 
-            mvc.perform(delete("/api/pedidos/{numero}/itens/{id}", numero, itemExtra))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.itens", hasSize(1)));
+            mvc.perform(delete("/api/pedidos/{numero}/itens/{id}", numero, itemExtra)).andExpect(status().isNoContent());
+            mvc.perform(get("/api/pedidos/{numero}", numero)).andExpect(jsonPath("$.itens", hasSize(1)));
             assertEquals(4, estoqueDe(extra));
             mvc.perform(delete("/api/pedidos/{numero}/itens/{id}", numero, 999_999)).andExpect(status().isNotFound());
 
