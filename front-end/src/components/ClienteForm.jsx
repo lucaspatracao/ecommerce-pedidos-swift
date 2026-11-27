@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { atualizarCliente, cadastrarCliente } from '../api/clienteApi'
 
 const estadoInicial = {
@@ -30,14 +30,19 @@ const normalizarCliente = (cliente) => {
 
 export function ClienteForm({ cliente = null, onClienteSalvo, onCancelarEdicao }) {
   const [form, setForm] = useState(normalizarCliente(cliente))
+  const [clienteCarregado, setClienteCarregado] = useState(cliente)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [mensagem, setMensagem] = useState('')
   const [erro, setErro] = useState('')
   const isEdicao = Boolean(cliente)
 
-  useEffect(() => {
+  // Outro cliente escolhido para edição (ou edição cancelada): recarrega o
+  // formulário durante a renderização, sem useEffect, como recomenda o React
+  // ("ajustar estado quando uma prop muda").
+  if (cliente !== clienteCarregado) {
+    setClienteCarregado(cliente)
     setForm(normalizarCliente(cliente))
-  }, [cliente])
+  }
 
   const handleChange = (event) => {
     const { name, value } = event.target

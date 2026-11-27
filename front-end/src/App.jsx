@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { BrowserRouter, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import logo from './assets/logo.png'
 import './App.css'
@@ -39,6 +39,39 @@ const estadoInicialDashboard = {
   pedidosRecentes: [],
 }
 
+// Cada fonte de dados: [nome exibido em caso de erro, chamada à API].
+const FONTES = {
+  clientes: ['clientes', listarClientes],
+  produtos: ['produtos', listarProdutos],
+  pedidos: ['pedidos', listarPedidos],
+  pagamentos: ['pagamentos', listarPagamentos],
+  historico: ['histórico', listarHistorico],
+  dashboard: ['resumo', buscarDashboard],
+}
+
+/**
+ * Busca as fontes em paralelo com Promise.allSettled.
+ * Diferente de Promise.all, uma chamada que falha NÃO descarta as outras:
+ * devolve os dados de quem respondeu e os nomes de quem falhou.
+ */
+async function buscarFontes(chaves) {
+  const resultados = await Promise.allSettled(chaves.map((chave) => FONTES[chave][1]()))
+  const dados = {}
+  const falhas = []
+  resultados.forEach((resultado, indice) => {
+    const chave = chaves[indice]
+    if (resultado.status === 'fulfilled') {
+      dados[chave] = resultado.value
+    } else {
+      falhas.push(FONTES[chave][0])
+    }
+  })
+  return { dados, falhas }
+}
+
+const mensagemDeFalha = (falhas) =>
+  falhas.length === 0 ? '' : `Não foi possível carregar: ${falhas.join(', ')}. Os demais dados foram atualizados.`
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -59,44 +92,30 @@ function AppShell() {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const navigate = useNavigate()
 
-  // Cada fonte de dados: [nome exibido em caso de erro, chamada à API, onde guardar o resultado].
-  const fontes = {
-    clientes: ['clientes', listarClientes, setClientes],
-    produtos: ['produtos', listarProdutos, setProdutos],
-    pedidos: ['pedidos', listarPedidos, setPedidos],
-    pagamentos: ['pagamentos', listarPagamentos, setPagamentos],
-    historico: ['histórico', listarHistorico, setHistorico],
-    dashboard: ['resumo', buscarDashboard, (dados) => setDashboard(dados || estadoInicialDashboard)],
-  }
-
   /**
-   * Busca as fontes em paralelo com Promise.allSettled.
-   * Diferente de Promise.all, uma chamada que falha NÃO descarta as outras:
-   * cada resultado bem-sucedido é aplicado e só as falhas são reportadas.
+   * Busca as fontes em paralelo e guarda cada resultado no seu estado.
+   * Só usa setters do useState (estáveis), então a função é a mesma em
+   * todas as renderizações e pode ser dependência do useEffect.
    * Devolve os nomes das fontes que falharam.
    */
-  const carregarFontes = async (chaves) => {
-    const selecionadas = chaves.map((chave) => fontes[chave])
-    const resultados = await Promise.allSettled(selecionadas.map(([, buscar]) => buscar()))
-    const falhas = []
-    resultados.forEach((resultado, indice) => {
-      const [nome, , aplicar] = selecionadas[indice]
-      if (resultado.status === 'fulfilled') {
-        aplicar(resultado.value)
-      } else {
-        falhas.push(nome)
-      }
-    })
+  const carregarFontes = useCallback(async (chaves) => {
+    const onde = {
+      clientes: setClientes,
+      produtos: setProdutos,
+      pedidos: setPedidos,
+      pagamentos: setPagamentos,
+      historico: setHistorico,
+      dashboard: (dados) => setDashboard(dados || estadoInicialDashboard),
+    }
+    const { dados, falhas } = await buscarFontes(chaves)
+    Object.entries(dados).forEach(([chave, valor]) => onde[chave](valor))
     return falhas
-  }
-
-  const mensagemDeFalha = (falhas) =>
-    falhas.length === 0 ? '' : `Não foi possível carregar: ${falhas.join(', ')}. Os demais dados foram atualizados.`
+  }, [])
 
   const carregarDados = async () => {
     setLoading(true)
     setError('')
-    const falhas = await carregarFontes(Object.keys(fontes))
+    const falhas = await carregarFontes(Object.keys(FONTES))
     setError(mensagemDeFalha(falhas))
     setLoading(false)
   }
@@ -115,12 +134,11 @@ function AppShell() {
 
   // Carga inicial: "loading" já começa true, então o estado só muda quando as respostas chegam.
   useEffect(() => {
-    carregarFontes(Object.keys(fontes)).then((falhas) => {
+    carregarFontes(Object.keys(FONTES)).then((falhas) => {
       setError(mensagemDeFalha(falhas))
       setLoading(false)
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [carregarFontes])
 
   const handleClienteSalvo = (cliente, edicao = false) => {
     setClientes((atual) => {

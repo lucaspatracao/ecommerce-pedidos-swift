@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { buscarPedido } from '../api/clienteApi'
 import { PagamentoForm } from '../components/PagamentoForm'
+import { formatarFormaPagamento } from '../utils/formatarFormaPagamento'
 
 const statusClassMap = {
   PAGO: 'status status-success',
@@ -9,14 +10,6 @@ const statusClassMap = {
   CANCELADO: 'status status-danger',
   APROVADO: 'status status-success',
   ESTORNADO: 'status status-neutral',
-}
-
-// "descricao" vem da API com o nome da classe (ex.: CartaoCredito); aqui vira texto para o usuário.
-const nomeDaForma = {
-  Pix: 'Pix',
-  Boleto: 'Boleto',
-  CartaoCredito: 'Cartão de crédito',
-  ValeCompras: 'Vale-compras',
 }
 
 const formatCurrency = (valor) =>
@@ -91,7 +84,7 @@ export function DetalhePedidoPage({ onPedidoAtualizado }) {
             <div><span>Valor total</span><strong data-testid="valor-total">{formatCurrency(pedido.valorTotal ?? 0)}</strong></div>
             {pagamento && (
               <>
-                <div><span>Forma de pagamento</span><strong>{nomeDaForma[pagamento.descricao] || pagamento.descricao}</strong></div>
+                <div><span>Forma de pagamento</span><strong>{formatarFormaPagamento(pagamento.descricao)}</strong></div>
                 <div>
                   <span>Situação do pagamento</span>
                   <span className={statusClassMap[pagamento.situacao] || 'status'}>{pagamento.situacao}</span>
