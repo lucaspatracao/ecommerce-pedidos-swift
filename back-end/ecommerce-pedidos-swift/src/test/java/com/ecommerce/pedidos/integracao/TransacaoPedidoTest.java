@@ -15,7 +15,13 @@ import com.ecommerce.pedidos.servico.ClienteService;
 import com.ecommerce.pedidos.servico.PedidoService;
 import com.ecommerce.pedidos.servico.ProdutoService;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -96,5 +102,39 @@ class TransacaoPedidoTest {
         assertEquals(2, pedidoService.buscarPorNumero(criado.numero()).itens().size());
         assertEquals(7, produtoService.buscarPorCodigo(codigoComEstoque).quantidadeEmEstoque());
         assertEquals(0, produtoService.buscarPorCodigo(codigoQuaseSemEstoque).quantidadeEmEstoque());
+    }
+
+    @Test
+    @DisplayName("duas vendas simultâneas da última unidade: só uma passa e o estoque nunca fica negativo")
+    void vendasSimultaneasDaUltimaUnidade() throws Exception {
+        PedidoRequest pedido = new PedidoRequest(cpf, List.of(new ItemPedidoRequest(codigoQuaseSemEstoque, 1)));
+        CountDownLatch largada = new CountDownLatch(1);
+        ExecutorService duasThreads = Executors.newFixedThreadPool(2);
+        try {
+            List<Future<Boolean>> vendas = new ArrayList<>();
+            for (int i = 0; i < 2; i++) {
+                vendas.add(duasThreads.submit(() -> {
+                    largada.await();
+                    try {
+                        pedidoService.criar(pedido);
+                        return true;
+                    } catch (EstoqueInsuficienteException e) {
+                        // A leitura com bloqueio mostra o saldo real: a outra venda já levou a unidade.
+                        assertEquals(0, e.getQuantidadeDisponivel());
+                        return false;
+                    }
+                }));
+            }
+            largada.countDown();
+
+            int aprovadas = 0;
+            for (Future<Boolean> venda : vendas) {
+                aprovadas += venda.get(10, TimeUnit.SECONDS) ? 1 : 0;
+            }
+            assertEquals(1, aprovadas);
+            assertEquals(0, produtoService.buscarPorCodigo(codigoQuaseSemEstoque).quantidadeEmEstoque());
+        } finally {
+            duasThreads.shutdownNow();
+        }
     }
 }
