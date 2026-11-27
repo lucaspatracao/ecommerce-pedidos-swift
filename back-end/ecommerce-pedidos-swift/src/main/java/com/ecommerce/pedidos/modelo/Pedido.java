@@ -17,6 +17,7 @@ import java.util.List;
  * financeiro.
  */
 public class Pedido {
+    private Long id;
     private final String numero;
     private final Cliente cliente;
     private final List<ItemPedido> itens = new ArrayList<>();
@@ -34,6 +35,49 @@ public class Pedido {
         this.data = LocalDate.now();
         this.situacao = SituacaoPedido.ABERTO;
         totalDePedidosCriados++;
+    }
+
+    private Pedido(Long id, String numero, Cliente cliente, LocalDate data, SituacaoPedido situacao,
+            List<ItemPedido> itens) {
+        if (numero == null || numero.isBlank()) {
+            throw new IllegalArgumentException("Número do pedido é obrigatório");
+        }
+        if (cliente == null) {
+            throw new IllegalArgumentException("Pedido exige um cliente");
+        }
+        if (data == null || situacao == null) {
+            throw new IllegalArgumentException("Data e situação do pedido são obrigatórias");
+        }
+        this.id = id;
+        this.numero = numero;
+        this.cliente = cliente;
+        this.data = data;
+        this.situacao = situacao;
+        if (itens != null) {
+            this.itens.addAll(itens);
+        }
+    }
+
+    /**
+     * Recria um pedido lido do banco, sem gerar novo número, sem baixar
+     * estoque e sem recalcular os preços dos itens (que já vêm gravados).
+     */
+    public static Pedido reconstituir(Long id, String numero, Cliente cliente, LocalDate data,
+            SituacaoPedido situacao, List<ItemPedido> itens) {
+        return new Pedido(id, numero, cliente, data, situacao, itens);
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    /** Localiza um item do pedido pelo id gravado no banco. */
+    public java.util.Optional<ItemPedido> buscarItemPorId(Long itemId) {
+        return itens.stream().filter(item -> item.getId() != null && item.getId().equals(itemId)).findFirst();
     }
 
     public static int getTotalDePedidosCriados() {

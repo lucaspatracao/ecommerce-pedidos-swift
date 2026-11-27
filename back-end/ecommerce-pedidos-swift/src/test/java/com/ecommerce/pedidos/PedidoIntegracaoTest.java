@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import com.ecommerce.pedidos.apoio.BancoEmMemoria;
 import com.ecommerce.pedidos.modelo.Cliente;
 import com.ecommerce.pedidos.modelo.Endereco;
 import com.ecommerce.pedidos.modelo.Pedido;
@@ -23,9 +24,11 @@ class PedidoIntegracaoTest {
     @Test
     @DisplayName("deve criar um pedido completo e finalizar com pagamento aprovado")
     void deveCriarPedidoCompletoEFinalizarComPagamentoAprovado() {
-        ClienteService clienteService = new ClienteService();
-        ProdutoService produtoService = new ProdutoService();
-        PedidoService pedidoService = new PedidoService(clienteService, produtoService);
+        // Serviços montados sobre os repositórios em memória (sem MySQL).
+        BancoEmMemoria banco = new BancoEmMemoria();
+        ClienteService clienteService = banco.clienteService();
+        ProdutoService produtoService = banco.produtoService();
+        PedidoService pedidoService = banco.pedidoService();
 
         Cliente cliente = new Cliente("Bruno Silva", "12345678900", "bruno@email.com", "11999998888",
                 new Endereco("Rua C", "São Paulo", "01000-001"));

@@ -14,6 +14,9 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>17</maven.compiler.release>
     <spring-boot.version>3.3.2</spring-boot.version>
+    <!-- Mínimos de cobertura total (unidade + integração), verificados em mvn verify -->
+    <cobertura.minima.linhas>0.85</cobertura.minima.linhas>
+    <cobertura.minima.ramos>0.65</cobertura.minima.ramos>
   </properties>
 
   <dependencyManagement>
@@ -118,15 +121,56 @@
         <artifactId>spring-boot-maven-plugin</artifactId>
         <version>${spring-boot.version}</version>
       </plugin>
+
+      <!-- Suíte de UNIDADE (mvn test): tudo que não tem a tag "integracao". Não precisa de banco. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.2.5</version>
+        <configuration>
+          <excludedGroups>integracao</excludedGroups>
+        </configuration>
       </plugin>
+
+      <!-- Suíte de INTEGRAÇÃO (mvn verify): testes com a tag "integracao", contra MySQL real. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>3.2.5</version>
+        <configuration>
+          <groups>integracao</groups>
+          <includes>
+            <include>**/*Test.java</include>
+          </includes>
+          <classesDirectory>${project.build.outputDirectory}</classesDirectory>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!--
+        Cobertura (JaCoCo):
+          target/site/jacoco        -> suíte de unidade
+          target/site/jacoco-it     -> suíte de integração
+          target/site/jacoco-total  -> as duas somadas
+      -->
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
         <version>0.8.14</version>
+        <configuration>
+          <excludes>
+            <!-- Pontos de entrada sem lógica: não entram na métrica. -->
+            <exclude>com/ecommerce/pedidos/EcommercePedidosSwiftApplication.class</exclude>
+            <exclude>com/ecommerce/pedidos/swift/Aplicacao.class</exclude>
+          </excludes>
+        </configuration>
         <executions>
           <execution>
             <id>prepare-agent</id>
@@ -142,6 +186,7 @@
             </goals>
           </execution>
           <execution>
+            <!-- Regra da Aula 10: domínio coberto pelos testes de UNIDADE. -->
             <id>coverage-check</id>
             <phase>test</phase>
             <goals>
@@ -149,8 +194,9 @@
             </goals>
             <configuration>
               <includes>
-                <include>com.ecommerce.pedidos.modelo.*</include>
-                <include>com.ecommerce.pedidos.excecao.*</include>
+                <!-- Padrão de caminho de classe (com barras). -->
+                <include>com/ecommerce/pedidos/modelo/**</include>
+                <include>com/ecommerce/pedidos/excecao/**</include>
               </includes>
               <rules>
                 <rule>
@@ -160,6 +206,77 @@
                       <counter>LINE</counter>
                       <value>COVEREDRATIO</value>
                       <minimum>0.70</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
+          <execution>
+            <id>prepare-agent-integration</id>
+            <goals>
+              <goal>prepare-agent-integration</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>report-integration</id>
+            <phase>post-integration-test</phase>
+            <goals>
+              <goal>report-integration</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>merge</id>
+            <phase>post-integration-test</phase>
+            <goals>
+              <goal>merge</goal>
+            </goals>
+            <configuration>
+              <fileSets>
+                <fileSet>
+                  <directory>${project.build.directory}</directory>
+                  <includes>
+                    <include>jacoco.exec</include>
+                    <include>jacoco-it.exec</include>
+                  </includes>
+                </fileSet>
+              </fileSets>
+              <destFile>${project.build.directory}/jacoco-total.exec</destFile>
+            </configuration>
+          </execution>
+          <execution>
+            <id>report-total</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+            <configuration>
+              <dataFile>${project.build.directory}/jacoco-total.exec</dataFile>
+              <outputDirectory>${project.reporting.outputDirectory}/jacoco-total</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <!-- Regra da Aula 11: cobertura do projeto inteiro (unidade + integração). -->
+            <id>coverage-check-total</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <dataFile>${project.build.directory}/jacoco-total.exec</dataFile>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${cobertura.minima.linhas}</minimum>
+                    </limit>
+                    <limit>
+                      <counter>BRANCH</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${cobertura.minima.ramos}</minimum>
                     </limit>
                   </limits>
                 </rule>
