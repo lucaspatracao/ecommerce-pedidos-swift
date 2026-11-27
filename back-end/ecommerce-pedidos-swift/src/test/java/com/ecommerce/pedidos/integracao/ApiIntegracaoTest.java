@@ -58,7 +58,7 @@ class ApiIntegracaoTest {
     private String novoCliente() throws Exception {
         String cpf = DadosDeTeste.novoCpf();
         enviar("POST", "/api/clientes", """
-            {"nome":"Cliente API","cpf":"%s","email":"api@teste.com","telefone":"11900001111","endereco":"Rua API"}
+            {"nome":"Cliente API","cpf":"%1$s","email":"api%1$s@teste.com","telefone":"11900001111","endereco":"Rua API"}
             """.formatted(cpf)).andExpect(status().isCreated());
         return cpf;
     }
@@ -175,7 +175,7 @@ class ApiIntegracaoTest {
                 .andExpect(jsonPath("$.endereco.logradouro").value("Rua API"));
 
             enviar("PUT", "/api/clientes/" + cpf, """
-                {"nome":"Nome Novo","cpf":"%s","email":"novo@teste.com","telefone":"11922223333","endereco":""}
+                {"nome":"Nome Novo","cpf":"%1$s","email":"novo%1$s@teste.com","telefone":"11922223333","endereco":""}
                 """.formatted(cpf))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nome").value("Nome Novo"))

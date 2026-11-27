@@ -91,7 +91,7 @@ class RepositoriosConsultaTest {
     @DisplayName("@Query: busca cliente pelo CPF gravado no atributo herdado 'documento'")
     void deveBuscarClientePorCpf() {
         String cpf = DadosDeTeste.novoCpf();
-        clienteService.cadastrar(new ClienteRequest("Dora", cpf, "dora@teste.com", "11900000000", null));
+        clienteService.cadastrar(new ClienteRequest("Dora", cpf, "dora" + cpf + "@teste.com", "11900000000", null));
 
         assertEquals("Dora", clienteRepository.buscarPorCpf(cpf).orElseThrow().getNome());
         assertTrue(clienteRepository.buscarPorCpf("00000000000").isEmpty());
@@ -126,7 +126,7 @@ class RepositoriosConsultaTest {
     /** Cada pedido tem 2 itens com produtos diferentes, para o JOIN ter trabalho a fazer. */
     private List<PedidoResponse> criarPedidos(int quantidade) {
         String cpf = DadosDeTeste.novoCpf();
-        clienteService.cadastrar(new ClienteRequest("Cliente Consulta", cpf, "consulta@teste.com", "11900000000", "Rua"));
+        clienteService.cadastrar(new ClienteRequest("Cliente Consulta", cpf, "consulta" + cpf + "@teste.com", "11900000000", "Rua"));
         String codigoA = DadosDeTeste.novoCodigo("Q-A");
         String codigoB = DadosDeTeste.novoCodigo("Q-B");
         produtoService.cadastrar(new ProdutoRequest(codigoA, "Item A", "", new BigDecimal("10.00"), 100, true));

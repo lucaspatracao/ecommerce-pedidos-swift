@@ -35,6 +35,10 @@ public class Cliente extends Pessoa {
     @Embedded
     private Endereco endereco;
 
+    /** Soft delete: inativo sai das listagens, mas continua nos pedidos antigos. */
+    @Column(nullable = false)
+    private boolean ativo = true;
+
     protected Cliente() {
         // exigido pelo JPA
     }
@@ -71,6 +75,25 @@ public class Cliente extends Pessoa {
 
     public Endereco getEndereco() {
         return endereco;
+    }
+
+    public boolean isAtivo() {
+        return ativo;
+    }
+
+    /** Tira o cliente das listagens sem apagar o histórico de pedidos. */
+    public void inativar() {
+        if (!ativo) {
+            throw new IllegalStateException("Cliente já está inativo.");
+        }
+        ativo = false;
+    }
+
+    public void reativar() {
+        if (ativo) {
+            throw new IllegalStateException("Cliente já está ativo.");
+        }
+        ativo = true;
     }
 
     /**

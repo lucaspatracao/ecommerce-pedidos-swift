@@ -51,7 +51,7 @@ class TransacaoPedidoTest {
     @BeforeEach
     void setUp() {
         cpf = DadosDeTeste.novoCpf();
-        clienteService.cadastrar(new ClienteRequest("Cliente Transacao", cpf, "transacao@teste.com", "11900000000", null));
+        clienteService.cadastrar(new ClienteRequest("Cliente Transacao", cpf, "transacao" + cpf + "@teste.com", "11900000000", null));
         codigoComEstoque = DadosDeTeste.novoCodigo("TX-A");
         codigoQuaseSemEstoque = DadosDeTeste.novoCodigo("TX-B");
         produtoService.cadastrar(new ProdutoRequest(codigoComEstoque, "Produto A", "", new BigDecimal("10.00"), 10, true));

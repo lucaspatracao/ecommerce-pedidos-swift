@@ -67,7 +67,7 @@ class FluxoCompraIntegracaoTest {
     @BeforeEach
     void cadastrarEMontarPedido() {
         String cpf = DadosDeTeste.novoCpf();
-        clienteService.cadastrar(new ClienteRequest("Carla Mendes", cpf, "carla@teste.com", "11988887777", "Rua das Flores"));
+        clienteService.cadastrar(new ClienteRequest("Carla Mendes", cpf, "carla" + cpf + "@teste.com", "11988887777", "Rua das Flores"));
         codigoProduto = DadosDeTeste.novoCodigo("FLX");
         produtoService.cadastrar(new ProdutoRequest(codigoProduto, "Fone Bluetooth", "", new BigDecimal("150.00"), 10, true));
         pedido = pedidoService.criar(new PedidoRequest(cpf, List.of(new ItemPedidoRequest(codigoProduto, 2))));

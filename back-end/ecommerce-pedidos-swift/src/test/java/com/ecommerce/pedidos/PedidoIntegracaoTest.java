@@ -39,7 +39,7 @@ class PedidoIntegracaoTest {
     @DisplayName("deve criar um pedido completo e finalizar com pagamento aprovado")
     void deveCriarPedidoCompletoEFinalizarComPagamentoAprovado() {
         String cpf = "37168330535";
-        clienteService.cadastrar(new ClienteRequest("Bruno Silva", cpf, "bruno@email.com", "11999998888", "Rua C"));
+        clienteService.cadastrar(new ClienteRequest("Bruno Silva", cpf, "bruno" + cpf + "@email.com", "11999998888", "Rua C"));
         produtoService.cadastrar(new ProdutoRequest("P-INT-001", "Camiseta", "", new BigDecimal("49.90"), 10, true));
 
         PedidoResponse pedido = pedidoService.criar(
