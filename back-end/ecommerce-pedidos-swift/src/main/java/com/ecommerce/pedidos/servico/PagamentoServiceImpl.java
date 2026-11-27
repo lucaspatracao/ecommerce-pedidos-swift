@@ -1,7 +1,6 @@
 package com.ecommerce.pedidos.servico;
 
 import com.ecommerce.pedidos.dto.PagamentoDetalhe;
-import com.ecommerce.pedidos.dto.PagamentoRegistradoResponse;
 import com.ecommerce.pedidos.dto.PagamentoRequest;
 import com.ecommerce.pedidos.dto.PagamentoResumoResponse;
 import com.ecommerce.pedidos.excecao.PagamentoRecusadoException;
@@ -12,6 +11,7 @@ import com.ecommerce.pedidos.repositorio.FormaPagamentoRepository;
 import com.ecommerce.pedidos.repositorio.PedidoRepository;
 import com.ecommerce.pedidos.util.Utils;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,17 +57,30 @@ public class PagamentoServiceImpl implements PagamentoService {
      */
     @Override
     @Transactional
-    public PagamentoRegistradoResponse registrar(PagamentoRequest request) {
-        String numero = Utils.textoObrigatorio(request.pedidoNumero(), "Número do pedido");
+    public Map<String, Object> registrar(String numeroPedido, PagamentoRequest request) {
         FormaPagamento pagamento = fabrica.criar(request);
-        Pedido pedido = pedidoRepository.findByNumero(numero)
-            .orElseThrow(() -> new RecursoNaoEncontradoException("Pedido", numero));
+        Pedido pedido = buscarPedido(numeroPedido);
 
         pedido.pagarCom(pagamento);
 
         if (!gateway.autorizar(pagamento)) {
             throw new PagamentoRecusadoException(pagamento.getDescricao(), "não autorizado pelo gateway de pagamento");
         }
-        return new PagamentoRegistradoResponse("Pagamento registrado com sucesso.", PagamentoDetalhe.de(pagamento));
+        return PagamentoDetalhe.de(pagamento);
+    }
+
+    @Override
+    public Map<String, Object> buscarPorPedido(String numeroPedido) {
+        Pedido pedido = buscarPedido(numeroPedido);
+        if (pedido.getFormaPagamento() == null) {
+            throw new RecursoNaoEncontradoException("Pagamento do pedido", pedido.getNumero());
+        }
+        return PagamentoDetalhe.de(pedido.getFormaPagamento());
+    }
+
+    private Pedido buscarPedido(String numeroPedido) {
+        String numero = Utils.textoObrigatorio(numeroPedido, "Número do pedido");
+        return pedidoRepository.findByNumero(numero)
+            .orElseThrow(() -> new RecursoNaoEncontradoException("Pedido", numero));
     }
 }

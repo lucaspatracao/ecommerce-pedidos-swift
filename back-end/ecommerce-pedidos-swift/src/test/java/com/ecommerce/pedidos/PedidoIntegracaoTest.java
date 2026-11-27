@@ -51,8 +51,8 @@ class PedidoIntegracaoTest {
         assertEquals(1, pedido.itens().size());
         assertEquals(SituacaoPedido.ABERTO, pedido.situacao());
 
-        pagamentoService.registrar(new PagamentoRequest("PIX", new BigDecimal("99.80"), null, null, null, null, null,
-            "bruno@email.com", "EMAIL", pedido.numero()));
+        pagamentoService.registrar(pedido.numero(), new PagamentoRequest("PIX", new BigDecimal("99.80"), null, null, null, null, null,
+            "bruno@email.com", "EMAIL"));
 
         assertEquals(SituacaoPedido.PAGO, pedidoService.buscarPorNumero(pedido.numero()).situacao());
         assertEquals(8, produtoService.buscarPorCodigo("P-INT-001").quantidadeEmEstoque());

@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -53,6 +54,7 @@ class ApiIntegracaoTest {
         var requisicao = switch (metodo) {
             case "POST" -> post(url);
             case "PUT" -> put(url);
+            case "PATCH" -> patch(url);
             default -> throw new IllegalArgumentException(metodo);
         };
         return mvc.perform(requisicao.contentType(MediaType.APPLICATION_JSON).content(corpo));
@@ -293,13 +295,12 @@ class ApiIntegracaoTest {
             String codigo = novoProduto("50.00", 10);
             String numero = novoPedido(novoCliente(), codigo, 2);
 
-            enviar("POST", "/api/pagamentos", """
-                {"tipo":"CARTAO","valor":"100.00","numero":"**** 4242","bandeira":"Visa","parcelas":"3","pedidoNumero":"%s"}
-                """.formatted(numero))
+            enviar("POST", "/api/pedidos/" + numero + "/pagamento", """
+                {"tipo":"CARTAO","valor":"100.00","numero":"**** 4242","bandeira":"Visa","parcelas":"3"}
+                """)
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.mensagem").value("Pagamento registrado com sucesso."))
-                .andExpect(jsonPath("$.pagamento.descricao").value("CartaoCredito"))
-                .andExpect(jsonPath("$.pagamento.quantidadeDeParcelas").value(3));
+                .andExpect(jsonPath("$.descricao").value("CartaoCredito"))
+                .andExpect(jsonPath("$.quantidadeDeParcelas").value(3));
 
             mvc.perform(get("/api/pedidos/{numero}", numero))
                 .andExpect(jsonPath("$.valorTotal").value(100.00))
@@ -308,12 +309,16 @@ class ApiIntegracaoTest {
                 .andExpect(jsonPath("$.situacao").value("PAGO"))
                 .andExpect(jsonPath("$.formaPagamento.situacao").value("APROVADO"));
 
+            mvc.perform(get("/api/pedidos/{numero}/pagamento", numero))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.descricao").value("CartaoCredito"));
+
             mvc.perform(get("/api/pagamentos"))
                 .andExpect(jsonPath("$[*].metodo", hasItem("Visa •••• **** 4242")));
 
             mvc.perform(delete("/api/pedidos/{numero}", numero)).andExpect(status().isConflict());
 
-            enviar("PUT", "/api/pedidos/" + numero + "/status", "{\"status\":\"cancelado\"}")
+            enviar("PATCH", "/api/pedidos/" + numero, "{\"situacao\":\"cancelado\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.situacao").value("CANCELADO"))
                 .andExpect(jsonPath("$.formaPagamento.situacao").value("ESTORNADO"));
@@ -323,7 +328,7 @@ class ApiIntegracaoTest {
             mvc.perform(delete("/api/pedidos/{numero}", numero))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.erro").value(containsString("histórico")));
-            mvc.perform(post("/api/pedidos/{numero}/cancelar", numero)).andExpect(status().isConflict());
+            enviar("PATCH", "/api/pedidos/" + numero, "{\"situacao\":\"CANCELADO\"}").andExpect(status().isConflict());
         }
 
         @Test
@@ -334,17 +339,17 @@ class ApiIntegracaoTest {
             String pedidoBoleto = novoPedido(cpf, codigo, 1);
             String pedidoPix = novoPedido(cpf, codigo, 1);
 
-            enviar("POST", "/api/pagamentos", """
-                {"tipo":"BOLETO","valor":"30.00","vencimento":"%s","codigo":"34191.79001","pedidoNumero":"%s"}
-                """.formatted(LocalDate.now().plusDays(3), pedidoBoleto))
+            enviar("POST", "/api/pedidos/" + pedidoBoleto + "/pagamento", """
+                {"tipo":"BOLETO","valor":"30.00","vencimento":"%s","codigo":"34191.79001"}
+                """.formatted(LocalDate.now().plusDays(3)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.pagamento.codigoDeBarras").value("34191.79001"));
+                .andExpect(jsonPath("$.codigoDeBarras").value("34191.79001"));
 
             String pix = """
-                {"tipo":"PIX","valor":"30.00","chave":"api@teste.com","tipoChave":"EMAIL","pedidoNumero":"%s"}
-                """.formatted(pedidoPix);
-            enviar("POST", "/api/pagamentos", pix).andExpect(status().isCreated());
-            enviar("POST", "/api/pagamentos", pix)
+                {"tipo":"PIX","valor":"30.00","chave":"api@teste.com","tipoChave":"EMAIL"}
+                """;
+            enviar("POST", "/api/pedidos/" + pedidoPix + "/pagamento", pix).andExpect(status().isCreated());
+            enviar("POST", "/api/pedidos/" + pedidoPix + "/pagamento", pix)
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.erro").value(containsString("não pode ser pago")));
         }
@@ -354,22 +359,26 @@ class ApiIntegracaoTest {
         void deveValidarPagamento() throws Exception {
             String numero = novoPedido(novoCliente(), novoProduto("30.00", 10), 1);
 
-            enviar("POST", "/api/pagamentos", """
-                {"tipo":"PIX","valor":"29.00","chave":"c","tipoChave":"EMAIL","pedidoNumero":"%s"}
-                """.formatted(numero))
+            enviar("POST", "/api/pedidos/" + numero + "/pagamento", """
+                {"tipo":"PIX","valor":"29.00","chave":"c","tipoChave":"EMAIL"}
+                """)
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.erro").value("Valor do pagamento deve ser igual ao total do pedido"));
-            enviar("POST", "/api/pagamentos", """
-                {"tipo":"CHEQUE","valor":"30.00","pedidoNumero":"%s"}
-                """.formatted(numero)).andExpect(status().isBadRequest());
-            enviar("POST", "/api/pagamentos", """
-                {"tipo":"PIX","valor":"30.00","pedidoNumero":"%s"}
-                """.formatted(numero))
+            enviar("POST", "/api/pedidos/" + numero + "/pagamento", """
+                {"tipo":"CHEQUE","valor":"30.00"}
+                """).andExpect(status().isBadRequest());
+            enviar("POST", "/api/pedidos/" + numero + "/pagamento", """
+                {"tipo":"PIX","valor":"30.00"}
+                """)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.erro").value("Chave Pix é obrigatório."));
-            enviar("POST", "/api/pagamentos", "{\"tipo\":\"PIX\"}")
+            enviar("POST", "/api/pedidos/" + numero + "/pagamento", "{\"tipo\":\"PIX\"}")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erro").value(containsString("Número do pedido é obrigatório")));
+                .andExpect(jsonPath("$.erro").value(containsString("Valor do pagamento é obrigatório.")));
+            // Pedido ainda sem pagamento: o sub-recurso não existe.
+            mvc.perform(get("/api/pedidos/{numero}/pagamento", numero)).andExpect(status().isNotFound());
+            // A rota antiga saiu: o pagamento é criado no pedido.
+            enviar("POST", "/api/pagamentos", "{}").andExpect(status().isMethodNotAllowed());
         }
 
         @Test
@@ -380,12 +389,12 @@ class ApiIntegracaoTest {
             String numero = novoPedido(cpf, codigo, 3);
             org.junit.jupiter.api.Assertions.assertEquals(2, estoqueDe(codigo));
 
-            enviar("PUT", "/api/pedidos/" + numero + "/status", "{\"status\":\"ENVIADO\"}")
+            enviar("PATCH", "/api/pedidos/" + numero, "{\"situacao\":\"ENVIADO\"}")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.erro").value(containsString("Status inválido")));
-            enviar("PUT", "/api/pedidos/" + numero + "/status", "{\"status\":\"PAGO\"}")
+            enviar("PATCH", "/api/pedidos/" + numero, "{\"situacao\":\"PAGO\"}")
                 .andExpect(status().isConflict());
-            enviar("PUT", "/api/pedidos/" + numero + "/status", "{\"status\":\"ABERTO\"}")
+            enviar("PATCH", "/api/pedidos/" + numero, "{\"situacao\":\"ABERTO\"}")
                 .andExpect(status().isOk());
 
             mvc.perform(delete("/api/pedidos/{numero}", numero)).andExpect(status().isNoContent());
@@ -393,10 +402,10 @@ class ApiIntegracaoTest {
             mvc.perform(get("/api/pedidos/{numero}", numero)).andExpect(status().isNotFound());
 
             String pago = novoPedido(cpf, codigo, 1);
-            enviar("POST", "/api/pagamentos", """
-                {"tipo":"PIX","valor":"10.00","chave":"c","tipoChave":"EMAIL","pedidoNumero":"%s"}
-                """.formatted(pago)).andExpect(status().isCreated());
-            enviar("PUT", "/api/pedidos/" + pago + "/status", "{\"status\":\"ABERTO\"}")
+            enviar("POST", "/api/pedidos/" + pago + "/pagamento", """
+                {"tipo":"PIX","valor":"10.00","chave":"c","tipoChave":"EMAIL"}
+                """).andExpect(status().isCreated());
+            enviar("PATCH", "/api/pedidos/" + pago, "{\"situacao\":\"ABERTO\"}")
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.erro").value("Transição de situação inválida"));
         }

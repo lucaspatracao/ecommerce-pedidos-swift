@@ -1,5 +1,6 @@
 package com.ecommerce.pedidos.controller;
 
+import com.ecommerce.pedidos.dto.AtivoRequest;
 import com.ecommerce.pedidos.dto.ClienteRequest;
 import com.ecommerce.pedidos.dto.ClienteResponse;
 import com.ecommerce.pedidos.dto.PedidoResponse;
@@ -10,9 +11,9 @@ import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -27,7 +28,6 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/clientes")
-@CrossOrigin(origins = {"http://localhost:5173", "http://127.0.0.1:5173"})
 public class ClienteController {
     private final ClienteService clienteService;
     private final PedidoService pedidoService;
@@ -75,14 +75,9 @@ public class ClienteController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/{cpf}/inativar")
-    public ResponseEntity<Void> inativar(@PathVariable("cpf") String cpf) {
-        clienteService.inativar(cpf);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/{cpf}/reativar")
-    public ClienteResponse reativar(@PathVariable("cpf") String cpf) {
-        return clienteService.reativar(cpf);
+    /** PATCH parcial: {@code { "ativo": false }} inativa (soft delete) e {@code true} reativa. */
+    @PatchMapping("/{cpf}")
+    public ClienteResponse alterarAtivo(@PathVariable("cpf") String cpf, @Valid @RequestBody AtivoRequest request) {
+        return clienteService.alterarAtivo(cpf, request.ativo());
     }
 }

@@ -103,6 +103,16 @@ public class ClienteServiceImpl implements ClienteService {
     }
 
     @Override
+    @Transactional
+    public ClienteResponse alterarAtivo(String cpf, boolean ativo) {
+        if (ativo) {
+            return reativar(cpf);
+        }
+        inativar(cpf);
+        return ClienteResponse.de(buscarEntidade(cpf, Visibilidade.TODOS));
+    }
+
+    @Override
     public long contar() {
         return clienteRepository.countByAtivoTrue();
     }

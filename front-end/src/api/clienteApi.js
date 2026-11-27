@@ -158,12 +158,13 @@ export const buscarPedido = async (numero) => {
 }
 
 /**
- * POST /pagamentos — contrato do back-end (PagamentoRequest). Campos por tipo:
+ * POST /pedidos/{numero}/pagamento — o pagamento é sub-recurso do pedido.
+ * Corpo (PagamentoRequest): { tipo, valor, ...campos do tipo }
  * PIX: chave, tipoChave | BOLETO: vencimento (AAAA-MM-DD), codigo | CARTAO: numero, bandeira, parcelas
  */
-export const registrarPagamento = async (pagamento) => {
+export const registrarPagamento = async (numeroPedido, pagamento) => {
   try {
-    const resposta = await api.post('/pagamentos', pagamento)
+    const resposta = await api.post(`/pedidos/${encodeURIComponent(normalizarId(numeroPedido))}/pagamento`, pagamento)
     return resposta.data
   } catch (error) {
     throw new Error(tratarErro(error, 'Não foi possível registrar o pagamento. Tente novamente.'), { cause: error })

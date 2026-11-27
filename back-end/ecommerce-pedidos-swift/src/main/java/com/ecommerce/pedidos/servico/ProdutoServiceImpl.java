@@ -115,6 +115,16 @@ public class ProdutoServiceImpl implements ProdutoService {
     }
 
     @Override
+    @Transactional
+    public ProdutoResponse alterarAtivo(String codigo, boolean ativo) {
+        if (ativo) {
+            return reativar(codigo);
+        }
+        inativar(codigo);
+        return ProdutoResponse.de(buscarEntidade(codigo, Visibilidade.TODOS));
+    }
+
+    @Override
     public long contar() {
         return produtoRepository.countByAtivoTrue();
     }

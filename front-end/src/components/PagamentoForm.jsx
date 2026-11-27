@@ -16,7 +16,7 @@ const hoje = () => {
 }
 
 /**
- * Campos que cada forma de pagamento exige no POST /api/pagamentos.
+ * Campos que cada forma de pagamento exige no POST /api/pedidos/{numero}/pagamento.
  * Espelha a FabricaFormaPagamento do back-end: trocar o tipo troca os campos,
  * sem if/switch espalhado pelo formulário.
  */
@@ -77,10 +77,9 @@ export function PagamentoForm({ pedido, onPagamentoRegistrado }) {
     setErro('')
     setEnviando(true)
     try {
-      await registrarPagamento({
+      await registrarPagamento(pedido.numero, {
         tipo,
         valor: String(pedido.valorTotal),
-        pedidoNumero: pedido.numero,
         ...forma.montar(campos),
       })
       onPagamentoRegistrado?.()

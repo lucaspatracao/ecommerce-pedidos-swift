@@ -145,8 +145,8 @@ public class PedidoServiceImpl implements PedidoService {
 
     @Override
     @Transactional
-    public PedidoResponse atualizarStatus(String numero, String status) {
-        SituacaoPedido nova = SituacaoPedido.deTexto(status);
+    public PedidoResponse atualizarSituacao(String numero, String situacao) {
+        SituacaoPedido nova = SituacaoPedido.deTexto(situacao);
         if (nova == SituacaoPedido.CANCELADO) {
             return cancelar(numero);
         }
