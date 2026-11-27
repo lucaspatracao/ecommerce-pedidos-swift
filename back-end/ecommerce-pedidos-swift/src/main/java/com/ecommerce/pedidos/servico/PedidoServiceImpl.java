@@ -11,10 +11,12 @@ import com.ecommerce.pedidos.modelo.Pedido;
 import com.ecommerce.pedidos.modelo.Produto;
 import com.ecommerce.pedidos.modelo.SituacaoPedido;
 import com.ecommerce.pedidos.repositorio.ClienteRepository;
+import com.ecommerce.pedidos.repositorio.ItemPedidoRepository;
 import com.ecommerce.pedidos.repositorio.PedidoRepository;
 import com.ecommerce.pedidos.repositorio.ProdutoRepository;
 import com.ecommerce.pedidos.util.Utils;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -27,29 +29,38 @@ public class PedidoServiceImpl implements PedidoService {
     private final PedidoRepository pedidoRepository;
     private final ClienteRepository clienteRepository;
     private final ProdutoRepository produtoRepository;
+    private final ItemPedidoRepository itemPedidoRepository;
 
     public PedidoServiceImpl(PedidoRepository pedidoRepository, ClienteRepository clienteRepository,
-                             ProdutoRepository produtoRepository) {
+                             ProdutoRepository produtoRepository, ItemPedidoRepository itemPedidoRepository) {
         this.pedidoRepository = pedidoRepository;
         this.clienteRepository = clienteRepository;
         this.produtoRepository = produtoRepository;
+        this.itemPedidoRepository = itemPedidoRepository;
     }
 
+    /** JOIN FETCH: uma consulta só para todos os pedidos (sem N+1). */
     @Override
     public List<PedidoResponse> listarTodos() {
-        return pedidoRepository.findAllByOrderByDataDescIdDesc().stream().map(PedidoResponse::de).toList();
+        return pedidoRepository.buscarTodosCompletos().stream().map(PedidoResponse::de).toList();
     }
 
+    /** Pagina os ids no banco e depois carrega só esses pedidos com JOIN FETCH. */
     @Override
     public List<PedidoResponse> listarRecentes(int limite) {
-        return pedidoRepository.findAllByOrderByDataDescIdDesc(PageRequest.of(0, limite)).stream()
-            .map(PedidoResponse::de)
-            .toList();
+        List<Long> ids = pedidoRepository.buscarIdsRecentes(PageRequest.of(0, limite));
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return pedidoRepository.buscarCompletosPorIds(ids).stream().map(PedidoResponse::de).toList();
     }
 
     @Override
     public PedidoResponse buscarPorNumero(String numero) {
-        return PedidoResponse.de(buscarEntidade(numero));
+        String chave = Utils.textoObrigatorio(numero, "Número do pedido");
+        return pedidoRepository.buscarCompletoPorNumero(chave)
+            .map(PedidoResponse::de)
+            .orElseThrow(() -> new RecursoNaoEncontradoException("Pedido", chave));
     }
 
     /**
@@ -67,7 +78,7 @@ public class PedidoServiceImpl implements PedidoService {
             throw new IllegalArgumentException("Pedido deve conter pelo menos um item.");
         }
         String cpf = Utils.apenasDigitos(Utils.textoObrigatorio(request.clienteCpf(), "CPF do cliente"));
-        Cliente cliente = clienteRepository.findByDocumento(cpf)
+        Cliente cliente = clienteRepository.buscarPorCpf(cpf)
             .orElseThrow(() -> new ClienteNaoEncontradoException(cpf));
 
         Pedido pedido = new Pedido(cliente);
@@ -77,7 +88,7 @@ public class PedidoServiceImpl implements PedidoService {
                 throw new ConflitoException("Produto indisponível para venda: " + produto.getCodigo());
             }
             // Regra no domínio: baixa o estoque ou lança EstoqueInsuficienteException (409).
-            pedido.adicionarItem(produto, item.quantidade());
+            pedido.adicionarItem(produto, item.quantidade() == null ? 0 : item.quantidade());
         }
         return PedidoResponse.de(pedidoRepository.save(pedido));
     }
@@ -118,9 +129,8 @@ public class PedidoServiceImpl implements PedidoService {
 
     @Override
     public BigDecimal calcularReceitaTotal() {
-        return pedidoRepository.findAll().stream()
-            .map(Pedido::calcularValorTotal)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // SUM feito no banco (@Query em ItemPedidoRepository); escala 2 como os demais valores.
+        return itemPedidoRepository.calcularReceitaTotal().setScale(2, RoundingMode.HALF_UP);
     }
 
     private Pedido buscarEntidade(String numero) {

@@ -80,7 +80,7 @@ public class ProdutoServiceImpl implements ProdutoService {
 
     @Override
     public List<ProdutoResponse> listarEstoqueCritico(int limite) {
-        return produtoRepository.findByQuantidadeEmEstoqueLessThanOrderByQuantidadeEmEstoqueAsc(limite).stream()
+        return produtoRepository.buscarComEstoqueAbaixoDe(limite).stream()
             .map(ProdutoResponse::de)
             .toList();
     }
@@ -91,13 +91,12 @@ public class ProdutoServiceImpl implements ProdutoService {
             .orElseThrow(() -> new RecursoNaoEncontradoException("Produto", chave));
     }
 
-    // O front envia o preço como texto ("49.90"); conversão inválida vira 400.
+    // Na API o @Valid já barra nulos; estas checagens protegem quem chama o serviço direto.
     private static BigDecimal preco(ProdutoRequest request) {
-        try {
-            return new BigDecimal(Utils.textoObrigatorio(request.preco(), "Preço do produto"));
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Preço do produto inválido: " + request.preco());
+        if (request.preco() == null) {
+            throw new IllegalArgumentException("Preço do produto é obrigatório.");
         }
+        return request.preco();
     }
 
     private static int estoque(ProdutoRequest request) {

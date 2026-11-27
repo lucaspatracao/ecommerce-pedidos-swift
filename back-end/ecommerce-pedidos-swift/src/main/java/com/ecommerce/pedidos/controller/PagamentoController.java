@@ -4,6 +4,7 @@ import com.ecommerce.pedidos.dto.PagamentoRegistradoResponse;
 import com.ecommerce.pedidos.dto.PagamentoRequest;
 import com.ecommerce.pedidos.dto.PagamentoResumoResponse;
 import com.ecommerce.pedidos.servico.PagamentoService;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,7 +31,7 @@ public class PagamentoController {
     }
 
     @PostMapping("/pagamentos")
-    public ResponseEntity<PagamentoRegistradoResponse> registrar(@RequestBody PagamentoRequest request) {
+    public ResponseEntity<PagamentoRegistradoResponse> registrar(@Valid @RequestBody PagamentoRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(pagamentoService.registrar(request));
     }
 }

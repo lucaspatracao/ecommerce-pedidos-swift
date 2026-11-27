@@ -4,6 +4,7 @@ import com.ecommerce.pedidos.dto.AtualizarStatusRequest;
 import com.ecommerce.pedidos.dto.PedidoRequest;
 import com.ecommerce.pedidos.dto.PedidoResponse;
 import com.ecommerce.pedidos.servico.PedidoService;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -38,13 +39,13 @@ public class PedidoController {
     }
 
     @PostMapping("/pedidos")
-    public ResponseEntity<PedidoResponse> criar(@RequestBody PedidoRequest request) {
+    public ResponseEntity<PedidoResponse> criar(@Valid @RequestBody PedidoRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(pedidoService.criar(request));
     }
 
     @PutMapping("/pedidos/{numero}/status")
     public PedidoResponse atualizarStatus(@PathVariable("numero") String numero,
-                                          @RequestBody AtualizarStatusRequest request) {
+                                          @Valid @RequestBody AtualizarStatusRequest request) {
         return pedidoService.atualizarStatus(numero, request.status());
     }
 

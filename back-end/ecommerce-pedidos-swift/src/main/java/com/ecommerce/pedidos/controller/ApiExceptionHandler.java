@@ -3,7 +3,9 @@ package com.ecommerce.pedidos.controller;
 import com.ecommerce.pedidos.excecao.ConflitoException;
 import com.ecommerce.pedidos.excecao.NegocioException;
 import com.ecommerce.pedidos.excecao.RecursoNaoEncontradoException;
+import java.util.Comparator;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -14,6 +16,8 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
@@ -32,6 +36,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  *  RecursoNaoEncontradoException ........ 404
  *  ConflitoException (e subclasses) ..... 409  estoque, pedido inválido, pagamento recusado, duplicado
  *  NegocioException (demais) ............ 400
+ *  Bean Validation (@Valid) ............. 400  mensagens dos campos inválidos
  *  IllegalArgumentException ............. 400  validação do domínio (CPF, preço, quantidade...)
  *  IllegalStateException ................ 409  operação incompatível com o estado do objeto
  *  DataIntegrityViolation / lock otimista 409  o banco recusou (duplicado, em uso, concorrência)
@@ -94,6 +99,23 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<Object> tratarErroInesperado(Exception ex) {
         LOG.error("Erro inesperado ao processar a requisição", ex);
         return erro(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno no servidor. Tente novamente mais tarde.");
+    }
+
+    /**
+     * Falha do Bean Validation num {@code @Valid @RequestBody} (Aula 14).
+     * Junta as mensagens de todos os campos inválidos numa frase só, para o
+     * front mostrar de uma vez. Ex.: "E-mail inválido. Telefone é obrigatório."
+     */
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
+                                                                  HttpHeaders headers, HttpStatusCode status,
+                                                                  WebRequest request) {
+        String mensagens = ex.getBindingResult().getFieldErrors().stream()
+            .sorted(Comparator.comparing(FieldError::getField))
+            .map(FieldError::getDefaultMessage)
+            .distinct()
+            .collect(Collectors.joining(" "));
+        return erro(HttpStatus.BAD_REQUEST, mensagens.isBlank() ? "Dados da requisição inválidos." : mensagens);
     }
 
     /** JSON mal formado ou com tipo errado (ex.: texto em campo numérico). */

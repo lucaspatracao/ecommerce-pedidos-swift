@@ -3,6 +3,7 @@ package com.ecommerce.pedidos.controller;
 import com.ecommerce.pedidos.dto.ClienteRequest;
 import com.ecommerce.pedidos.dto.ClienteResponse;
 import com.ecommerce.pedidos.servico.ClienteService;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -41,12 +42,12 @@ public class ClienteController {
     }
 
     @PostMapping
-    public ResponseEntity<ClienteResponse> criar(@RequestBody ClienteRequest request) {
+    public ResponseEntity<ClienteResponse> criar(@Valid @RequestBody ClienteRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(clienteService.cadastrar(request));
     }
 
     @PutMapping("/{cpf}")
-    public ClienteResponse atualizar(@PathVariable("cpf") String cpf, @RequestBody ClienteRequest request) {
+    public ClienteResponse atualizar(@PathVariable("cpf") String cpf, @Valid @RequestBody ClienteRequest request) {
         return clienteService.atualizar(cpf, request);
     }
 

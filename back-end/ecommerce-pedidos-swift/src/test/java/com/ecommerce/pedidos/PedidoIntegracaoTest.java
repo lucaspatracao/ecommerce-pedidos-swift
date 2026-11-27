@@ -14,6 +14,7 @@ import com.ecommerce.pedidos.servico.ClienteService;
 import com.ecommerce.pedidos.servico.PagamentoService;
 import com.ecommerce.pedidos.servico.PedidoService;
 import com.ecommerce.pedidos.servico.ProdutoService;
+import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,7 +40,7 @@ class PedidoIntegracaoTest {
     void deveCriarPedidoCompletoEFinalizarComPagamentoAprovado() {
         String cpf = "37168330535";
         clienteService.cadastrar(new ClienteRequest("Bruno Silva", cpf, "bruno@email.com", "11999998888", "Rua C"));
-        produtoService.cadastrar(new ProdutoRequest("P-INT-001", "Camiseta", "", "49.90", 10, true));
+        produtoService.cadastrar(new ProdutoRequest("P-INT-001", "Camiseta", "", new BigDecimal("49.90"), 10, true));
 
         PedidoResponse pedido = pedidoService.criar(
             new PedidoRequest(cpf, List.of(new ItemPedidoRequest("P-INT-001", 2))));
@@ -48,7 +49,7 @@ class PedidoIntegracaoTest {
         assertEquals(1, pedido.itens().size());
         assertEquals(SituacaoPedido.ABERTO, pedido.situacao());
 
-        pagamentoService.registrar(new PagamentoRequest("PIX", "99.80", null, null, null, null, null,
+        pagamentoService.registrar(new PagamentoRequest("PIX", new BigDecimal("99.80"), null, null, null, null, null,
             "bruno@email.com", "EMAIL", pedido.numero()));
 
         assertEquals(SituacaoPedido.PAGO, pedidoService.buscarPorNumero(pedido.numero()).situacao());

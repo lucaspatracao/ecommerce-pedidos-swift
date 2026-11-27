@@ -83,7 +83,7 @@ public class ClienteServiceImpl implements ClienteService {
     private Cliente buscarEntidade(String cpf) {
         // Aceita CPF com ou sem máscara; no banco ele fica só com dígitos.
         String chave = Utils.apenasDigitos(Utils.textoObrigatorio(cpf, "CPF do cliente"));
-        return clienteRepository.findByDocumento(chave)
+        return clienteRepository.buscarPorCpf(chave)
             .orElseThrow(() -> new ClienteNaoEncontradoException(chave));
     }
 }

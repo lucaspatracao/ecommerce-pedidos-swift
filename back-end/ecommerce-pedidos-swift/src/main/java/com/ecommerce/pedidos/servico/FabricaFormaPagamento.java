@@ -5,10 +5,6 @@ import com.ecommerce.pedidos.modelo.Boleto;
 import com.ecommerce.pedidos.modelo.CartaoCredito;
 import com.ecommerce.pedidos.modelo.FormaPagamento;
 import com.ecommerce.pedidos.modelo.Pix;
-import com.ecommerce.pedidos.util.Utils;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
@@ -22,14 +18,17 @@ import org.springframework.stereotype.Component;
  * (tipo → função construtora). Para aceitar um novo meio de pagamento basta
  * registrar mais uma entrada; nenhum {@code if}/{@code case} precisa mudar.
  * Daqui em diante o sistema só enxerga a abstração {@code FormaPagamento}.</p>
+ *
+ * <p>Os campos obrigatórios de cada tipo são validados pelo construtor da
+ * subclasse (ex.: {@code Pix} exige chave), que lança 400 com a mensagem.</p>
  */
 @Component
 public class FabricaFormaPagamento {
 
     private final Map<String, Function<PagamentoRequest, FormaPagamento>> construtores = Map.of(
-        "CARTAO", req -> new CartaoCredito(valor(req), req.numero(), req.bandeira(), parcelas(req)),
-        "BOLETO", req -> new Boleto(valor(req), vencimento(req), req.codigo()),
-        "PIX", req -> new Pix(valor(req), req.chave(), req.tipoChave())
+        "CARTAO", req -> new CartaoCredito(req.valor(), req.numero(), req.bandeira(), parcelas(req)),
+        "BOLETO", req -> new Boleto(req.valor(), req.vencimento(), req.codigo()),
+        "PIX", req -> new Pix(req.valor(), req.chave(), req.tipoChave())
     );
 
     public FormaPagamento criar(PagamentoRequest request) {
@@ -39,34 +38,16 @@ public class FabricaFormaPagamento {
         Function<PagamentoRequest, FormaPagamento> construtor =
             construtores.get(request.tipo().trim().toUpperCase(Locale.ROOT));
         if (construtor == null) {
-            throw new IllegalArgumentException("Tipo de pagamento inválido: " + request.tipo());
+            throw new IllegalArgumentException("Tipo de pagamento inválido: " + request.tipo()
+                + ". Use CARTAO, BOLETO ou PIX.");
         }
         return construtor.apply(request);
     }
 
-    // Os campos chegam como texto; a conversão falha com mensagem clara (400) em vez de erro 500.
-
-    private static BigDecimal valor(PagamentoRequest req) {
-        try {
-            return new BigDecimal(Utils.textoObrigatorio(req.valor(), "Valor do pagamento"));
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Valor do pagamento inválido: " + req.valor());
-        }
-    }
-
     private static int parcelas(PagamentoRequest req) {
-        try {
-            return Integer.parseInt(Utils.textoObrigatorio(req.parcelas(), "Quantidade de parcelas"));
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Quantidade de parcelas inválida: " + req.parcelas());
+        if (req.parcelas() == null) {
+            throw new IllegalArgumentException("Quantidade de parcelas é obrigatória para cartão.");
         }
-    }
-
-    private static LocalDate vencimento(PagamentoRequest req) {
-        try {
-            return LocalDate.parse(Utils.textoObrigatorio(req.vencimento(), "Data de vencimento"));
-        } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException("Data de vencimento inválida (use AAAA-MM-DD): " + req.vencimento());
-        }
+        return req.parcelas();
     }
 }

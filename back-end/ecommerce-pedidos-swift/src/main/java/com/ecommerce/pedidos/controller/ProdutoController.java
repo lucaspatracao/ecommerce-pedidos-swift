@@ -3,6 +3,7 @@ package com.ecommerce.pedidos.controller;
 import com.ecommerce.pedidos.dto.ProdutoRequest;
 import com.ecommerce.pedidos.dto.ProdutoResponse;
 import com.ecommerce.pedidos.servico.ProdutoService;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,12 +38,12 @@ public class ProdutoController {
     }
 
     @PostMapping
-    public ResponseEntity<ProdutoResponse> cadastrar(@RequestBody ProdutoRequest request) {
+    public ResponseEntity<ProdutoResponse> cadastrar(@Valid @RequestBody ProdutoRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(produtoService.cadastrar(request));
     }
 
     @PutMapping("/{codigo}")
-    public ProdutoResponse atualizar(@PathVariable("codigo") String codigo, @RequestBody ProdutoRequest request) {
+    public ProdutoResponse atualizar(@PathVariable("codigo") String codigo, @Valid @RequestBody ProdutoRequest request) {
         return produtoService.atualizar(codigo, request);
     }
 
