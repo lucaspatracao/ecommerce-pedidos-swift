@@ -27,7 +27,7 @@ export function ClientesPage({ clientes = [], loading, error, onClienteSalvo, on
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div className="content-grid double-grid">
+      <div className="content-grid double-grid crud-grid">
         <ClienteForm
           cliente={clienteSelecionado}
           onClienteSalvo={onClienteSalvo}

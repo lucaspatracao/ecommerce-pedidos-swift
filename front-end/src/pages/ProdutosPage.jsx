@@ -78,7 +78,7 @@ export function ProdutosPage({ produtos = [], loading, error, onProdutoSalvo, on
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div className="content-grid double-grid">
+      <div className="content-grid double-grid crud-grid">
         <section className="panel">
           <div className="panel-header">
             <h2>{produtoSelecionado ? 'Editar produto' : 'Cadastro de produto'}</h2>

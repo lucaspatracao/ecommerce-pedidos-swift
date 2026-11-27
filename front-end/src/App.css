@@ -590,6 +590,16 @@ th,
   grid-template-columns: minmax(320px, 1fr) minmax(380px, 1.35fr);
 }
 
+/* Clientes/Produtos (formulário + tabela): abaixo de 1680px a tabela não
+   cabe ao lado do formulário e a coluna "Ações" ficava escondida atrás da
+   rolagem horizontal (1366/1440px). Aí o formulário sobe e a tabela usa a
+   largura toda. */
+@media (max-width: 1679px) {
+  .crud-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .actions-row {
   display: flex;
   align-items: center;
@@ -951,6 +961,12 @@ tbody tr:last-child td {
 .inline-actions .btn,
 .inline-actions button {
   min-width: 0;
+}
+
+/* Texto longo (e-mail, nome de produto) quebra dentro da célula em vez de
+   alargar a tabela e empurrar "Ações" para fora da área visível. */
+.table-responsive td {
+  overflow-wrap: anywhere;
 }
 
 td:has(.inline-actions),
