@@ -75,7 +75,7 @@ class PagamentoTest {
     void deveLancarExcecaoQuandoPedidoComPagamentoRecusado() throws Exception {
         // Arrange
         Cliente cliente = new Cliente("Pedro", "40560441045", "pedro@email.com", "11987654321", new Endereco("Rua C", "Rio", "20000-000"));
-        Pedido pedido = new Pedido(cliente);
+        Pedido pedido = new Pedido(cliente, "PED-2026-00001");
         Produto produto = new Produto("P-020", "Tablet", new BigDecimal("6000.00"), 5);
         pedido.adicionarItem(produto, 1);
         CartaoCredito cartao = new CartaoCredito(new BigDecimal("6000.00"), "**** 4321", "Mastercard", 2);

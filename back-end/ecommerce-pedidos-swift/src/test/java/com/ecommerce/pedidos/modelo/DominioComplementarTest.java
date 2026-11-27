@@ -2,7 +2,6 @@ package com.ecommerce.pedidos.modelo;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -36,7 +35,7 @@ class DominioComplementarTest {
         @DisplayName("remover item devolve o estoque; índice inválido é recusado")
         void deveRemoverItem() {
             Produto produto = new Produto("P-100", "Caneca", new BigDecimal("30.00"), 5);
-            Pedido pedido = new Pedido(cliente);
+            Pedido pedido = new Pedido(cliente, "PED-2026-00001");
             pedido.adicionarItem(produto, 2);
 
             pedido.removerItem(0);
@@ -50,7 +49,7 @@ class DominioComplementarTest {
         @DisplayName("mesmo produto adicionado duas vezes soma a quantidade num item só")
         void deveAgruparMesmoProduto() {
             Produto produto = new Produto("P-101", "Lápis", new BigDecimal("2.00"), 10);
-            Pedido pedido = new Pedido(cliente);
+            Pedido pedido = new Pedido(cliente, "PED-2026-00001");
             pedido.adicionarItem(produto, 2);
             pedido.adicionarItem(produto, 3);
 
@@ -62,7 +61,7 @@ class DominioComplementarTest {
         @Test
         @DisplayName("itens ordenados por subtotal e texto do pedido")
         void deveOrdenarItens() {
-            Pedido pedido = new Pedido(cliente);
+            Pedido pedido = new Pedido(cliente, "PED-2026-00001");
             pedido.adicionarItem(new Produto("P-102", "Caro", new BigDecimal("50.00"), 5), 1);
             pedido.adicionarItem(new Produto("P-103", "Barato", new BigDecimal("5.00"), 5), 1);
 
@@ -76,7 +75,7 @@ class DominioComplementarTest {
         @Test
         @DisplayName("pagarCom exige valor igual ao total; pagamento nulo é recusado")
         void deveValidarPagamento() {
-            Pedido pedido = new Pedido(cliente);
+            Pedido pedido = new Pedido(cliente, "PED-2026-00001");
             pedido.adicionarItem(new Produto("P-104", "Livro", new BigDecimal("40.00"), 5), 1);
 
             assertThrows(IllegalStateException.class, () -> pedido.pagarCom(new Pix(new BigDecimal("39.99"), "c", "EMAIL")));
@@ -89,7 +88,7 @@ class DominioComplementarTest {
         @DisplayName("cancelar pedido pago estorna o pagamento e devolve o estoque")
         void deveCancelarPedidoPago() {
             Produto produto = new Produto("P-105", "Mochila", new BigDecimal("120.00"), 4);
-            Pedido pedido = new Pedido(cliente);
+            Pedido pedido = new Pedido(cliente, "PED-2026-00001");
             pedido.adicionarItem(produto, 2);
             Pix pix = new Pix(new BigDecimal("240.00"), "c", "EMAIL");
             pedido.pagarCom(pix);
@@ -106,7 +105,7 @@ class DominioComplementarTest {
         @DisplayName("pedido fechado não aceita itens, remoção nem novo pagamento")
         void deveBloquearPedidoFechado() {
             Produto produto = new Produto("P-106", "Boné", new BigDecimal("25.00"), 4);
-            Pedido pedido = new Pedido(cliente);
+            Pedido pedido = new Pedido(cliente, "PED-2026-00001");
             pedido.adicionarItem(produto, 1);
             pedido.pagar(new Pix(new BigDecimal("25.00"), "c", "EMAIL"));
 
@@ -118,24 +117,21 @@ class DominioComplementarTest {
         @Test
         @DisplayName("validações de criação e de item")
         void deveValidarEntradas() {
-            Pedido pedido = new Pedido(cliente);
-            assertThrows(IllegalArgumentException.class, () -> new Pedido(null));
+            Pedido pedido = new Pedido(cliente, "PED-2026-00001");
+            assertThrows(IllegalArgumentException.class, () -> new Pedido(null, "PED-2026-00001"));
+            assertThrows(IllegalArgumentException.class, () -> new Pedido(cliente, " "));
             assertThrows(IllegalArgumentException.class, () -> pedido.adicionarItem(null, 1));
             assertThrows(IllegalArgumentException.class,
                 () -> pedido.adicionarItem(new Produto("P-107", "X", BigDecimal.ONE, 1), 0));
         }
 
         @Test
-        @DisplayName("renovarNumero sorteia outro número enquanto o pedido não foi gravado")
-        void deveRenovarNumero() {
-            Pedido pedido = new Pedido(cliente);
-            String primeiro = pedido.getNumero();
-            // Sorteio aleatório: repete até mudar (a chance de repetir é 1 em 100 mil).
-            for (int i = 0; i < 5 && pedido.getNumero().equals(primeiro); i++) {
-                pedido.renovarNumero();
-            }
-            assertNotEquals(primeiro, pedido.getNumero());
-            assertTrue(Pedido.getTotalDePedidosCriados() > 0);
+        @DisplayName("o pedido guarda o número recebido (sem sortear) e conta quantos foram criados")
+        void deveGuardarNumeroRecebido() {
+            int antes = Pedido.getTotalDePedidosCriados();
+            Pedido pedido = new Pedido(cliente, " PED-2026-00042 ");
+            assertEquals("PED-2026-00042", pedido.getNumero());
+            assertEquals(antes + 1, Pedido.getTotalDePedidosCriados());
         }
     }
 
