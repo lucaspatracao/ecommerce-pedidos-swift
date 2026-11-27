@@ -29,6 +29,10 @@ mvn spring-boot:run "-Dspring-boot.run.profiles=dev"
 | `DB_USERNAME` | Sim | |
 | `DB_PASSWORD` | Sim | Sem valor padrão: nenhuma senha fica no repositório |
 
+O `.env` (cópia do `.env.example`, formato `CHAVE=valor`) é lido da pasta em que a API é iniciada: rode os comandos a partir de `back-end\ecommerce-pedidos-swift`. Variável definida no terminal vale mais que a do `.env`.
+
+Migrations do Flyway em `src/main/resources/db/migration` (V1 a V3). Nunca edite uma migration já aplicada: crie a próxima versão.
+
 ## Testar
 
 ```powershell

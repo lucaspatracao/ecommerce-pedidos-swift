@@ -61,7 +61,7 @@ A solução também possui uma interface administrativa para consumo e apresenta
 | JDK | 17 |
 | Maven | 3.9+ |
 | MySQL | 8.x |
-| Node.js | 18+ (para o front-end) |
+| Node.js | 20.19+ ou 22.13+ (para o front-end; exigência do Vite 8 e do ESLint 10) |
 
 #### 1. Criar o banco de desenvolvimento (uma vez)
 
@@ -101,6 +101,8 @@ notepad .env
 
 O `.env` está no `.gitignore` e nunca é versionado. Se a mesma variável existir no PowerShell e no `.env`, vale a do PowerShell.
 
+> O arquivo é lido por `spring.config.import=optional:file:.env[.properties]`, procurado na **pasta em que a API é iniciada**. Suba a API de `back-end\ecommerce-pedidos-swift` (como no passo 3) ou, na IDE, configure essa pasta como diretório de trabalho. Formato: uma variável por linha, `CHAVE=valor`, sem aspas.
+
 #### 3. Subir o back-end
 
 ```powershell
@@ -110,7 +112,7 @@ mvn spring-boot:run "-Dspring-boot.run.profiles=dev"
 
 > `dev` já é o perfil padrão (`spring.profiles.default=dev`), então `mvn spring-boot:run` também funciona. O parâmetro explícito deixa claro qual perfil está ativo. No PowerShell, as **aspas** são obrigatórias por causa do `-D` com ponto.
 
-Na primeira subida o log mostra `Successfully applied 1 migration`. A API fica em:
+Na primeira subida o Flyway cria as tabelas (migrations V1 a V3; o log mostra `Successfully applied 3 migrations`). A API fica em:
 
 ```text
 http://localhost:8080/api
@@ -273,6 +275,7 @@ As regras vieram da branch `feature/crud-completo` (PR #18), que as implementou 
 * `PedidoServiceImpl.criar` é `@Transactional`: pedido, itens e baixa de estoque são gravados juntos. Qualquer exceção (estoque insuficiente, produto inexistente) desfaz tudo.
 * Os produtos da venda são lidos **com bloqueio** (`@Lock(PESSIMISTIC_WRITE)`, ou seja `SELECT ... FOR UPDATE`): duas vendas simultâneas do mesmo produto acontecem uma depois da outra, o estoque nunca fica negativo e a mensagem de estoque insuficiente mostra o saldo real.
 * `Produto` tem `@Version`: o `PUT` aceita `versao` e recusa com **409** uma versão desatualizada.
+* **Número do pedido** (`PED-ano-NNNNN`, ex.: `PED-2026-00042`): vem de um contador por ano no banco (tabela `sequencia_pedido`), lido com bloqueio na mesma transação do pedido. Pedidos simultâneos recebem números seguidos e diferentes, sem sorteio; se o pedido falhar, o número não é consumido. É uma tabela, e não `CREATE SEQUENCE`, porque o MySQL 8 não tem sequences.
 * Cancelamento, pagamento, exclusão de pedido e remoção de item também são transacionais.
 
 #### Migrations (Flyway)
@@ -283,6 +286,9 @@ Ficam em `back-end/ecommerce-pedidos-swift/src/main/resources/db/migration/`:
 | :--- | :--- |
 | `V1__esquema_inicial.sql` | Tabelas de cliente, produto (com `ativo` e `versao`), pedido, itens e formas de pagamento (herança JOINED) |
 | `V2__soft_delete_integridade_e_auditoria.sql` | `cliente.ativo`, e-mail único, `ON DELETE CASCADE` dos itens, produto único por pedido, `atualizado_em` (auditoria) e índices |
+| `V3__sequencia_numero_pedido.sql` | Contador `sequencia_pedido` do número do pedido; renumera, no mesmo formato e na ordem de criação, os pedidos gravados antes com número sorteado |
+
+Uma migration aplicada **nunca** é editada (o Flyway confere o checksum): mudanças de schema entram sempre como uma nova `V4__...`, `V5__...`. O SQL precisa rodar no MySQL 8 e no H2 em `MODE=MySQL`.
 
 > **Banco criado pela versão JDBC:** quem rodou a `feature/crud-completo` tem tabelas criadas pelo executor de migrations antigo (`db/migracao`), que o Flyway não reconhece. Crie o banco `ecommerce_swift` de novo (veja "Como Rodar") antes de subir esta versão.
 
@@ -352,10 +358,11 @@ Todas as exceções de negócio são **unchecked** (`RuntimeException`): o erro 
 
 | Tipo | Exemplos | Suíte |
 | :--- | :--- | :---: |
-| Unitários | `ProdutoTest`, `ClienteTest`, `PedidoTest`, `ItemPedidoTest`, `FormasPagamentoTest`, `UtilsTest`, `ParametrosConsultaTest` | `mvn test` |
+| Unitários | `ProdutoTest`, `ClienteTest`, `PedidoTest`, `ItemPedidoTest`, `FormasPagamentoTest`, `UtilsTest`, `PedidoUtilsTest`, `ParametrosConsultaTest` | `mvn test` |
 | Integração (fluxo) | `FluxoCompraIntegracaoTest`: cadastro → pedido → pagamento com classes reais; Mockito só no `GatewayPagamento` (sistema externo) | `mvn verify` |
 | Transação | `TransacaoPedidoTest`: falha no 2º item desfaz a baixa do 1º; duas vendas simultâneas da última unidade, só uma passa | `mvn verify` |
 | Persistência | `PersistenciaIntegracaoTest`: soft delete, RESTRICT, CASCADE, UNIQUE, CHECK, versão otimista e auditoria conferidos direto no banco | `mvn verify` |
+| Número do pedido | `NumeroPedidoIntegracaoTest`: pedidos seguidos e simultâneos sem número repetido; `MigracaoNumeroPedidoTest`: a V3 sobre pedidos antigos | `mvn verify` |
 | Consultas | `RepositoriosConsultaTest`: `@Query` e prova do `JOIN FETCH` contando os SQLs | `mvn verify` |
 | API | `ApiIntegracaoTest` e `CrudCompletoApiTest`: MockMvc com rotas, status e corpo `{ "erro" }` | `mvn verify` |
 
@@ -380,11 +387,12 @@ ecommerce-pedidos-swift/
 │       ├── main/resources/
 │       │   ├── application.properties
 │       │   ├── application-dev.properties
-│       │   └── db/migration/             # V1 e V2 (Flyway)
+│       │   └── db/migration/             # V1 a V3 (Flyway)
 │       └── test/
-│           ├── java/...                  # unitários, integração e API
+│           ├── java/...                  # unitários, integração (@Tag "integracao") e API
 │           └── resources/application-test.properties
-├── front-end/                            # React + Vite (src/api, src/pages, src/components)
+├── front-end/                            # React + Vite (veja front-end/README.md)
+│   └── src/                              # api/, components/, pages/, utils/
 ├── .gitignore
 └── README.md
 ```
@@ -409,8 +417,34 @@ ecommerce-pedidos-swift/
 | **12** | Persistência: conexão, Create e Read (Spring Data JPA) | 🟢 Concluído |
 | **13** | Persistência: CRUD completo, soft delete, integridade referencial e transações | 🟢 Concluído |
 | **14** | Spring Boot: camadas, DTOs, validação, perfis, Flyway, `@Query`, `JOIN FETCH` | 🟢 Concluído |
-| **15** | API REST completa + integração com Front-end + pipeline de CI/CD | 🟡 Em desenvolvimento |
+| **15** | API REST completa + integração com Front-end + pipeline de CI/CD | ⏳ Próxima |
 | **16** | Entrega final, documentação consolidada e apresentação | ⏳ Pendente |
+
+---
+
+### Entrega da Aula 14 e ponto de partida da Aula 15
+
+**Estado da `main` ao fechar a Aula 14:**
+
+* Back-end em camadas (controller → serviço → domínio → repositório), DTOs com Bean Validation, perfis `dev`/`test`, Flyway (V1 a V3), `@Query` e `JOIN FETCH`.
+* CRUD completo com soft delete, integridade referencial, transações com bloqueio e número de pedido sem colisão.
+* `mvn clean verify` verde, com as regras de cobertura do JaCoCo (85% das linhas e 65% dos ramos no total) e sem precisar de MySQL.
+* Front-end integrado à API real, com `npm run build` e `npm run lint` sem erros.
+
+**O pipeline de CI/CD da Aula 15 só precisa repetir o que já roda localmente:**
+
+| Parte | Ambiente | Comandos |
+| :--- | :--- | :--- |
+| Back-end | JDK 17 + Maven | `cd back-end/ecommerce-pedidos-swift` · `mvn -B clean verify` (H2 em memória; sem MySQL nem segredos) |
+| Front-end | Node 20.19+ ou 22.13+ | `cd front-end` · `npm ci` · `npm run lint` · `npm run build` |
+
+Relatórios para publicar como artefato: `back-end/ecommerce-pedidos-swift/target/site/jacoco-total/` (cobertura) e `front-end/dist/` (build).
+
+**Pendências da Aula 15:**
+
+1. Workflow do GitHub Actions com os comandos acima em todo push e pull request para a `main`.
+2. Telas para os recursos que a API já oferece e o front ainda não usa: listar inativos e reativar (clientes e produtos), inativar cliente com pedidos, cancelar pedido, remover item, excluir pedido em aberto, pedidos por cliente, filtros e paginação.
+3. Revisão final de ponta a ponta com o MySQL local (cadastro → pedido → pagamento → cancelamento).
 
 ---
 
@@ -419,7 +453,9 @@ ecommerce-pedidos-swift/
 1. **`PedidoUtils` com `double`:** os cálculos de frete e desconto da Aula 03 continuam em `double` por fins didáticos. O domínio (preços, totais, pagamentos) já usa `BigDecimal`.
 2. **Autenticação e autorização:** a API ainda não exige login.
 3. **Gateway de pagamento simulado:** `GatewayPagamentoSimulado` autoriza tudo. Uma integração real implementaria a interface `GatewayPagamento`.
-4. **CI/CD:** pipeline do GitHub Actions ainda não configurado.
+4. **CI/CD:** pipeline do GitHub Actions ainda não configurado (Aula 15).
+5. **Front-end parcial em relação à API:** soft delete, cancelamento e paginação existem na API, mas ainda não têm tela (Aula 15).
+6. **Número do pedido acima de 99.999 por ano:** o formato tem 5 dígitos; o 100.000º pedido do ano sairia com 6 (`PED-2026-100000`). Folga suficiente para o escopo acadêmico.
 
 ---
 
