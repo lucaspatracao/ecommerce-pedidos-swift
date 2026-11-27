@@ -3,9 +3,11 @@ package com.ecommerce.pedidos.dto;
 import com.ecommerce.pedidos.modelo.ItemPedido;
 import java.math.BigDecimal;
 
-public record ItemPedidoResponse(ProdutoResponse produto, int quantidade, BigDecimal precoPraticado) {
+/** Item do pedido. O {@code id} identifica o item em DELETE /pedidos/{numero}/itens/{id}. */
+public record ItemPedidoResponse(Long id, ProdutoResponse produto, int quantidade, BigDecimal precoPraticado) {
 
     public static ItemPedidoResponse de(ItemPedido item) {
-        return new ItemPedidoResponse(ProdutoResponse.de(item.getProduto()), item.getQuantidade(), item.getPrecoPraticado());
+        return new ItemPedidoResponse(item.getId(), ProdutoResponse.de(item.getProduto()), item.getQuantidade(),
+            item.getPrecoPraticado());
     }
 }

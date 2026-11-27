@@ -310,8 +310,11 @@ class ApiIntegracaoTest {
                 .andExpect(jsonPath("$.formaPagamento.situacao").value("ESTORNADO"));
             org.junit.jupiter.api.Assertions.assertEquals(10, estoqueDe(codigo));
 
-            // Pedido cancelado já pode ser excluído.
-            mvc.perform(delete("/api/pedidos/{numero}", numero)).andExpect(status().isNoContent());
+            // Pedido cancelado é histórico: não pode ser excluído nem cancelado de novo.
+            mvc.perform(delete("/api/pedidos/{numero}", numero))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.erro").value(containsString("histórico")));
+            mvc.perform(post("/api/pedidos/{numero}/cancelar", numero)).andExpect(status().isConflict());
         }
 
         @Test
