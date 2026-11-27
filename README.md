@@ -29,9 +29,9 @@ A solução também possui uma interface administrativa para consumo e apresenta
 
 ### Funcionalidades
 
-* **Gerenciamento de Produtos:** cadastro, atualização, consulta, exclusão e controle de disponibilidade e estoque.
-* **Gerenciamento de Clientes:** cadastro com CPF validado por dígitos verificadores, edição e exclusão.
-* **Gestão de Pedidos:** abertura com vários itens, cálculo de totais, baixa de estoque transacional, cancelamento e exclusão.
+* **Gerenciamento de Produtos:** cadastro, atualização completa (com versão otimista) e parcial (estoque), consulta com filtros e paginação, soft delete (inativar/reativar) e exclusão definitiva de produto nunca vendido.
+* **Gerenciamento de Clientes:** cadastro com CPF validado por dígitos verificadores e e-mail único, edição, soft delete e exclusão de cliente sem pedidos.
+* **Gestão de Pedidos:** abertura com vários itens, cálculo de totais, baixa de estoque transacional, remoção de item, cancelamento e exclusão de pedido em aberto.
 * **Processamento de Pagamentos:** Cartão de Crédito, Boleto, Pix (e Vale-Compras no domínio), com arquitetura polimórfica.
 * **Dashboard e Histórico:** totais, receita, estoque crítico e pedidos recentes.
 * **Interface Administrativa:** front-end React consumindo a API real.
@@ -45,7 +45,7 @@ A solução também possui uma interface administrativa para consumo e apresenta
 * **Build e dependências:** Apache Maven
 * **Framework:** Spring Boot 3.3 (Web, Validation, Data JPA)
 * **Persistência:** Hibernate/JPA, **MySQL 8** (desenvolvimento) e **Flyway** (migrations)
-* **Testes:** JUnit 5, Mockito, MockMvc, H2 em memória (modo MySQL) e **JaCoCo** (cobertura)
+* **Testes:** JUnit 5, Mockito, MockMvc, H2 em memória (modo MySQL), Surefire/Failsafe e **JaCoCo** (cobertura)
 * **Front-end:** React + Vite (Axios para a API)
 * **Controle de versão:** Git & GitHub
 * **CI/CD:** GitHub Actions — previsto no roadmap
@@ -132,12 +132,16 @@ Acesse o endereço exibido pelo Vite (normalmente `http://localhost:5173`). O ba
 
 ```powershell
 cd back-end\ecommerce-pedidos-swift
-mvn clean test
+mvn clean test     # só a suíte de unidade (rápida, sem Spring)
+mvn clean verify   # unidade + integração (Spring, H2 e Flyway) + regras de cobertura
 ```
 
-* Os testes usam o perfil `test`: **H2 em memória** no modo MySQL, com as **mesmas migrations** do Flyway. Não precisam de MySQL nem de variáveis de ambiente.
-* O **JaCoCo** exige no mínimo **70% das linhas cobertas** no projeto inteiro. Abaixo disso, `mvn clean test` **falha**.
-* Relatório de cobertura: abra `back-end/ecommerce-pedidos-swift/target/site/jacoco/index.html` no navegador.
+* Os testes de integração têm `@Tag("integracao")` e rodam pelo Failsafe no `verify`. Usam o perfil `test`: **H2 em memória** no modo MySQL, com as **mesmas migrations** do Flyway. Não precisam de MySQL nem de variáveis de ambiente.
+* Regras do **JaCoCo** (o build **falha** abaixo delas):
+  * `mvn test`: pacotes `modelo` e `excecao` com no mínimo **70% das linhas** cobertas pelos testes de unidade;
+  * `mvn verify`: projeto inteiro (unidade + integração) com no mínimo **85% das linhas** e **65% dos ramos**.
+* Ficam fora da medição só a classe `main` e os `record` de DTO.
+* Relatórios: `back-end/ecommerce-pedidos-swift/target/site/jacoco/` (unidade), `jacoco-it/` (integração) e `jacoco-total/` (as duas somadas). Abra o `index.html` no navegador.
 
 ---
 
@@ -168,7 +172,7 @@ repositorio  → interfaces Spring Data JPA (CRUD + @Query JPQL + JOIN FETCH)
 MySQL (schema versionado pelo Flyway)
 ```
 
-* **DTOs** (`dto/`): os *requests* têm Bean Validation (`@NotBlank`, `@Email`, `@Positive`...). Os *responses* fixam o JSON que o front-end consome, sem expor ids nem relações do banco.
+* **DTOs** (`dto/`): os *requests* têm Bean Validation (`@NotBlank`, `@Email`, `@Positive`...). Os *responses* fixam o JSON que o front-end consome, sem expor as relações do banco. Clientes, produtos e pedidos são identificados por CPF, código e número; só o item do pedido expõe o `id`, usado para removê-lo.
 * **Erros** (`ApiExceptionHandler`): todo erro volta como `{ "erro": "mensagem" }`, que é a chave lida pelo front.
 * **Transação**: criar um pedido baixa o estoque de todos os itens numa transação só. Se qualquer item falhar, nada é gravado (rollback).
 * **Consultas**: `@Query` em JPQL (cliente por CPF, estoque crítico, receita via `SUM`) e `JOIN FETCH` no `PedidoRepository`, que carrega pedido, cliente, itens, produtos e pagamento numa única consulta e evita o problema N+1.
@@ -181,25 +185,34 @@ Base: `http://localhost:8080/api`
 
 | Método | Rota | Descrição | Sucesso | Erros comuns |
 | :--- | :--- | :--- | :---: | :--- |
-| GET | `/clientes` | Lista clientes | 200 | |
-| GET | `/clientes/{cpf}` | Busca cliente | 200 | 404 |
-| POST | `/clientes` | Cadastra cliente | 201 | 400 (validação/CPF), 409 (CPF duplicado) |
-| PUT | `/clientes/{cpf}` | Atualiza nome e contato | 200 | 400, 404 |
-| DELETE | `/clientes/{cpf}` | Exclui cliente sem pedidos | 204 | 404, 409 (tem pedidos) |
-| GET | `/produtos` | Lista produtos | 200 | |
-| GET | `/produtos/{codigo}` | Busca produto | 200 | 404 |
+| GET | `/clientes?situacao=&pagina=&tamanho=` | Lista clientes (padrão: ativos) | 200 | 400 (parâmetro inválido) |
+| GET | `/clientes/{cpf}` | Busca cliente ativo | 200 | 404 |
+| GET | `/clientes/{cpf}/pedidos?pagina=&tamanho=` | Pedidos do cliente, inclusive inativo | 200 | 404 |
+| POST | `/clientes` | Cadastra cliente | 201 | 400 (validação/CPF), 409 (CPF ou e-mail duplicado) |
+| PUT | `/clientes/{cpf}` | Atualiza nome e contato (o CPF não muda) | 200 | 400, 404, 409 (e-mail em uso) |
+| DELETE | `/clientes/{cpf}` | Exclui cliente sem pedidos | 204 | 404, 409 (tem pedidos: inative-o) |
+| POST | `/clientes/{cpf}/inativar` · `/reativar` | Soft delete e reativação | 204 · 200 | 404 |
+| GET | `/produtos?situacao=&nome=&pagina=&tamanho=` | Lista produtos (padrão: ativos) | 200 | 400 |
+| GET | `/produtos/{codigo}` | Busca produto ativo | 200 | 404 |
 | POST | `/produtos` | Cadastra produto | 201 | 400, 409 (código duplicado) |
-| PUT | `/produtos/{codigo}` | Atualiza produto | 200 | 400, 404, 409 |
-| DELETE | `/produtos/{codigo}` | Exclui produto nunca vendido | 204 | 404, 409 (já vendido: desative-o) |
-| GET | `/pedidos` | Lista pedidos (mais recentes primeiro) | 200 | |
+| PUT | `/produtos/{codigo}` | Atualiza produto (inclusive inativo); `versao` opcional | 200 | 400, 404, 409 (código duplicado / versão desatualizada) |
+| PATCH | `/produtos/{codigo}/estoque` | Altera só o estoque: `{"quantidade": n}` | 200 | 400, 404 |
+| DELETE | `/produtos/{codigo}` | Soft delete (inativa) | 204 | 404 |
+| DELETE | `/produtos/{codigo}?definitivo=true` | Exclui produto nunca vendido | 204 | 404, 409 (já vendido: inative-o) |
+| POST | `/produtos/{codigo}/inativar` · `/reativar` | Soft delete e reativação | 204 · 200 | 404 |
+| GET | `/pedidos?situacao=&pagina=&tamanho=` | Lista pedidos (mais recentes primeiro) | 200 | 400 |
 | GET | `/pedidos/{numero}` | Busca pedido completo | 200 | 404 |
-| POST | `/pedidos` | Cria pedido e baixa o estoque | 201 | 400, 404, 409 (estoque/produto inativo) |
-| PUT | `/pedidos/{numero}/status` | `CANCELADO` devolve estoque e estorna pagamento | 200 | 400, 404, 409 |
-| DELETE | `/pedidos/{numero}` | Exclui pedido não pago (aberto devolve estoque) | 204 | 404, 409 (pago) |
+| POST | `/pedidos` | Cria pedido e baixa o estoque | 201 | 400, 404 (cliente/produto), 409 (estoque/produto inativo) |
+| PUT | `/pedidos/{numero}/status` | `CANCELADO` = cancelar; `ABERTO` não muda nada | 200 | 400, 404, 409 |
+| POST | `/pedidos/{numero}/cancelar` | Devolve estoque e estorna pagamento | 200 | 404, 409 (já cancelado) |
+| DELETE | `/pedidos/{numero}` | Exclui pedido em aberto (devolve estoque) | 204 | 404, 409 (pago ou cancelado) |
+| DELETE | `/pedidos/{numero}/itens/{itemId}` | Remove item de pedido aberto (devolve estoque) | 200 | 404, 409 (pedido não está aberto) |
 | GET | `/pagamentos` | Lista pagamentos | 200 | |
 | POST | `/pagamentos` | Paga um pedido aberto | 201 | 400, 404, 409 (recusado/valor ≠ total) |
-| GET | `/dashboard` | Indicadores | 200 | |
+| GET | `/dashboard` | Indicadores (contagens de ativos) | 200 | |
 | GET | `/historico` | Últimos 10 pedidos | 200 | |
+
+Parâmetros das listagens: `situacao=ativos|inativos|todos` (clientes e produtos) ou `aberto|pago|cancelado` (pedidos); `pagina` começa em 0 e `tamanho` vai de 1 a 500 (padrão 20). Sem `pagina` nem `tamanho`, a lista vem inteira, como o front espera.
 
 Exemplo de criação de pedido:
 
@@ -218,6 +231,60 @@ POST /api/pagamentos
 ```
 
 > Os CPFs deste README e dos testes são **sintéticos**, gerados com dígitos verificadores válidos apenas para exemplo. Não use CPFs reais em testes.
+
+---
+
+### CRUD Completo, Integridade Referencial e Transações (Aula 13)
+
+As regras vieram da branch `feature/crud-completo` (PR #18), que as implementou com JDBC manual. Nesta versão elas rodam sobre **Spring Data JPA + Flyway**, com o mesmo comportamento na API.
+
+| Entidade | Create | Read | Update | Delete |
+| :--- | :--- | :--- | :--- | :--- |
+| Produto | ✅ | ativos por padrão, inativos sob pedido, busca por nome, paginação | completo (com versão otimista) e parcial (só estoque) | soft delete; exclusão definitiva só se nunca foi vendido |
+| Cliente | ✅ (CPF e e-mail únicos) | ativos por padrão, por CPF, paginação | ✅ | exclusão definitiva (bloqueada se tiver pedidos) + soft delete |
+| Pedido | ✅ transacional | por número, por cliente, por situação, paginação | situação (pagar / cancelar) | só pedido `ABERTO`; pago ou cancelado nunca é excluído |
+| ItemPedido | ✅ junto com o pedido | ✅ junto com o pedido | — (o preço é histórico) | remover item de pedido aberto (devolve o estoque) |
+
+#### Políticas de exclusão
+
+| Relacionamento | Política | Por quê |
+| :--- | :--- | :--- |
+| Pedido → ItemPedido | `ON DELETE CASCADE` (+ `orphanRemoval` no JPA) | Composição: o item não existe sem o pedido. |
+| Cliente → Pedido | `RESTRICT` + soft delete do cliente | O histórico de vendas não some com o cadastro. Cliente com pedidos é **inativado**. |
+| Produto → ItemPedido | `RESTRICT` + soft delete do produto | Pedido antigo precisa do produto vendido. O `DELETE` da API **inativa** o produto. |
+| Pedido pago | regra no serviço | Pedido pago é **cancelado** (estoque volta, pagamento estornado), nunca excluído. |
+
+| Situação | O que acontece |
+| :--- | :--- |
+| Excluir pedido com itens | Só para pedido `ABERTO`: os itens saem em cascata e o estoque reservado volta, na mesma transação. |
+| Excluir cliente com pedidos | **409**: "Este cliente possui pedidos e não pode ser excluído. Inative-o..." |
+| Excluir produto que está em pedidos | `DELETE /api/produtos/{codigo}` inativa (204). Com `?definitivo=true` → **409**. |
+| Excluir pedido já pago | **409**: "Pedido já pago não pode ser excluído. Cancele o pedido..." Use `POST /api/pedidos/{numero}/cancelar`. |
+
+#### Soft delete
+
+* A coluna `ativo` existe em `produto` (desde a V1) e em `cliente` (V2).
+* Listagens e buscas por CPF/código mostram só ativos. Inativos são pedidos de forma **explícita**: `?situacao=inativos|todos`. O enum `Visibilidade` (`ATIVOS`, `INATIVOS`, `TODOS`) faz esse filtro no serviço.
+* Pedidos carregam cliente e produtos **sem** o filtro, de propósito: um pedido antigo continua mostrando o produto e o cliente, mesmo inativos, e o preço cobrado (`item_pedido.preco_praticado`).
+* No front, o campo "Disponível" do produto é o próprio soft delete: desmarcado, o produto sai da listagem padrão.
+
+#### Transação e concorrência
+
+* `PedidoServiceImpl.criar` é `@Transactional`: pedido, itens e baixa de estoque são gravados juntos. Qualquer exceção (estoque insuficiente, produto inexistente) desfaz tudo.
+* Os produtos da venda são lidos **com bloqueio** (`@Lock(PESSIMISTIC_WRITE)`, ou seja `SELECT ... FOR UPDATE`): duas vendas simultâneas do mesmo produto acontecem uma depois da outra, o estoque nunca fica negativo e a mensagem de estoque insuficiente mostra o saldo real.
+* `Produto` tem `@Version`: o `PUT` aceita `versao` e recusa com **409** uma versão desatualizada.
+* Cancelamento, pagamento, exclusão de pedido e remoção de item também são transacionais.
+
+#### Migrations (Flyway)
+
+Ficam em `back-end/ecommerce-pedidos-swift/src/main/resources/db/migration/`:
+
+| Versão | Conteúdo |
+| :--- | :--- |
+| `V1__esquema_inicial.sql` | Tabelas de cliente, produto (com `ativo` e `versao`), pedido, itens e formas de pagamento (herança JOINED) |
+| `V2__soft_delete_integridade_e_auditoria.sql` | `cliente.ativo`, e-mail único, `ON DELETE CASCADE` dos itens, produto único por pedido, `atualizado_em` (auditoria) e índices |
+
+> **Banco criado pela versão JDBC:** quem rodou a `feature/crud-completo` tem tabelas criadas pelo executor de migrations antigo (`db/migracao`), que o Flyway não reconhece. Crie o banco `ecommerce_swift` de novo (veja "Como Rodar") antes de subir esta versão.
 
 ---
 
@@ -283,13 +350,14 @@ Todas as exceções de negócio são **unchecked** (`RuntimeException`): o erro 
 
 #### Testes (Aulas 10, 11 e 14)
 
-| Tipo | Exemplos | Spring? |
+| Tipo | Exemplos | Suíte |
 | :--- | :--- | :---: |
-| Unitários | `ProdutoTest`, `ClienteTest`, `PedidoTest`, `ItemPedidoTest`, `FormasPagamentoTest`, `UtilsTest` | Não |
-| Integração (fluxo) | `FluxoCompraIntegracaoTest`: cadastro → pedido → pagamento com classes reais; Mockito só no `GatewayPagamento` (sistema externo) | Sim |
-| Transação | `TransacaoPedidoTest`: falha no 2º item desfaz a baixa de estoque do 1º | Sim |
-| Consultas | `RepositoriosConsultaTest`: `@Query` e prova do `JOIN FETCH` contando os SQLs | Sim |
-| API | `ApiIntegracaoTest`: MockMvc com rotas, status e corpo `{ "erro" }` | Sim |
+| Unitários | `ProdutoTest`, `ClienteTest`, `PedidoTest`, `ItemPedidoTest`, `FormasPagamentoTest`, `UtilsTest`, `ParametrosConsultaTest` | `mvn test` |
+| Integração (fluxo) | `FluxoCompraIntegracaoTest`: cadastro → pedido → pagamento com classes reais; Mockito só no `GatewayPagamento` (sistema externo) | `mvn verify` |
+| Transação | `TransacaoPedidoTest`: falha no 2º item desfaz a baixa do 1º; duas vendas simultâneas da última unidade, só uma passa | `mvn verify` |
+| Persistência | `PersistenciaIntegracaoTest`: soft delete, RESTRICT, CASCADE, UNIQUE, CHECK, versão otimista e auditoria conferidos direto no banco | `mvn verify` |
+| Consultas | `RepositoriosConsultaTest`: `@Query` e prova do `JOIN FETCH` contando os SQLs | `mvn verify` |
+| API | `ApiIntegracaoTest` e `CrudCompletoApiTest`: MockMvc com rotas, status e corpo `{ "erro" }` | `mvn verify` |
 
 ---
 
@@ -312,7 +380,7 @@ ecommerce-pedidos-swift/
 │       ├── main/resources/
 │       │   ├── application.properties
 │       │   ├── application-dev.properties
-│       │   └── db/migration/             # V1__esquema_inicial.sql (Flyway)
+│       │   └── db/migration/             # V1 e V2 (Flyway)
 │       └── test/
 │           ├── java/...                  # unitários, integração e API
 │           └── resources/application-test.properties
@@ -337,9 +405,9 @@ ecommerce-pedidos-swift/
 | **08** | Módulo de pagamento polimórfico | 🟢 Concluído |
 | **09** | Tratamento de exceções e validações | 🟢 Concluído |
 | **10** | Suíte de testes unitários | 🟢 Concluído |
-| **11** | Testes de integração + cobertura (JaCoCo ≥ 70%) | 🟢 Concluído |
+| **11** | Testes de integração + cobertura (JaCoCo: 85% das linhas e 65% dos ramos no total) | 🟢 Concluído |
 | **12** | Persistência: conexão, Create e Read (Spring Data JPA) | 🟢 Concluído |
-| **13** | Persistência: Update, Delete e Repository | 🟢 Concluído |
+| **13** | Persistência: CRUD completo, soft delete, integridade referencial e transações | 🟢 Concluído |
 | **14** | Spring Boot: camadas, DTOs, validação, perfis, Flyway, `@Query`, `JOIN FETCH` | 🟢 Concluído |
 | **15** | API REST completa + integração com Front-end + pipeline de CI/CD | 🟡 Em desenvolvimento |
 | **16** | Entrega final, documentação consolidada e apresentação | ⏳ Pendente |

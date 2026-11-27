@@ -80,6 +80,11 @@ public class Produto {
         return id;
     }
 
+    /** Versão do controle de concorrência otimista; o Hibernate a incrementa a cada UPDATE. */
+    public Long getVersao() {
+        return versao;
+    }
+
     public String getCodigo() {
         return codigo;
     }

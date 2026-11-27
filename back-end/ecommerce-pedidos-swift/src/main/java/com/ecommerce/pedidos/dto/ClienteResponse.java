@@ -11,7 +11,8 @@ import com.ecommerce.pedidos.modelo.Cliente;
  * com o front-end.</p>
  *
  * <p>Sem campos duplicados: {@code documento} repetia o {@code cpf} e
- * {@code identificacao} repetia o {@code resumo}. Ficou um de cada par.</p>
+ * {@code identificacao} repetia o {@code resumo}. Ficou um de cada par.
+ * {@code ativo} indica o soft delete.</p>
  */
 public record ClienteResponse(
     String nome,
@@ -19,7 +20,8 @@ public record ClienteResponse(
     String telefone,
     EnderecoResponse endereco,
     String cpf,
-    String resumo
+    String resumo,
+    boolean ativo
 ) {
 
     public static ClienteResponse de(Cliente cliente) {
@@ -29,7 +31,8 @@ public record ClienteResponse(
             cliente.getTelefone(),
             EnderecoResponse.de(cliente.getEndereco()),
             cliente.getCpf(),
-            cliente.getResumo()
+            cliente.getResumo(),
+            cliente.isAtivo()
         );
     }
 }

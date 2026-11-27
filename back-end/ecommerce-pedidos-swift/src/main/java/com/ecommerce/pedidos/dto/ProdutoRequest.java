@@ -29,10 +29,19 @@ public record ProdutoRequest(
     @Positive(message = "Preço do produto deve ser maior que zero.")
     BigDecimal preco,
 
-    @NotNull(message = "Estoque do produto é obrigatório.")
+    // Obrigatório no cadastro (o serviço confere); no PUT, ausente = mantém o estoque atual.
     @PositiveOrZero(message = "Estoque do produto não pode ser negativo.")
     Integer estoque,
 
-    Boolean disponivel
+    Boolean disponivel,
+
+    // Versão lida pelo cliente (controle otimista). Ausente = sem checagem.
+    Long versao
 ) {
+
+    /** Sem controle de versão (cadastro e chamadas internas). */
+    public ProdutoRequest(String codigo, String nome, String descricao, BigDecimal preco,
+                          Integer estoque, Boolean disponivel) {
+        this(codigo, nome, descricao, preco, estoque, disponivel, null);
+    }
 }

@@ -19,7 +19,7 @@ public record ClienteRequest(
     @Size(max = 120, message = "Nome deve ter no máximo 120 caracteres.")
     String nome,
 
-    @NotBlank(message = "CPF é obrigatório.")
+    // Obrigatório só no cadastro (o domínio valida os dígitos); no PUT o CPF da rota identifica o cliente.
     String cpf,
 
     @NotBlank(message = "E-mail é obrigatório.")

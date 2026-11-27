@@ -19,6 +19,7 @@ import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -30,6 +31,7 @@ import org.springframework.test.context.ActiveProfiles;
  * <p>Para provar que o N+1 foi evitado, o teste liga as estatísticas do
  * Hibernate e CONTA quantos comandos SQL foram enviados ao banco.</p>
  */
+@Tag("integracao")
 @SpringBootTest
 @ActiveProfiles("test")
 class RepositoriosConsultaTest {
@@ -91,7 +93,7 @@ class RepositoriosConsultaTest {
     @DisplayName("@Query: busca cliente pelo CPF gravado no atributo herdado 'documento'")
     void deveBuscarClientePorCpf() {
         String cpf = DadosDeTeste.novoCpf();
-        clienteService.cadastrar(new ClienteRequest("Dora", cpf, "dora@teste.com", "11900000000", null));
+        clienteService.cadastrar(new ClienteRequest("Dora", cpf, "dora" + cpf + "@teste.com", "11900000000", null));
 
         assertEquals("Dora", clienteRepository.buscarPorCpf(cpf).orElseThrow().getNome());
         assertTrue(clienteRepository.buscarPorCpf("00000000000").isEmpty());
@@ -126,7 +128,7 @@ class RepositoriosConsultaTest {
     /** Cada pedido tem 2 itens com produtos diferentes, para o JOIN ter trabalho a fazer. */
     private List<PedidoResponse> criarPedidos(int quantidade) {
         String cpf = DadosDeTeste.novoCpf();
-        clienteService.cadastrar(new ClienteRequest("Cliente Consulta", cpf, "consulta@teste.com", "11900000000", "Rua"));
+        clienteService.cadastrar(new ClienteRequest("Cliente Consulta", cpf, "consulta" + cpf + "@teste.com", "11900000000", "Rua"));
         String codigoA = DadosDeTeste.novoCodigo("Q-A");
         String codigoB = DadosDeTeste.novoCodigo("Q-B");
         produtoService.cadastrar(new ProdutoRequest(codigoA, "Item A", "", new BigDecimal("10.00"), 100, true));

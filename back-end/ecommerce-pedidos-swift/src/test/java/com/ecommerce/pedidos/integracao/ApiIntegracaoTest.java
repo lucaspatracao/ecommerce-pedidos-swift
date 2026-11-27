@@ -4,6 +4,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -17,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -34,6 +36,7 @@ import org.springframework.test.web.servlet.ResultActions;
  * campos JSON e o corpo de erro {@code { "erro": "..." }}. Cenários
  * adaptados da branch feature/crud-completo.</p>
  */
+@Tag("integracao")
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -58,7 +61,7 @@ class ApiIntegracaoTest {
     private String novoCliente() throws Exception {
         String cpf = DadosDeTeste.novoCpf();
         enviar("POST", "/api/clientes", """
-            {"nome":"Cliente API","cpf":"%s","email":"api@teste.com","telefone":"11900001111","endereco":"Rua API"}
+            {"nome":"Cliente API","cpf":"%1$s","email":"api%1$s@teste.com","telefone":"11900001111","endereco":"Rua API"}
             """.formatted(cpf)).andExpect(status().isCreated());
         return cpf;
     }
@@ -111,8 +114,10 @@ class ApiIntegracaoTest {
                 .andExpect(jsonPath("$.nome").value("Renomeado"))
                 .andExpect(jsonPath("$.ativo").value(false));
 
-            mvc.perform(delete("/api/produtos/{codigo}", codigo)).andExpect(status().isNoContent());
-            mvc.perform(delete("/api/produtos/{codigo}", codigo))
+            // Nunca vendido: pode ser apagado de fato com definitivo=true.
+            mvc.perform(delete("/api/produtos/{codigo}", codigo).param("definitivo", "true"))
+                .andExpect(status().isNoContent());
+            mvc.perform(delete("/api/produtos/{codigo}", codigo).param("definitivo", "true"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.erro").value(containsString("Produto não encontrado")));
         }
@@ -127,7 +132,7 @@ class ApiIntegracaoTest {
                 {"codigo":"%s","nome":"Dup","preco":"1.00","estoque":1}
                 """.formatted(codigo))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("Já existe produto")));
+                .andExpect(jsonPath("$.erro").value("Já existe um produto com este código."));
 
             enviar("PUT", "/api/produtos/" + outro, """
                 {"codigo":"%s","nome":"Dup","preco":"1.00","estoque":1}
@@ -147,14 +152,14 @@ class ApiIntegracaoTest {
         }
 
         @Test
-        @DisplayName("produto já vendido não pode ser excluído (409)")
+        @DisplayName("produto já vendido não pode ser excluído definitivamente (409)")
         void naoDeveExcluirProdutoVendido() throws Exception {
             String codigo = novoProduto("10.00", 5);
             novoPedido(novoCliente(), codigo, 1);
 
-            mvc.perform(delete("/api/produtos/{codigo}", codigo))
+            mvc.perform(delete("/api/produtos/{codigo}", codigo).param("definitivo", "true"))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("Desative-o")));
+                .andExpect(jsonPath("$.erro").value(containsString("Inative-o")));
         }
     }
 
@@ -179,7 +184,7 @@ class ApiIntegracaoTest {
                 .andExpect(jsonPath("$.endereco.logradouro").value("Rua API"));
 
             enviar("PUT", "/api/clientes/" + cpf, """
-                {"nome":"Nome Novo","cpf":"%s","email":"novo@teste.com","telefone":"11922223333","endereco":""}
+                {"nome":"Nome Novo","cpf":"%1$s","email":"novo%1$s@teste.com","telefone":"11922223333","endereco":""}
                 """.formatted(cpf))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nome").value("Nome Novo"))
@@ -218,7 +223,7 @@ class ApiIntegracaoTest {
 
             mvc.perform(delete("/api/clientes/{cpf}", cpf))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value("Cliente possui pedidos e não pode ser excluído."));
+                .andExpect(jsonPath("$.erro").value(startsWith("Este cliente possui pedidos e não pode ser excluído.")));
         }
     }
 
@@ -314,8 +319,11 @@ class ApiIntegracaoTest {
                 .andExpect(jsonPath("$.formaPagamento.situacao").value("ESTORNADO"));
             org.junit.jupiter.api.Assertions.assertEquals(10, estoqueDe(codigo));
 
-            // Pedido cancelado já pode ser excluído.
-            mvc.perform(delete("/api/pedidos/{numero}", numero)).andExpect(status().isNoContent());
+            // Pedido cancelado é histórico: não pode ser excluído nem cancelado de novo.
+            mvc.perform(delete("/api/pedidos/{numero}", numero))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.erro").value(containsString("histórico")));
+            mvc.perform(post("/api/pedidos/{numero}/cancelar", numero)).andExpect(status().isConflict());
         }
 
         @Test
