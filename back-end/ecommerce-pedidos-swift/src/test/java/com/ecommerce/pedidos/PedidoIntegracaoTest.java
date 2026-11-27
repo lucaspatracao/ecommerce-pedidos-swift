@@ -17,11 +17,13 @@ import com.ecommerce.pedidos.servico.ProdutoService;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+@Tag("integracao")
 @SpringBootTest
 @ActiveProfiles("test")
 class PedidoIntegracaoTest {
@@ -39,7 +41,7 @@ class PedidoIntegracaoTest {
     @DisplayName("deve criar um pedido completo e finalizar com pagamento aprovado")
     void deveCriarPedidoCompletoEFinalizarComPagamentoAprovado() {
         String cpf = "37168330535";
-        clienteService.cadastrar(new ClienteRequest("Bruno Silva", cpf, "bruno@email.com", "11999998888", "Rua C"));
+        clienteService.cadastrar(new ClienteRequest("Bruno Silva", cpf, "bruno" + cpf + "@email.com", "11999998888", "Rua C"));
         produtoService.cadastrar(new ProdutoRequest("P-INT-001", "Camiseta", "", new BigDecimal("49.90"), 10, true));
 
         PedidoResponse pedido = pedidoService.criar(

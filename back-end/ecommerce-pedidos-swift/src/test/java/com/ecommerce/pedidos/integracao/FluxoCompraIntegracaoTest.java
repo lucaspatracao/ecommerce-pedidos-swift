@@ -30,6 +30,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -45,6 +46,7 @@ import org.springframework.test.context.ActiveProfiles;
  * mock do Mockito, que permite dizer "aprove" ou "recuse" e depois conferir
  * se ele foi chamado.</p>
  */
+@Tag("integracao")
 @SpringBootTest
 @ActiveProfiles("test")
 class FluxoCompraIntegracaoTest {
@@ -67,7 +69,7 @@ class FluxoCompraIntegracaoTest {
     @BeforeEach
     void cadastrarEMontarPedido() {
         String cpf = DadosDeTeste.novoCpf();
-        clienteService.cadastrar(new ClienteRequest("Carla Mendes", cpf, "carla@teste.com", "11988887777", "Rua das Flores"));
+        clienteService.cadastrar(new ClienteRequest("Carla Mendes", cpf, "carla" + cpf + "@teste.com", "11988887777", "Rua das Flores"));
         codigoProduto = DadosDeTeste.novoCodigo("FLX");
         produtoService.cadastrar(new ProdutoRequest(codigoProduto, "Fone Bluetooth", "", new BigDecimal("150.00"), 10, true));
         pedido = pedidoService.criar(new PedidoRequest(cpf, List.of(new ItemPedidoRequest(codigoProduto, 2))));

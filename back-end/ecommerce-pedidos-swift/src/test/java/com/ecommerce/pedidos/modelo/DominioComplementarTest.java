@@ -176,6 +176,18 @@ class DominioComplementarTest {
         }
 
         @Test
+        @DisplayName("soft delete: cliente nasce ativo, inativa e reativa; repetir a mesma operação é recusado")
+        void deveInativarEReativar() {
+            assertTrue(cliente.isAtivo());
+            cliente.inativar();
+            assertFalse(cliente.isAtivo());
+            assertThrows(IllegalStateException.class, cliente::inativar);
+            cliente.reativar();
+            assertTrue(cliente.isAtivo());
+            assertThrows(IllegalStateException.class, cliente::reativar);
+        }
+
+        @Test
         @DisplayName("endereço a partir de texto: vazio vira null, cidade e CEP 'Não informado'")
         void deveCriarEndereco() {
             assertNull(Endereco.aPartirDoTexto("  "));

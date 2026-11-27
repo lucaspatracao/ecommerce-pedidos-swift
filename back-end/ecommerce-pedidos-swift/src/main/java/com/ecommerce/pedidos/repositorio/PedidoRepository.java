@@ -2,6 +2,7 @@ package com.ecommerce.pedidos.repositorio;
 
 import com.ecommerce.pedidos.modelo.Cliente;
 import com.ecommerce.pedidos.modelo.Pedido;
+import com.ecommerce.pedidos.modelo.SituacaoPedido;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
@@ -61,8 +62,16 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
      * (itens) obrigaria o Hibernate a trazer TODAS as linhas e cortar em
      * memória. Paginando só os ids, o LIMIT vai para o banco.</p>
      */
-    @Query("select p.id from Pedido p order by p.data desc, p.id desc")
-    List<Long> buscarIdsRecentes(Pageable pagina);
+    @Query("""
+        select p.id from Pedido p
+        where (:situacao is null or p.situacao = :situacao)
+        order by p.data desc, p.id desc
+        """)
+    List<Long> buscarIds(@Param("situacao") SituacaoPedido situacao, Pageable pagina);
+
+    /** Passo 1 da listagem de um cliente (inclusive inativo: o histórico continua). */
+    @Query("select p.id from Pedido p where p.cliente = :cliente order by p.data desc, p.id desc")
+    List<Long> buscarIdsPorCliente(@Param("cliente") Cliente cliente, Pageable pagina);
 
     /** Passo 2: carrega completos (JOIN FETCH) apenas os ids escolhidos. */
     @Query(PEDIDO_COMPLETO + " where p.id in :ids order by p.data desc, p.id desc")

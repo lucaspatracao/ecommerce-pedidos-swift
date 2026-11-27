@@ -32,12 +32,15 @@ mvn spring-boot:run "-Dspring-boot.run.profiles=dev"
 ## Testar
 
 ```powershell
-mvn clean test
+mvn clean test     # suíte de unidade
+mvn clean verify   # unidade + integração (@Tag("integracao")) + regras de cobertura
 ```
 
 * Perfil `test`: H2 em memória (`MODE=MySQL`) com as mesmas migrations do Flyway; não precisa de MySQL.
-* O build **falha** se a cobertura de linhas do projeto (JaCoCo, BUNDLE) ficar abaixo de **70%**.
-* Relatório: `target/site/jacoco/index.html`.
+* O build **falha** se a cobertura ficar abaixo do mínimo: `modelo` e `excecao` com 70% das linhas na unidade (`test`); projeto inteiro com 85% das linhas e 65% dos ramos (`verify`).
+* Relatórios: `target/site/jacoco/`, `jacoco-it/` e `jacoco-total/`.
+
+CRUD completo, soft delete, políticas de exclusão e migrations: veja a seção "CRUD Completo, Integridade Referencial e Transações" no README da raiz.
 
 ## Camadas
 

@@ -10,7 +10,8 @@ public record ProdutoResponse(
     String descricao,
     BigDecimal preco,
     int quantidadeEmEstoque,
-    boolean ativo
+    boolean ativo,
+    Long versao
 ) {
 
     public static ProdutoResponse de(Produto produto) {
@@ -20,7 +21,8 @@ public record ProdutoResponse(
             produto.getDescricao(),
             produto.getPreco(),
             produto.getQuantidadeEmEstoque(),
-            produto.isAtivo()
+            produto.isAtivo(),
+            produto.getVersao()
         );
     }
 }

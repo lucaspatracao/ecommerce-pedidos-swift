@@ -60,6 +60,10 @@ public class ItemPedido {
         this(null, produto, quantidade);
     }
 
+    public Long getId() {
+        return id;
+    }
+
     public Produto getProduto() {
         return produto;
     }

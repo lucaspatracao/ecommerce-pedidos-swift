@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -28,9 +29,12 @@ public class PedidoController {
         this.pedidoService = pedidoService;
     }
 
+    /** {@code situacao=aberto|pago|cancelado} e {@code pagina}/{@code tamanho} opcionais. */
     @GetMapping("/pedidos")
-    public List<PedidoResponse> listar() {
-        return pedidoService.listarTodos();
+    public List<PedidoResponse> listar(@RequestParam(name = "situacao", required = false) String situacao,
+                                       @RequestParam(name = "pagina", required = false) Integer pagina,
+                                       @RequestParam(name = "tamanho", required = false) Integer tamanho) {
+        return pedidoService.listar(situacao, ParametrosConsulta.pagina(pagina, tamanho));
     }
 
     @GetMapping("/pedidos/{numero}")
@@ -49,10 +53,22 @@ public class PedidoController {
         return pedidoService.atualizarStatus(numero, request.status());
     }
 
-    /** Novo: exclui pedido não pago (204). Pedido pago → 409; inexistente → 404. */
+    /** Cancela: devolve o estoque e estorna o pagamento. Já cancelado → 409. */
+    @PostMapping("/pedidos/{numero}/cancelar")
+    public PedidoResponse cancelar(@PathVariable("numero") String numero) {
+        return pedidoService.cancelar(numero);
+    }
+
+    /** Exclui só pedido ABERTO (204). Pago ou cancelado → 409; inexistente → 404. */
     @DeleteMapping("/pedidos/{numero}")
     public ResponseEntity<Void> excluir(@PathVariable("numero") String numero) {
         pedidoService.excluir(numero);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Remove um item de pedido aberto e devolve o estoque; responde o pedido atualizado. */
+    @DeleteMapping("/pedidos/{numero}/itens/{itemId}")
+    public PedidoResponse removerItem(@PathVariable("numero") String numero, @PathVariable("itemId") Long itemId) {
+        return pedidoService.removerItem(numero, itemId);
     }
 }
