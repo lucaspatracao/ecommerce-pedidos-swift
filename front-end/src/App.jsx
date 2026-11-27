@@ -18,6 +18,7 @@ import { ProdutosPage } from './pages/ProdutosPage'
 import { PedidosPage } from './pages/PedidosPage'
 import { PagamentosPage } from './pages/PagamentosPage'
 import { DetalhePedidoPage } from './pages/DetalhePedidoPage'
+import { NovoPedidoPage } from './pages/NovoPedidoPage'
 import { HistoricoPage } from './pages/HistoricoPage'
 
 const navItems = [
@@ -165,6 +166,12 @@ function AppShell() {
     navigate('/pedidos/novo')
   }
 
+  // Pedido criado: abre o detalhe (onde ele pode ser pago) e atualiza resumo, estoque e listas.
+  const handlePedidoCriado = (pedido) => {
+    navigate(`/pedido/${encodeURIComponent(pedido.numero)}`)
+    atualizarResumo()
+  }
+
   return (
     <div className={`app-shell ${isCollapsed ? 'sidebar-collapsed' : ''}`}>
       <aside className={`sidebar ${isCollapsed ? 'is-collapsed' : ''}`}>
@@ -230,9 +237,9 @@ function AppShell() {
             <Route path="/clientes" element={<ClientesPage clientes={clientes} loading={loading} error={error} onClienteSalvo={handleClienteSalvo} onClienteDelete={handleClienteExcluido} />} />
             <Route path="/produtos" element={<ProdutosPage produtos={produtos} loading={loading} error={error} onProdutoSalvo={handleProdutoSalvo} onProdutoDelete={handleProdutoExcluido} />} />
             <Route path="/pedidos" element={<PedidosPage pedidos={pedidos} loading={loading} error={error} />} />
-            <Route path="/pedidos/novo" element={<PedidosPage pedidos={pedidos} loading={loading} error={error} />} />
+            <Route path="/pedidos/novo" element={<NovoPedidoPage clientes={clientes} produtos={produtos} loading={loading} onPedidoCriado={handlePedidoCriado} onDadosDesatualizados={atualizarResumo} />} />
             <Route path="/pagamentos" element={<PagamentosPage pagamentos={pagamentos} loading={loading} error={error} />} />
-            <Route path="/pedido/:id" element={<DetalhePedidoPage pedidos={pedidos} />} />
+            <Route path="/pedido/:id" element={<DetalhePedidoPage onPedidoAtualizado={atualizarResumo} />} />
             <Route path="/historico" element={<HistoricoPage historico={historico} loading={loading} error={error} />} />
           </Routes>
         </main>
