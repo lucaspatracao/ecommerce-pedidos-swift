@@ -23,7 +23,7 @@ const normalizarCliente = (cliente) => {
 
   return {
     ...cliente,
-    cpf: cliente.cpf || cliente.documento || '',
+    cpf: cliente.cpf || '',
     endereco: extrairEnderecoTexto(cliente.endereco),
   }
 }
@@ -52,7 +52,7 @@ export function ClienteForm({ cliente = null, onClienteSalvo, onCancelarEdicao }
 
     try {
       const clienteSalvo = isEdicao
-        ? await atualizarCliente(cliente.cpf || cliente.documento, form)
+        ? await atualizarCliente(cliente.cpf, form)
         : await cadastrarCliente(form)
 
       setMensagem(isEdicao ? 'Cliente atualizado com sucesso.' : 'Cliente cadastrado com sucesso.')

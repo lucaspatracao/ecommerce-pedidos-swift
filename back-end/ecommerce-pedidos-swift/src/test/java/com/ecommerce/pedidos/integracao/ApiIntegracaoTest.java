@@ -172,6 +172,10 @@ class ApiIntegracaoTest {
             mvc.perform(get("/api/clientes/{cpf}", cpf))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cpf").value(cpf))
+                .andExpect(jsonPath("$.resumo").value("Cliente API (" + cpf + ")"))
+                // Campos duplicados removidos do contrato.
+                .andExpect(jsonPath("$.documento").doesNotExist())
+                .andExpect(jsonPath("$.identificacao").doesNotExist())
                 .andExpect(jsonPath("$.endereco.logradouro").value("Rua API"));
 
             enviar("PUT", "/api/clientes/" + cpf, """
