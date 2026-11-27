@@ -1,13 +1,25 @@
 package com.ecommerce.pedidos.modelo;
 
 import com.ecommerce.pedidos.util.Utils;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /** Pagamento por boleto: exige código de barras e vencimento que não esteja no passado. */
+@Entity
 public class Boleto extends FormaPagamento {
+    @Column(nullable = false, length = 60)
     private String codigoDeBarras;
+
+    @Column(nullable = false)
     private LocalDate dataDeVencimento;
+
+    protected Boleto() {
+        // exigido pelo JPA (lê do banco sem revalidar o vencimento)
+    }
 
     public Boleto(BigDecimal valor, LocalDate dataDeVencimento, String codigoDeBarras) {
         super(valor);
@@ -39,6 +51,14 @@ public class Boleto extends FormaPagamento {
     @Override
     public String descreverMetodo() {
         return "Código: " + codigoDeBarras;
+    }
+
+    @Override
+    public Map<String, Object> dadosEspecificos() {
+        Map<String, Object> dados = new LinkedHashMap<>();
+        dados.put("codigoDeBarras", codigoDeBarras);
+        dados.put("dataDeVencimento", dataDeVencimento);
+        return dados;
     }
 
     @Override

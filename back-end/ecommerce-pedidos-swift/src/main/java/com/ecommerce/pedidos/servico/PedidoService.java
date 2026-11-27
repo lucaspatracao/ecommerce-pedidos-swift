@@ -1,97 +1,35 @@
 package com.ecommerce.pedidos.servico;
 
-import com.ecommerce.pedidos.excecao.ConflitoException;
-import com.ecommerce.pedidos.excecao.RecursoNaoEncontradoException;
-import com.ecommerce.pedidos.modelo.Cliente;
-import com.ecommerce.pedidos.modelo.Pedido;
-import com.ecommerce.pedidos.modelo.Produto;
-import com.ecommerce.pedidos.modelo.SituacaoPedido;
-import com.ecommerce.pedidos.util.Utils;
+import com.ecommerce.pedidos.dto.PedidoRequest;
+import com.ecommerce.pedidos.dto.PedidoResponse;
 import java.math.BigDecimal;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import org.springframework.stereotype.Service;
 
-@Service
-public class PedidoService {
-    private final Map<String, Pedido> pedidos = new ConcurrentHashMap<>();
-    private final ClienteService clienteService;
-    private final ProdutoService produtoService;
+/** Casos de uso de pedido (Aula 14). */
+public interface PedidoService {
 
-    public PedidoService(ClienteService clienteService, ProdutoService produtoService) {
-        this.clienteService = clienteService;
-        this.produtoService = produtoService;
-    }
+    /** Todos os pedidos, mais recentes primeiro. */
+    List<PedidoResponse> listarTodos();
 
-    public List<Pedido> listarTodos() {
-        return pedidos.values().stream()
-            .sorted(Comparator.comparing(Pedido::getData).reversed())
-            .toList();
-    }
+    /** Os {@code limite} pedidos mais recentes. */
+    List<PedidoResponse> listarRecentes(int limite);
 
-    /** @throws RecursoNaoEncontradoException (404) se o número não existir */
-    public Pedido buscarPorNumero(String numero) {
-        String chave = Utils.textoObrigatorio(numero, "Número do pedido");
-        Pedido pedido = pedidos.get(chave);
-        if (pedido == null) {
-            throw new RecursoNaoEncontradoException("Pedido", chave);
-        }
-        return pedido;
-    }
+    /** @throws com.ecommerce.pedidos.excecao.RecursoNaoEncontradoException (404) */
+    PedidoResponse buscarPorNumero(String numero);
 
-    public Pedido criarPedido(String clienteCpf, List<ItemPedidoRequest> itens) {
-        Cliente cliente = clienteService.buscarPorCpf(clienteCpf);
-        if (itens == null || itens.isEmpty()) {
-            throw new IllegalArgumentException("Pedido deve conter pelo menos um item.");
-        }
+    /**
+     * Cria o pedido e baixa o estoque de todos os itens numa única transação:
+     * se qualquer item falhar, nenhum estoque é alterado (rollback).
+     */
+    PedidoResponse criar(PedidoRequest request);
 
-        Pedido pedido = new Pedido(cliente);
-        for (ItemPedidoRequest itemRequest : itens) {
-            Produto produto = produtoService.buscarPorCodigo(itemRequest.codigo());
-            if (!produto.isAtivo()) {
-                throw new ConflitoException("Produto indisponível para venda: " + produto.getCodigo());
-            }
-            // Se faltar estoque, o próprio domínio lança EstoqueInsuficienteException (409).
-            pedido.adicionarItem(produto, itemRequest.quantidade());
-        }
+    /** Aceita "CANCELADO" (devolve estoque e estorna pagamento) ou "ABERTO" (sem mudança). */
+    PedidoResponse atualizarStatus(String numero, String status);
 
-        pedidos.put(pedido.getNumero(), pedido);
-        return pedido;
-    }
+    /** Exclui pedido não pago; se estiver aberto, devolve o estoque antes. */
+    void excluir(String numero);
 
-    public void atualizarStatus(String numero, SituacaoPedido situacao) {
-        Pedido pedido = buscarPorNumero(numero);
-        if (situacao == null) {
-            throw new IllegalArgumentException("Situação do pedido é obrigatória.");
-        }
-        if (situacao == SituacaoPedido.CANCELADO) {
-            pedido.cancelar();
-            return;
-        }
-        if (situacao == SituacaoPedido.PAGO) {
-            throw new ConflitoException("Pagamento deve ser processado com uma forma de pagamento");
-        }
-        if (situacao != SituacaoPedido.ABERTO || pedido.getSituacao() != SituacaoPedido.ABERTO) {
-            throw new ConflitoException("Transição de situação inválida");
-        }
-    }
+    long contar();
 
-    public BigDecimal calcularReceitaTotal() {
-        return listarTodos().stream()
-            .map(Pedido::calcularValorTotal)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
-    public long contar() {
-        return pedidos.size();
-    }
-
-    public List<Pedido> listarRecentes(int limite) {
-        return listarTodos().stream().limit(limite).toList();
-    }
-
-    public record ItemPedidoRequest(String codigo, int quantidade) {
-    }
+    BigDecimal calcularReceitaTotal();
 }

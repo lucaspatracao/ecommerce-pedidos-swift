@@ -1,5 +1,16 @@
+# Build Java / Maven
 target/
 *.class
+
+# Dependências do front-end
+node_modules/
+
+# Segredos locais: o .env nunca é versionado; o .env.example (modelo sem senha) é
+.env
+.env.*
+!.env.example
+
+# IDEs e sistema operacional
 .idea/
 *.iml
 .vscode/

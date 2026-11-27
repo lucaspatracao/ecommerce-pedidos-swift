@@ -1,8 +1,8 @@
 package com.ecommerce.pedidos.controller;
 
-import com.ecommerce.pedidos.modelo.Produto;
+import com.ecommerce.pedidos.dto.ProdutoRequest;
+import com.ecommerce.pedidos.dto.ProdutoResponse;
 import com.ecommerce.pedidos.servico.ProdutoService;
-import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,46 +27,28 @@ public class ProdutoController {
     }
 
     @GetMapping
-    public List<Produto> listar() {
+    public List<ProdutoResponse> listar() {
         return produtoService.listarTodos();
     }
 
+    @GetMapping("/{codigo}")
+    public ProdutoResponse buscar(@PathVariable("codigo") String codigo) {
+        return produtoService.buscarPorCodigo(codigo);
+    }
+
     @PostMapping
-    public ResponseEntity<Produto> cadastrar(@RequestBody ProdutoRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(produtoService.salvar(paraProduto(request)));
+    public ResponseEntity<ProdutoResponse> cadastrar(@RequestBody ProdutoRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(produtoService.cadastrar(request));
     }
 
     @PutMapping("/{codigo}")
-    public Produto atualizar(@PathVariable("codigo") String codigo, @RequestBody ProdutoRequest request) {
-        return produtoService.atualizar(codigo, paraProduto(request));
+    public ProdutoResponse atualizar(@PathVariable("codigo") String codigo, @RequestBody ProdutoRequest request) {
+        return produtoService.atualizar(codigo, request);
     }
 
     @DeleteMapping("/{codigo}")
     public ResponseEntity<Void> excluir(@PathVariable("codigo") String codigo) {
         produtoService.excluir(codigo);
         return ResponseEntity.noContent().build();
-    }
-
-    private static Produto paraProduto(ProdutoRequest request) {
-        Produto produto = new Produto(
-            request.codigo(),
-            request.nome(),
-            request.descricao(),
-            new BigDecimal(request.preco()),
-            request.estoque()
-        );
-        // "disponivel" ausente no JSON = produto disponível.
-        produto.definirDisponibilidade(!Boolean.FALSE.equals(request.disponivel()));
-        return produto;
-    }
-
-    public record ProdutoRequest(
-        String codigo,
-        String nome,
-        String descricao,
-        String preco,
-        Integer estoque,
-        Boolean disponivel
-    ) {
     }
 }

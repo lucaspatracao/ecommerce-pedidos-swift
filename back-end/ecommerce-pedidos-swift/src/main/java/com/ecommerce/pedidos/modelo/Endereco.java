@@ -1,17 +1,34 @@
 package com.ecommerce.pedidos.modelo;
 
 import com.ecommerce.pedidos.util.Utils;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
 
 /**
  * Endereço do cliente. É imutável: para "mudar" o endereço, o cliente
  * recebe um novo objeto {@code Endereco}.
+ *
+ * <p>{@code @Embeddable}: não tem tabela nem id próprios. Suas colunas
+ * ficam dentro da tabela {@code cliente}.</p>
  */
+@Embeddable
 public class Endereco {
     static final String NAO_INFORMADO = "Não informado";
 
-    private final String logradouro;
-    private final String cidade;
-    private final String cep;
+    // Sem "final" só porque o JPA precisa preencher os campos ao ler do banco;
+    // não há setters, então continuam imutáveis para o resto do código.
+    @Column(length = 200)
+    private String logradouro;
+
+    @Column(length = 100)
+    private String cidade;
+
+    @Column(length = 20)
+    private String cep;
+
+    protected Endereco() {
+        // exigido pelo JPA
+    }
 
     public Endereco(String logradouro, String cidade, String cep) {
         this.logradouro = Utils.textoObrigatorio(logradouro, "Logradouro");

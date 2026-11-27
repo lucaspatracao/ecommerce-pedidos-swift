@@ -1,67 +1,27 @@
 package com.ecommerce.pedidos.servico;
 
-import com.ecommerce.pedidos.excecao.ConflitoException;
-import com.ecommerce.pedidos.excecao.RecursoNaoEncontradoException;
-import com.ecommerce.pedidos.modelo.Produto;
-import com.ecommerce.pedidos.util.Utils;
-import java.util.ArrayList;
+import com.ecommerce.pedidos.dto.ProdutoRequest;
+import com.ecommerce.pedidos.dto.ProdutoResponse;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-import org.springframework.stereotype.Service;
 
-@Service
-public class ProdutoService {
-    private final Map<String, Produto> produtos = new ConcurrentHashMap<>();
+/** Casos de uso de produto (Aula 14). */
+public interface ProdutoService {
 
-    public List<Produto> listarTodos() {
-        return new ArrayList<>(produtos.values());
-    }
+    List<ProdutoResponse> listarTodos();
 
-    /** @throws RecursoNaoEncontradoException (404) se o código não existir */
-    public Produto buscarPorCodigo(String codigo) {
-        String chave = Utils.textoObrigatorio(codigo, "Código do produto");
-        Produto produto = produtos.get(chave);
-        if (produto == null) {
-            throw new RecursoNaoEncontradoException("Produto", chave);
-        }
-        return produto;
-    }
+    /** @throws com.ecommerce.pedidos.excecao.RecursoNaoEncontradoException (404) */
+    ProdutoResponse buscarPorCodigo(String codigo);
 
-    /** @throws ConflitoException (409) se o código já estiver em uso */
-    public Produto salvar(Produto produto) {
-        Objects.requireNonNull(produto, "Produto não pode ser nulo.");
-        if (produtos.putIfAbsent(produto.getCodigo(), produto) != null) {
-            throw new ConflitoException("Já existe produto com o código " + produto.getCodigo());
-        }
-        return produto;
-    }
+    /** @throws com.ecommerce.pedidos.excecao.ConflitoException (409) se o código já existir */
+    ProdutoResponse cadastrar(ProdutoRequest request);
 
-    public Produto atualizar(String codigo, Produto dados) {
-        Objects.requireNonNull(dados, "Produto atualizado não pode ser nulo.");
-        Produto existente = buscarPorCodigo(codigo);
-        String novoCodigo = dados.getCodigo();
-        if (!existente.getCodigo().equals(novoCodigo)) {
-            if (produtos.containsKey(novoCodigo)) {
-                throw new ConflitoException("Já existe produto com o código " + novoCodigo);
-            }
-            produtos.remove(existente.getCodigo());
-            existente.alterarCodigo(novoCodigo);
-            produtos.put(novoCodigo, existente);
-        }
-        existente.atualizarDados(dados.getNome(), dados.getDescricao(), dados.getPreco());
-        existente.definirEstoque(dados.getQuantidadeEmEstoque());
-        existente.definirDisponibilidade(dados.isAtivo());
-        return existente;
-    }
+    ProdutoResponse atualizar(String codigo, ProdutoRequest request);
 
-    public void excluir(String codigo) {
-        Produto existente = buscarPorCodigo(codigo);
-        produtos.remove(existente.getCodigo());
-    }
+    /** @throws com.ecommerce.pedidos.excecao.ConflitoException (409) se o produto já foi vendido */
+    void excluir(String codigo);
 
-    public long contar() {
-        return produtos.size();
-    }
+    long contar();
+
+    /** Produtos com estoque abaixo de {@code limite}, para o alerta do dashboard. */
+    List<ProdutoResponse> listarEstoqueCritico(int limite);
 }

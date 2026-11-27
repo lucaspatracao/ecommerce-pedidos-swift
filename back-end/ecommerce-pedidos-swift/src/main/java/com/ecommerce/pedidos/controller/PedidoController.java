@@ -1,13 +1,14 @@
 package com.ecommerce.pedidos.controller;
 
-import com.ecommerce.pedidos.modelo.Pedido;
-import com.ecommerce.pedidos.modelo.SituacaoPedido;
+import com.ecommerce.pedidos.dto.AtualizarStatusRequest;
+import com.ecommerce.pedidos.dto.PedidoRequest;
+import com.ecommerce.pedidos.dto.PedidoResponse;
 import com.ecommerce.pedidos.servico.PedidoService;
-import com.ecommerce.pedidos.servico.PedidoService.ItemPedidoRequest;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,33 +28,30 @@ public class PedidoController {
     }
 
     @GetMapping("/pedidos")
-    public List<Pedido> listar() {
+    public List<PedidoResponse> listar() {
         return pedidoService.listarTodos();
     }
 
     @GetMapping("/pedidos/{numero}")
-    public Pedido buscarPorNumero(@PathVariable("numero") String numero) {
+    public PedidoResponse buscarPorNumero(@PathVariable("numero") String numero) {
         return pedidoService.buscarPorNumero(numero);
     }
 
     @PostMapping("/pedidos")
-    public ResponseEntity<Pedido> criar(@RequestBody PedidoRequest request) {
-        Pedido pedido = pedidoService.criarPedido(request.clienteCpf(), request.itens());
-        return ResponseEntity.status(HttpStatus.CREATED).body(pedido);
+    public ResponseEntity<PedidoResponse> criar(@RequestBody PedidoRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(pedidoService.criar(request));
     }
 
     @PutMapping("/pedidos/{numero}/status")
-    public Pedido atualizarStatus(@PathVariable("numero") String numero, @RequestBody AtualizarStatusRequest request) {
-        if (request == null || request.status() == null || request.status().isBlank()) {
-            throw new IllegalArgumentException("Status do pedido é obrigatório.");
-        }
-        pedidoService.atualizarStatus(numero, SituacaoPedido.deTexto(request.status()));
-        return pedidoService.buscarPorNumero(numero);
+    public PedidoResponse atualizarStatus(@PathVariable("numero") String numero,
+                                          @RequestBody AtualizarStatusRequest request) {
+        return pedidoService.atualizarStatus(numero, request.status());
     }
 
-    public record PedidoRequest(String clienteCpf, List<ItemPedidoRequest> itens) {
-    }
-
-    public record AtualizarStatusRequest(String status) {
+    /** Novo: exclui pedido não pago (204). Pedido pago → 409; inexistente → 404. */
+    @DeleteMapping("/pedidos/{numero}")
+    public ResponseEntity<Void> excluir(@PathVariable("numero") String numero) {
+        pedidoService.excluir(numero);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -1,8 +1,20 @@
 package com.ecommerce.pedidos.modelo;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.Map;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Base abstrata de todas as formas de pagamento (Aulas 06 a 08).
@@ -17,11 +29,33 @@ import java.time.LocalDateTime;
  * <p>A situação só muda pelos métodos de intenção ({@link #aprovar()},
  * {@link #recusar()}, {@link #estornar()}); não há setter público que permita
  * "aprovar" um pagamento de fora.</p>
+ *
+ * <p>Persistência com {@code InheritanceType.JOINED}: a tabela
+ * {@code forma_pagamento} guarda os campos comuns e cada subclasse tem a sua
+ * ({@code pix}, {@code boleto}...), ligadas pelo mesmo id. Ao buscar um
+ * pagamento, o Hibernate faz o JOIN e devolve o objeto da subclasse certa.</p>
  */
+@Entity
+@Inheritance(strategy = InheritanceType.JOINED)
 public abstract class FormaPagamento implements ProcessadorPagamento {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal valor;
+
+    @Column(nullable = false)
     private LocalDateTime dataDoPagamento;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(nullable = false, length = 20)
     private SituacaoPagamento situacao;
+
+    protected FormaPagamento() {
+        // exigido pelo JPA
+    }
 
     protected FormaPagamento(BigDecimal valor) {
         definirValor(valor);
@@ -31,6 +65,10 @@ public abstract class FormaPagamento implements ProcessadorPagamento {
 
     protected FormaPagamento(double valor) {
         this(BigDecimal.valueOf(valor));
+    }
+
+    public Long getId() {
+        return id;
     }
 
     public BigDecimal getValor() {
@@ -53,6 +91,13 @@ public abstract class FormaPagamento implements ProcessadorPagamento {
      * Substitui a cadeia de {@code instanceof} que existia no controller.
      */
     public abstract String descreverMetodo();
+
+    /**
+     * Atributos próprios da subclasse (ex.: chave e tipo do Pix), na ordem em
+     * que devem aparecer no JSON. Permite montar a resposta da API sem
+     * perguntar "que tipo de pagamento é este?".
+     */
+    public abstract Map<String, Object> dadosEspecificos();
 
     /** Processa cobrando exatamente o valor informado (contrato de {@link ProcessadorPagamento}). */
     @Override

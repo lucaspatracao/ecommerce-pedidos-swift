@@ -1,6 +1,13 @@
 package com.ecommerce.pedidos.modelo;
 
 import com.ecommerce.pedidos.util.Utils;
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
 
 /**
  * Cliente responsável pela compra no e-commerce.
@@ -8,11 +15,29 @@ import com.ecommerce.pedidos.util.Utils;
  * <p>O CPF é a identidade de negócio do cliente: é validado pelos dígitos
  * verificadores e não muda depois do cadastro (por isso não há setter).
  * Nome e contato são alterados juntos por {@link #atualizarContato}.</p>
+ *
+ * <p>Na tabela, o campo herdado {@code documento} vira a coluna {@code cpf}
+ * ({@code @AttributeOverride}).</p>
  */
+@Entity
+@AttributeOverride(name = "documento", column = @Column(name = "cpf", nullable = false, unique = true, length = 11))
 public class Cliente extends Pessoa {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, length = 160)
     private String email;
+
+    @Column(nullable = false, length = 20)
     private String telefone;
+
+    @Embedded
     private Endereco endereco;
+
+    protected Cliente() {
+        // exigido pelo JPA
+    }
 
     /**
      * Construtor usado pela API, que recebe o endereço como texto livre.
@@ -26,6 +51,10 @@ public class Cliente extends Pessoa {
         // O CPF é validado e normalizado ANTES de chegar à superclasse.
         super(nome, Utils.validarCpf(cpf));
         definirContato(email, telefone, endereco);
+    }
+
+    public Long getId() {
+        return id;
     }
 
     public String getCpf() {

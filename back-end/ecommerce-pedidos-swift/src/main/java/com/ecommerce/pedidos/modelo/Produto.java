@@ -2,6 +2,12 @@ package com.ecommerce.pedidos.modelo;
 
 import com.ecommerce.pedidos.excecao.EstoqueInsuficienteException;
 import com.ecommerce.pedidos.util.Utils;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
@@ -10,16 +16,45 @@ import java.math.RoundingMode;
  * ninguém altera {@code quantidadeEmEstoque} diretamente, só pelos métodos
  * {@link #baixarEstoque}, {@link #adicionarEstoque} e {@link #definirEstoque}.
  */
+@Entity
 public class Produto {
     private static final int TAMANHO_MINIMO_CODIGO = 3;
     private static int totalDeProdutosCriados = 0;
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true, length = 40)
     private String codigo;
+
+    @Column(nullable = false, length = 120)
     private String nome;
+
+    @Column(nullable = false, length = 500)
     private String descricao;
+
+    @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal preco;
+
+    @Column(nullable = false)
     private int quantidadeEmEstoque;
+
+    @Column(nullable = false)
     private boolean ativo;
+
+    /**
+     * Bloqueio otimista: o Hibernate inclui "WHERE versao = ?" em cada UPDATE.
+     * Se outra transação alterou o produto antes (ex.: duas vendas ao mesmo
+     * tempo), o UPDATE não acha a linha e a operação falha com 409, em vez
+     * de uma venda apagar a baixa de estoque da outra.
+     */
+    @Version
+    private Long versao;
+
+    protected Produto() {
+        // exigido pelo JPA
+    }
 
     public Produto(String codigo, String nome, BigDecimal preco, int quantidadeEmEstoque) {
         this(codigo, nome, null, preco, quantidadeEmEstoque);
@@ -39,6 +74,10 @@ public class Produto {
 
     public static int getTotalDeProdutosCriados() {
         return totalDeProdutosCriados;
+    }
+
+    public Long getId() {
+        return id;
     }
 
     public String getCodigo() {

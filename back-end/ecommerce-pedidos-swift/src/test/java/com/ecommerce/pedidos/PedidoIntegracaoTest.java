@@ -1,48 +1,57 @@
 package com.ecommerce.pedidos;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import com.ecommerce.pedidos.modelo.Cliente;
-import com.ecommerce.pedidos.modelo.Endereco;
-import com.ecommerce.pedidos.modelo.Pedido;
-import com.ecommerce.pedidos.modelo.Pix;
-import com.ecommerce.pedidos.modelo.Produto;
+import com.ecommerce.pedidos.dto.ClienteRequest;
+import com.ecommerce.pedidos.dto.ItemPedidoRequest;
+import com.ecommerce.pedidos.dto.PagamentoRequest;
+import com.ecommerce.pedidos.dto.PedidoRequest;
+import com.ecommerce.pedidos.dto.PedidoResponse;
+import com.ecommerce.pedidos.dto.ProdutoRequest;
 import com.ecommerce.pedidos.modelo.SituacaoPedido;
+import com.ecommerce.pedidos.servico.ClienteService;
+import com.ecommerce.pedidos.servico.PagamentoService;
 import com.ecommerce.pedidos.servico.PedidoService;
 import com.ecommerce.pedidos.servico.ProdutoService;
-import com.ecommerce.pedidos.servico.ClienteService;
-import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
+@SpringBootTest
+@ActiveProfiles("test")
 class PedidoIntegracaoTest {
+
+    @Autowired
+    private ClienteService clienteService;
+    @Autowired
+    private ProdutoService produtoService;
+    @Autowired
+    private PedidoService pedidoService;
+    @Autowired
+    private PagamentoService pagamentoService;
 
     @Test
     @DisplayName("deve criar um pedido completo e finalizar com pagamento aprovado")
     void deveCriarPedidoCompletoEFinalizarComPagamentoAprovado() {
-        ClienteService clienteService = new ClienteService();
-        ProdutoService produtoService = new ProdutoService();
-        PedidoService pedidoService = new PedidoService(clienteService, produtoService);
+        String cpf = "37168330535";
+        clienteService.cadastrar(new ClienteRequest("Bruno Silva", cpf, "bruno@email.com", "11999998888", "Rua C"));
+        produtoService.cadastrar(new ProdutoRequest("P-INT-001", "Camiseta", "", "49.90", 10, true));
 
-        Cliente cliente = new Cliente("Bruno Silva", "37168330535", "bruno@email.com", "11999998888",
-                new Endereco("Rua C", "São Paulo", "01000-001"));
-        clienteService.salvar(cliente);
+        PedidoResponse pedido = pedidoService.criar(
+            new PedidoRequest(cpf, List.of(new ItemPedidoRequest("P-INT-001", 2))));
 
-        Produto produto = new Produto("P-INT-001", "Camiseta", new BigDecimal("49.90"), 10);
-        produtoService.salvar(produto);
+        assertNotNull(pedido.numero());
+        assertEquals(1, pedido.itens().size());
+        assertEquals(SituacaoPedido.ABERTO, pedido.situacao());
 
-        Pedido pedido = assertDoesNotThrow(() -> pedidoService.criarPedido(cliente.getCpf(),
-                List.of(new PedidoService.ItemPedidoRequest(produto.getCodigo(), 2))));
+        pagamentoService.registrar(new PagamentoRequest("PIX", "99.80", null, null, null, null, null,
+            "bruno@email.com", "EMAIL", pedido.numero()));
 
-        assertNotNull(pedido);
-        assertEquals(1, pedido.quantidadeDeItens());
-        assertEquals(SituacaoPedido.ABERTO, pedido.getSituacao());
-
-        Pix pix = new Pix(new BigDecimal("99.80"), "bruno@email.com", "EMAIL");
-        assertDoesNotThrow(() -> pedido.pagar(pix));
-        assertEquals(SituacaoPedido.PAGO, pedido.getSituacao());
+        assertEquals(SituacaoPedido.PAGO, pedidoService.buscarPorNumero(pedido.numero()).situacao());
+        assertEquals(8, produtoService.buscarPorCodigo("P-INT-001").quantidadeEmEstoque());
     }
 }

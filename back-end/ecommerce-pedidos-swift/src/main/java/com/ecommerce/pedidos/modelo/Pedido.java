@@ -4,6 +4,19 @@ import com.ecommerce.pedidos.excecao.EstoqueInsuficienteException;
 import com.ecommerce.pedidos.excecao.PagamentoRecusadoException;
 import com.ecommerce.pedidos.excecao.PedidoInvalidoException;
 import com.ecommerce.pedidos.util.PedidoUtils;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -11,6 +24,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Carrinho de compras do cliente e ciclo de vida da venda
@@ -23,15 +38,52 @@ import java.util.List;
  * <p>As regras ficam aqui dentro: o pedido calcula o próprio total, só aceita
  * itens enquanto está aberto e só pode ser pago uma vez.</p>
  */
+@Entity
 public class Pedido {
     private static int totalDePedidosCriados = 0;
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true, length = 20)
     private String numero;
+
+    /**
+     * N–1: muitos pedidos para um cliente. LAZY = o cliente só é buscado no
+     * banco quando alguém acessa {@code getCliente()}; consultas que precisam
+     * dele usam JOIN FETCH (ver PedidoRepository).
+     */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "cliente_id", nullable = false)
     private Cliente cliente;
-    private final List<ItemPedido> itens = new ArrayList<>();
+
+    /**
+     * 1–N: o lado "dono" da chave estrangeira é {@link ItemPedido#pedido}
+     * ({@code mappedBy}). {@code cascade = ALL} salva/apaga os itens junto com
+     * o pedido; {@code orphanRemoval} apaga do banco o item removido da lista.
+     */
+    @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ItemPedido> itens = new ArrayList<>();
+
+    @Column(name = "data_pedido", nullable = false)
     private LocalDate data;
+
+    // Texto no banco ("ABERTO", "PAGO"...). O @JdbcTypeCode evita que o
+    // Hibernate espere o tipo nativo ENUM do MySQL, já que a coluna é VARCHAR.
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(nullable = false, length = 20)
     private SituacaoPedido situacao;
+
+    /** 1–1: cada pedido tem no máximo um pagamento, salvo junto com ele. */
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "forma_pagamento_id", unique = true)
     private FormaPagamento formaPagamento;
+
+    protected Pedido() {
+        // exigido pelo JPA
+    }
 
     public Pedido(Cliente cliente) {
         if (cliente == null) {
@@ -46,6 +98,10 @@ public class Pedido {
 
     public static int getTotalDePedidosCriados() {
         return totalDePedidosCriados;
+    }
+
+    public Long getId() {
+        return id;
     }
 
     public String getNumero() {

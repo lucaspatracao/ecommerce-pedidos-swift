@@ -1,17 +1,33 @@
 package com.ecommerce.pedidos.modelo;
 
 import com.ecommerce.pedidos.util.Utils;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /** Pagamento com cartão: é o único que tem limite e permite parcelar. */
+@Entity
 public class CartaoCredito extends FormaPagamento {
     private static final BigDecimal LIMITE_PADRAO = new BigDecimal("5000.00");
     private static final int MAXIMO_PARCELAS = 12;
 
+    @Column(nullable = false, length = 30)
     private String numeroMascarado;
+
+    @Column(nullable = false, length = 30)
     private String bandeira;
+
+    @Column(nullable = false)
     private int quantidadeDeParcelas;
+
+    @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal limiteDisponivel;
+
+    protected CartaoCredito() {
+        // exigido pelo JPA
+    }
 
     public CartaoCredito(BigDecimal valor, String numeroMascarado, String bandeira, int quantidadeDeParcelas) {
         super(valor);
@@ -55,6 +71,16 @@ public class CartaoCredito extends FormaPagamento {
     @Override
     public String descreverMetodo() {
         return bandeira + " •••• " + numeroMascarado;
+    }
+
+    @Override
+    public Map<String, Object> dadosEspecificos() {
+        Map<String, Object> dados = new LinkedHashMap<>();
+        dados.put("numeroMascarado", numeroMascarado);
+        dados.put("bandeira", bandeira);
+        dados.put("quantidadeDeParcelas", quantidadeDeParcelas);
+        dados.put("limiteDisponivel", limiteDisponivel);
+        return dados;
     }
 
     @Override

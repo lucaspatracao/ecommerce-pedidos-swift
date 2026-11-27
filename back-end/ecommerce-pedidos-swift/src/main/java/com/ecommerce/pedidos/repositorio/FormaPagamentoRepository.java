@@ -1,22 +1,15 @@
 package com.ecommerce.pedidos.repositorio;
 
 import com.ecommerce.pedidos.modelo.FormaPagamento;
-import java.util.ArrayList;
 import java.util.List;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-@Repository
-public class FormaPagamentoRepository {
-    private final List<FormaPagamento> pagamentos = new ArrayList<>();
+/**
+ * Repositório da classe ABSTRATA {@link FormaPagamento}. Por causa da
+ * herança JOINED, uma consulta aqui traz objetos das subclasses concretas
+ * (Pix, Boleto, CartaoCredito, ValeCompras): polimorfismo também no banco.
+ */
+public interface FormaPagamentoRepository extends JpaRepository<FormaPagamento, Long> {
 
-    public void adicionar(FormaPagamento formaPagamento) {
-        if (formaPagamento == null) {
-            throw new IllegalArgumentException("Forma de pagamento não pode ser nula.");
-        }
-        pagamentos.add(formaPagamento);
-    }
-
-    public List<FormaPagamento> listarTodos() {
-        return new ArrayList<>(pagamentos);
-    }
+    List<FormaPagamento> findAllByOrderByDataDoPagamentoDesc();
 }

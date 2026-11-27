@@ -1,14 +1,10 @@
 package com.ecommerce.pedidos.controller;
 
+import com.ecommerce.pedidos.dto.PagamentoRegistradoResponse;
 import com.ecommerce.pedidos.dto.PagamentoRequest;
-import com.ecommerce.pedidos.modelo.FormaPagamento;
-import com.ecommerce.pedidos.servico.FabricaFormaPagamento;
+import com.ecommerce.pedidos.dto.PagamentoResumoResponse;
 import com.ecommerce.pedidos.servico.PagamentoService;
-import com.ecommerce.pedidos.servico.PedidoService;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -22,48 +18,19 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api")
 @CrossOrigin(origins = {"http://localhost:5173", "http://127.0.0.1:5173"})
 public class PagamentoController {
-    private final PagamentoService service;
-    private final PedidoService pedidoService;
-    private final FabricaFormaPagamento fabrica;
+    private final PagamentoService pagamentoService;
 
-    public PagamentoController(PagamentoService service, PedidoService pedidoService, FabricaFormaPagamento fabrica) {
-        this.service = service;
-        this.pedidoService = pedidoService;
-        this.fabrica = fabrica;
+    public PagamentoController(PagamentoService pagamentoService) {
+        this.pagamentoService = pagamentoService;
     }
 
     @GetMapping("/pagamentos")
-    public List<Map<String, Object>> listarPagamentos() {
-        List<Map<String, Object>> resposta = new ArrayList<>();
-
-        for (FormaPagamento pagamento : service.listarPagamentos()) {
-            Map<String, Object> item = new HashMap<>();
-            item.put("tipo", pagamento.getDescricao());
-            item.put("valor", pagamento.getValor());
-            item.put("status", pagamento.getSituacao().name());
-            item.put("ultimaTransacao", pagamento.getDataDoPagamento().toString());
-            // Polimorfismo: cada subclasse sabe se descrever, sem instanceof.
-            item.put("metodo", pagamento.descreverMetodo());
-            resposta.add(item);
-        }
-
-        return resposta;
+    public List<PagamentoResumoResponse> listarPagamentos() {
+        return pagamentoService.listar();
     }
 
     @PostMapping("/pagamentos")
-    public ResponseEntity<Map<String, Object>> registrar(@RequestBody PagamentoRequest request) {
-        if (request == null || request.pedidoNumero() == null || request.pedidoNumero().isBlank()) {
-            throw new IllegalArgumentException("Número do pedido é obrigatório para registrar o pagamento.");
-        }
-
-        FormaPagamento pagamento = fabrica.criar(request);
-
-        // Pedido inexistente → 404; pagamento recusado ou pedido já pago → 409 (ApiExceptionHandler).
-        pedidoService.buscarPorNumero(request.pedidoNumero()).pagarCom(pagamento);
-        service.registrar(pagamento);
-        Map<String, Object> resposta = new HashMap<>();
-        resposta.put("mensagem", "Pagamento registrado com sucesso.");
-        resposta.put("pagamento", pagamento);
-        return ResponseEntity.status(HttpStatus.CREATED).body(resposta);
+    public ResponseEntity<PagamentoRegistradoResponse> registrar(@RequestBody PagamentoRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(pagamentoService.registrar(request));
     }
 }

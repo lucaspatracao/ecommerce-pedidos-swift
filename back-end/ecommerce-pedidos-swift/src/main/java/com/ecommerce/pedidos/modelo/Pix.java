@@ -1,12 +1,24 @@
 package com.ecommerce.pedidos.modelo;
 
 import com.ecommerce.pedidos.util.Utils;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /** Pagamento instantâneo por chave Pix. */
+@Entity
 public class Pix extends FormaPagamento {
+    @Column(nullable = false, length = 140)
     private String chave;
+
+    @Column(nullable = false, length = 20)
     private String tipoDaChave;
+
+    protected Pix() {
+        // exigido pelo JPA
+    }
 
     public Pix(BigDecimal valor, String chave, String tipoDaChave) {
         super(valor);
@@ -31,6 +43,14 @@ public class Pix extends FormaPagamento {
     @Override
     public String descreverMetodo() {
         return "Chave: " + chave;
+    }
+
+    @Override
+    public Map<String, Object> dadosEspecificos() {
+        Map<String, Object> dados = new LinkedHashMap<>();
+        dados.put("chave", chave);
+        dados.put("tipoDaChave", tipoDaChave);
+        return dados;
     }
 
     @Override

@@ -1,7 +1,7 @@
 package com.ecommerce.pedidos.controller;
 
+import com.ecommerce.pedidos.dto.DashboardResponse;
 import com.ecommerce.pedidos.servico.DashboardService;
-import java.util.Map;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,7 +18,7 @@ public class DashboardController {
     }
 
     @GetMapping("/dashboard")
-    public Map<String, Object> dashboard() {
+    public DashboardResponse dashboard() {
         return dashboardService.gerarResumo();
     }
 }

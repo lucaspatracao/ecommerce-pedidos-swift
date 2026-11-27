@@ -1,6 +1,8 @@
 package com.ecommerce.pedidos.modelo;
 
 import com.ecommerce.pedidos.util.Utils;
+import jakarta.persistence.Column;
+import jakarta.persistence.MappedSuperclass;
 
 /**
  * Superclasse abstrata de quem é "pessoa" no sistema (Aula 06).
@@ -8,10 +10,22 @@ import com.ecommerce.pedidos.util.Utils;
  * <p>Concentra o que {@link Cliente} e {@link Funcionario} têm em comum
  * (nome e documento). É abstrata porque não existe "uma pessoa genérica":
  * todo objeto concreto é um cliente ou um funcionário.</p>
+ *
+ * <p>{@code @MappedSuperclass}: não vira tabela própria. Os campos daqui
+ * são copiados para a tabela de cada subclasse que for entidade (hoje só
+ * {@code cliente}).</p>
  */
+@MappedSuperclass
 public abstract class Pessoa {
+    @Column(nullable = false, length = 120)
     private String nome;
+
+    @Column(nullable = false)
     private String documento;
+
+    /** Exigido pelo JPA para recriar o objeto a partir do banco. Não use no código. */
+    protected Pessoa() {
+    }
 
     protected Pessoa(String nome, String documento) {
         alterarNome(nome);
