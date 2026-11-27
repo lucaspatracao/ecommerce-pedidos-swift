@@ -1,3 +1,5 @@
+import { formatarFormaPagamento } from '../utils/formatarFormaPagamento'
+
 const statusClassMap = {
   APROVADO: 'status status-success',
   PENDENTE: 'status status-pending',
@@ -34,7 +36,7 @@ export function PagamentosPage({ pagamentos = [], loading, error }) {
               <div className="payment-header">
                 <div>
                   <p className="label">Método</p>
-                  <h3>{pagamento.tipo}</h3>
+                  <h3>{formatarFormaPagamento(pagamento.tipo)}</h3>
                 </div>
                 <span className={statusClassMap[pagamento.status] || 'status'}>{pagamento.status}</span>
               </div>
