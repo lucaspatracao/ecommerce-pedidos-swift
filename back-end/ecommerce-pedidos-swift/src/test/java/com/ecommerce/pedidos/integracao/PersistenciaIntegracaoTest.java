@@ -24,6 +24,7 @@ import java.sql.Timestamp;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -42,6 +43,7 @@ import org.springframework.test.context.ActiveProfiles;
  * {@code JdbcTemplate} lê e escreve sem passar pelo Hibernate, para provar
  * que a regra está no BANCO e não só no código Java.</p>
  */
+@Tag("integracao")
 @SpringBootTest
 @ActiveProfiles("test")
 class PersistenciaIntegracaoTest {

@@ -24,6 +24,9 @@
     -->
     <maven.compiler.parameters>true</maven.compiler.parameters>
     <spring-boot.version>3.3.2</spring-boot.version>
+    <!-- Mínimos de cobertura total (unidade + integração), verificados em mvn verify -->
+    <cobertura.minima.linhas>0.85</cobertura.minima.linhas>
+    <cobertura.minima.ramos>0.65</cobertura.minima.ramos>
   </properties>
 
   <dependencyManagement>
@@ -138,21 +141,52 @@
         <artifactId>spring-boot-maven-plugin</artifactId>
         <version>${spring-boot.version}</version>
       </plugin>
+      <!-- Suíte de UNIDADE (mvn test): tudo que não tem a tag "integracao". Sem Spring e sem banco. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.2.5</version>
+        <configuration>
+          <excludedGroups>integracao</excludedGroups>
+        </configuration>
+      </plugin>
+      <!--
+        Suíte de INTEGRAÇÃO (mvn verify): testes com @Tag("integracao"), que sobem
+        o contexto Spring e usam o H2 do perfil "test" com as migrations do Flyway.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>3.2.5</version>
+        <configuration>
+          <groups>integracao</groups>
+          <includes>
+            <include>**/*Test.java</include>
+          </includes>
+          <classesDirectory>${project.build.outputDirectory}</classesDirectory>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
         <version>0.8.14</version>
         <!--
-          Cobertura (Aula 11). Os padrões usam o CAMINHO do .class (com "/"),
-          não o nome do pacote com pontos. Com pontos o JaCoCo não acha nenhuma
-          classe e a regra "passa" sem medir nada.
+          Cobertura. Os padrões usam o CAMINHO do .class (com "/"), não o nome
+          do pacote com pontos. Com pontos o JaCoCo não acha nenhuma classe e a
+          regra "passa" sem medir nada.
           Ficam de fora só a classe main e os records de DTO (dados sem regra).
-          Valem para o relatório e para a regra.
+          Valem para todos os relatórios e regras.
+            target/site/jacoco        -> suíte de unidade
+            target/site/jacoco-it     -> suíte de integração
+            target/site/jacoco-total  -> as duas somadas
         -->
         <configuration>
           <excludes>
@@ -176,9 +210,9 @@
             </goals>
           </execution>
           <!--
-            Regra: o projeto inteiro (BUNDLE) precisa de >= 70% das linhas
-            cobertas. Ligada à fase "test", então "mvn clean test" FALHA se a
-            meta não for atingida. Relatório: target/site/jacoco/index.html
+            Regra da Aula 10: domínio (modelo e excecao) coberto pelos testes de
+            UNIDADE, >= 70% das linhas em cada pacote. Ligada à fase "test":
+            "mvn clean test" FALHA se a meta não for atingida.
           -->
           <execution>
             <id>coverage-check</id>
@@ -188,6 +222,81 @@
             </goals>
             <configuration>
               <haltOnFailure>true</haltOnFailure>
+              <includes>
+                <include>com/ecommerce/pedidos/modelo/**</include>
+                <include>com/ecommerce/pedidos/excecao/**</include>
+              </includes>
+              <rules>
+                <rule>
+                  <element>PACKAGE</element>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.70</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
+          <execution>
+            <id>prepare-agent-integration</id>
+            <goals>
+              <goal>prepare-agent-integration</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>report-integration</id>
+            <phase>post-integration-test</phase>
+            <goals>
+              <goal>report-integration</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>merge</id>
+            <phase>post-integration-test</phase>
+            <goals>
+              <goal>merge</goal>
+            </goals>
+            <configuration>
+              <fileSets>
+                <fileSet>
+                  <directory>${project.build.directory}</directory>
+                  <includes>
+                    <include>jacoco.exec</include>
+                    <include>jacoco-it.exec</include>
+                  </includes>
+                </fileSet>
+              </fileSets>
+              <destFile>${project.build.directory}/jacoco-total.exec</destFile>
+            </configuration>
+          </execution>
+          <execution>
+            <id>report-total</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+            <configuration>
+              <dataFile>${project.build.directory}/jacoco-total.exec</dataFile>
+              <outputDirectory>${project.reporting.outputDirectory}/jacoco-total</outputDirectory>
+            </configuration>
+          </execution>
+          <!--
+            Regra da Aula 11: projeto inteiro (unidade + integração), com os
+            mínimos de linhas e de ramos definidos nas properties.
+            "mvn clean verify" FALHA abaixo disso.
+          -->
+          <execution>
+            <id>coverage-check-total</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <haltOnFailure>true</haltOnFailure>
+              <dataFile>${project.build.directory}/jacoco-total.exec</dataFile>
               <rules>
                 <rule>
                   <element>BUNDLE</element>
@@ -195,7 +304,12 @@
                     <limit>
                       <counter>LINE</counter>
                       <value>COVEREDRATIO</value>
-                      <minimum>0.70</minimum>
+                      <minimum>${cobertura.minima.linhas}</minimum>
+                    </limit>
+                    <limit>
+                      <counter>BRANCH</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${cobertura.minima.ramos}</minimum>
                     </limit>
                   </limits>
                 </rule>

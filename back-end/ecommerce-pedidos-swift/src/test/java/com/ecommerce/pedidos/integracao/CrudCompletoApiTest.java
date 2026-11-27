@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -40,6 +41,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * entre as classes, então cada teste cria dados únicos e confere a presença
  * ou ausência DELES (com o filtro {@code nome}) em vez do tamanho total da lista.</p>
  */
+@Tag("integracao")
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

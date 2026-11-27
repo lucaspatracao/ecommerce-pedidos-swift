@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -35,6 +36,7 @@ import org.springframework.test.web.servlet.ResultActions;
  * campos JSON e o corpo de erro {@code { "erro": "..." }}. Cenários
  * adaptados da branch feature/crud-completo.</p>
  */
+@Tag("integracao")
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")

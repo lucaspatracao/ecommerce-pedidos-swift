@@ -24,6 +24,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -37,6 +38,7 @@ import org.springframework.test.context.ActiveProfiles;
  * poderia ser observado. Assim, cada chamada ao serviço abre e fecha a sua
  * própria transação, exatamente como numa requisição HTTP.</p>
  */
+@Tag("integracao")
 @SpringBootTest
 @ActiveProfiles("test")
 class TransacaoPedidoTest {

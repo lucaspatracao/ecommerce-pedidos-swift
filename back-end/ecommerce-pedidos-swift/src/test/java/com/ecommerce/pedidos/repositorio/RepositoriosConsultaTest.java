@@ -19,6 +19,7 @@ import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -30,6 +31,7 @@ import org.springframework.test.context.ActiveProfiles;
  * <p>Para provar que o N+1 foi evitado, o teste liga as estatísticas do
  * Hibernate e CONTA quantos comandos SQL foram enviados ao banco.</p>
  */
+@Tag("integracao")
 @SpringBootTest
 @ActiveProfiles("test")
 class RepositoriosConsultaTest {

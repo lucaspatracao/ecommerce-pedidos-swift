@@ -30,6 +30,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -45,6 +46,7 @@ import org.springframework.test.context.ActiveProfiles;
  * mock do Mockito, que permite dizer "aprove" ou "recuse" e depois conferir
  * se ele foi chamado.</p>
  */
+@Tag("integracao")
 @SpringBootTest
 @ActiveProfiles("test")
 class FluxoCompraIntegracaoTest {
