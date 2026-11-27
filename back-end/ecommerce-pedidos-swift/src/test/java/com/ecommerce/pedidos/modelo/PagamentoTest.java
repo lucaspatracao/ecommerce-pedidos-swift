@@ -74,7 +74,7 @@ class PagamentoTest {
     @DisplayName("deve lancar excecao quando pagamento for recusado pelo pedido")
     void deveLancarExcecaoQuandoPedidoComPagamentoRecusado() throws Exception {
         // Arrange
-        Cliente cliente = new Cliente("Pedro", "22233344455", "pedro@email.com", "11987654321", new Endereco("Rua C", "Rio", "20000-000"));
+        Cliente cliente = new Cliente("Pedro", "40560441045", "pedro@email.com", "11987654321", new Endereco("Rua C", "Rio", "20000-000"));
         Pedido pedido = new Pedido(cliente);
         Produto produto = new Produto("P-020", "Tablet", new BigDecimal("6000.00"), 5);
         pedido.adicionarItem(produto, 1);

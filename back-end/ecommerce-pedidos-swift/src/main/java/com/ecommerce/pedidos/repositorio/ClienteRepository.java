@@ -1,48 +1,52 @@
 package com.ecommerce.pedidos.repositorio;
 
 import com.ecommerce.pedidos.modelo.Cliente;
-import java.sql.Connection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
- * Contrato de persistência de {@link Cliente}. Segue as mesmas convenções de
- * {@link ProdutoRepository}: conexão por parâmetro, Optional nas buscas,
- * erro tipado quando nenhuma linha é afetada e filtro {@code ativo = TRUE}
- * por padrão.
+ * Acesso a dados de {@link Cliente} (Aulas 12–13).
+ *
+ * <p>Só a interface é escrita: o Spring Data gera a implementação em tempo
+ * de execução. {@code JpaRepository} já traz o CRUD (save, findById,
+ * findAll, delete, count...).</p>
  */
-public interface ClienteRepository {
-
-    /** Insere quando o id é nulo; caso contrário, atualiza. */
-    Cliente salvar(Connection conexao, Cliente cliente);
-
-    /** Atualiza pelo id. Cliente sem id gera erro de validação. */
-    Cliente atualizar(Connection conexao, Cliente cliente);
+public interface ClienteRepository extends JpaRepository<Cliente, Long> {
 
     /**
-     * Exclusão definitiva. Cliente com pedidos não pode ser excluído
-     * (ON DELETE RESTRICT): lança {@code VIOLACAO_INTEGRIDADE} com mensagem
-     * de negócio. Nesses casos, use {@link #inativar}.
+     * Consulta JPQL escrita à mão com {@code @Query}.
+     *
+     * <p>JPQL fala de CLASSES e ATRIBUTOS Java, não de tabelas e colunas:
+     * {@code Cliente c} é a entidade e {@code c.documento} é o atributo
+     * herdado de {@code Pessoa} (no banco, a coluna {@code cpf}). Uma consulta
+     * derivada teria de se chamar {@code findByDocumento}; com {@code @Query}
+     * o nome do método pode dizer o que ele faz.</p>
+     *
+     * <p>{@code @Param("cpf")} liga o parâmetro Java ao {@code :cpf} da
+     * consulta, com nome explícito (mesmo motivo do bug do -parameters).</p>
      */
-    void remover(Connection conexao, Long id);
+    @Query("select c from Cliente c where c.documento = :cpf")
+    Optional<Cliente> buscarPorCpf(@Param("cpf") String cpf);
 
-    void inativar(Connection conexao, Long id);
+    /** Consulta derivada: o Spring monta o SQL a partir do nome do método. */
+    boolean existsByDocumento(String cpf);
 
-    void reativar(Connection conexao, Long id);
+    boolean existsByEmail(String email);
 
-    Optional<Cliente> buscarPorId(Connection conexao, Long id);
+    /** Outro cliente (id diferente) já usa este e-mail? Usado na atualização. */
+    boolean existsByEmailAndIdNot(String email, Long id);
 
-    Optional<Cliente> buscarPorId(Connection conexao, Long id, Visibilidade visibilidade);
+    /** Listagem com soft delete: {@code ativo} nulo = todos. */
+    @Query("""
+        select c from Cliente c
+        where (:ativo is null or c.ativo = :ativo)
+        order by c.nome, c.id
+        """)
+    List<Cliente> listar(@Param("ativo") Boolean ativo, Pageable pagina);
 
-    Optional<Cliente> buscarPorCpf(Connection conexao, String cpf);
-
-    Optional<Cliente> buscarPorCpf(Connection conexao, String cpf, Visibilidade visibilidade);
-
-    Optional<Cliente> buscarPorEmail(Connection conexao, String email);
-
-    List<Cliente> listarTodos(Connection conexao, Pagina pagina);
-
-    List<Cliente> listar(Connection conexao, Visibilidade visibilidade, Pagina pagina);
-
-    long contar(Connection conexao);
+    long countByAtivoTrue();
 }

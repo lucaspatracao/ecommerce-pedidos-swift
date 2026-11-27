@@ -97,7 +97,7 @@ export function DashboardPage({ dashboard = {}, pedidos = [], produtos = [], loa
                         <tr key={pedido.numero || pedido.id}>
                           <td>{pedido.numero || pedido.id}</td>
                           <td>{pedido.cliente?.nome || pedido.cliente || 'Cliente não informado'}</td>
-                          <td>{formatCurrency(pedido.calcularValorTotal ? pedido.calcularValorTotal() : pedido.valor || 0)}</td>
+                          <td>{formatCurrency(pedido.valorTotal ?? pedido.valor ?? 0)}</td>
                           <td>
                             <span className={statusClassMap[pedido.situacao || pedido.status] || 'status'}>
                               {pedido.situacao || pedido.status || 'Sem status'}

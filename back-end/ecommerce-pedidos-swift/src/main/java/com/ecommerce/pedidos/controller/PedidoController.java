@@ -1,10 +1,10 @@
 package com.ecommerce.pedidos.controller;
 
-import com.ecommerce.pedidos.excecao.EstoqueInsuficienteException;
-import com.ecommerce.pedidos.modelo.Pedido;
-import com.ecommerce.pedidos.modelo.SituacaoPedido;
+import com.ecommerce.pedidos.dto.AtualizarStatusRequest;
+import com.ecommerce.pedidos.dto.PedidoRequest;
+import com.ecommerce.pedidos.dto.PedidoResponse;
 import com.ecommerce.pedidos.servico.PedidoService;
-import com.ecommerce.pedidos.servico.PedidoService.ItemPedidoRequest;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,60 +29,46 @@ public class PedidoController {
         this.pedidoService = pedidoService;
     }
 
+    /** {@code situacao=aberto|pago|cancelado} e {@code pagina}/{@code tamanho} opcionais. */
     @GetMapping("/pedidos")
-    public List<Pedido> listar(
-            @RequestParam(required = false) String situacao,
-            @RequestParam(required = false) Integer pagina,
-            @RequestParam(required = false) Integer tamanho) {
-        var paginacao = ParametrosConsulta.pagina(pagina, tamanho);
-        if (situacao != null && !situacao.isBlank()) {
-            return pedidoService.listarPorSituacao(SituacaoPedido.valueOf(situacao.trim().toUpperCase()), paginacao);
-        }
-        return pedidoService.listar(paginacao);
+    public List<PedidoResponse> listar(@RequestParam(name = "situacao", required = false) String situacao,
+                                       @RequestParam(name = "pagina", required = false) Integer pagina,
+                                       @RequestParam(name = "tamanho", required = false) Integer tamanho) {
+        return pedidoService.listar(situacao, ParametrosConsulta.pagina(pagina, tamanho));
     }
 
     @GetMapping("/pedidos/{numero}")
-    public Pedido buscarPorNumero(@PathVariable String numero) {
+    public PedidoResponse buscarPorNumero(@PathVariable("numero") String numero) {
         return pedidoService.buscarPorNumero(numero);
     }
 
-    /** Finalização transacional: pedido + itens + baixa de estoque, tudo ou nada. */
     @PostMapping("/pedidos")
-    public ResponseEntity<Pedido> criar(@RequestBody PedidoRequest request) throws EstoqueInsuficienteException {
-        Pedido pedido = pedidoService.criarPedido(request.clienteCpf(), request.itens());
-        return ResponseEntity.status(HttpStatus.CREATED).body(pedido);
+    public ResponseEntity<PedidoResponse> criar(@Valid @RequestBody PedidoRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(pedidoService.criar(request));
     }
 
     @PutMapping("/pedidos/{numero}/status")
-    public Pedido atualizarStatus(@PathVariable String numero, @RequestBody AtualizarStatusRequest request) {
-        if (request == null || request.status() == null || request.status().isBlank()) {
-            throw new IllegalArgumentException("Status do pedido é obrigatório.");
-        }
-        pedidoService.atualizarStatus(numero, SituacaoPedido.valueOf(request.status()));
-        return pedidoService.buscarPorNumero(numero);
+    public PedidoResponse atualizarStatus(@PathVariable("numero") String numero,
+                                          @Valid @RequestBody AtualizarStatusRequest request) {
+        return pedidoService.atualizarStatus(numero, request.status());
     }
 
-    /** Cancela (pedido pago não é excluído; muda de situação e devolve o estoque). */
+    /** Cancela: devolve o estoque e estorna o pagamento. Já cancelado → 409. */
     @PostMapping("/pedidos/{numero}/cancelar")
-    public Pedido cancelar(@PathVariable String numero) {
+    public PedidoResponse cancelar(@PathVariable("numero") String numero) {
         return pedidoService.cancelar(numero);
     }
 
-    /** Exclui pedido em aberto (itens saem em cascata). Pago/cancelado: 409. */
+    /** Exclui só pedido ABERTO (204). Pago ou cancelado → 409; inexistente → 404. */
     @DeleteMapping("/pedidos/{numero}")
-    public ResponseEntity<Void> excluir(@PathVariable String numero) {
+    public ResponseEntity<Void> excluir(@PathVariable("numero") String numero) {
         pedidoService.excluir(numero);
         return ResponseEntity.noContent().build();
     }
 
+    /** Remove um item de pedido aberto e devolve o estoque; responde o pedido atualizado. */
     @DeleteMapping("/pedidos/{numero}/itens/{itemId}")
-    public Pedido removerItem(@PathVariable String numero, @PathVariable Long itemId) {
+    public PedidoResponse removerItem(@PathVariable("numero") String numero, @PathVariable("itemId") Long itemId) {
         return pedidoService.removerItem(numero, itemId);
-    }
-
-    public record PedidoRequest(String clienteCpf, List<ItemPedidoRequest> itens) {
-    }
-
-    public record AtualizarStatusRequest(String status) {
     }
 }

@@ -13,6 +13,16 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.release>17</maven.compiler.release>
+    <!--
+      O projeto NÃO herda de spring-boot-starter-parent, então a flag -parameters
+      do javac não vem ligada por padrão. Sem ela, o Spring não descobre o nome
+      dos parâmetros por reflexão e falha com:
+      "Name for argument of type [java.lang.String] not specified".
+      Além desta propriedade, todo @PathVariable/@RequestParam recebe o nome
+      explícito (ex.: @PathVariable("cpf")), o que funciona mesmo quando a IDE
+      compila sem ler esta configuração.
+    -->
+    <maven.compiler.parameters>true</maven.compiler.parameters>
     <spring-boot.version>3.3.2</spring-boot.version>
     <!-- Mínimos de cobertura total (unidade + integração), verificados em mvn verify -->
     <cobertura.minima.linhas>0.85</cobertura.minima.linhas>
@@ -28,13 +38,6 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
-      <dependency>
-        <groupId>org.junit</groupId>
-        <artifactId>junit-bom</artifactId>
-        <version>5.11.0</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -43,29 +46,46 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
+    <!--
+      Testes: JUnit 5 (com @ParameterizedTest), Mockito, AssertJ e MockMvc.
+      A versão vem do BOM do Spring Boot; nada de JUnit com escopo compile,
+      para não ir parar no JAR de produção.
+    -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Bean Validation (@NotBlank, @Positive, @Email...) nos DTOs de entrada -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+    <!-- Persistência (Aulas 12–14): Spring Data JPA + Hibernate -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <!-- Flyway cria e versiona o schema (src/main/resources/db/migration) -->
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-core</artifactId>
+    </dependency>
+    <!-- Desde o Flyway 10, o suporte a MySQL fica num módulo separado -->
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-mysql</artifactId>
+    </dependency>
     <dependency>
       <groupId>com.mysql</groupId>
       <artifactId>mysql-connector-j</artifactId>
       <version>8.4.0</version>
+      <scope>runtime</scope>
     </dependency>
+    <!-- Banco em memória usado só pelos testes (perfil "test") -->
     <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter</artifactId>
-      <version>5.10.2</version>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-api</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-params</artifactId>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -121,8 +141,7 @@
         <artifactId>spring-boot-maven-plugin</artifactId>
         <version>${spring-boot.version}</version>
       </plugin>
-
-      <!-- Suíte de UNIDADE (mvn test): tudo que não tem a tag "integracao". Não precisa de banco. -->
+      <!-- Suíte de UNIDADE (mvn test): tudo que não tem a tag "integracao". Sem Spring e sem banco. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
@@ -131,8 +150,10 @@
           <excludedGroups>integracao</excludedGroups>
         </configuration>
       </plugin>
-
-      <!-- Suíte de INTEGRAÇÃO (mvn verify): testes com a tag "integracao", contra MySQL real. -->
+      <!--
+        Suíte de INTEGRAÇÃO (mvn verify): testes com @Tag("integracao"), que sobem
+        o contexto Spring e usam o H2 do perfil "test" com as migrations do Flyway.
+      -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
@@ -153,22 +174,25 @@
           </execution>
         </executions>
       </plugin>
-
-      <!--
-        Cobertura (JaCoCo):
-          target/site/jacoco        -> suíte de unidade
-          target/site/jacoco-it     -> suíte de integração
-          target/site/jacoco-total  -> as duas somadas
-      -->
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
         <version>0.8.14</version>
+        <!--
+          Cobertura. Os padrões usam o CAMINHO do .class (com "/"), não o nome
+          do pacote com pontos. Com pontos o JaCoCo não acha nenhuma classe e a
+          regra "passa" sem medir nada.
+          Ficam de fora só a classe main e os records de DTO (dados sem regra).
+          Valem para todos os relatórios e regras.
+            target/site/jacoco        -> suíte de unidade
+            target/site/jacoco-it     -> suíte de integração
+            target/site/jacoco-total  -> as duas somadas
+        -->
         <configuration>
           <excludes>
-            <!-- Pontos de entrada sem lógica: não entram na métrica. -->
             <exclude>com/ecommerce/pedidos/EcommercePedidosSwiftApplication.class</exclude>
-            <exclude>com/ecommerce/pedidos/swift/Aplicacao.class</exclude>
+            <exclude>com/ecommerce/pedidos/dto/*Request.class</exclude>
+            <exclude>com/ecommerce/pedidos/dto/*Response.class</exclude>
           </excludes>
         </configuration>
         <executions>
@@ -185,16 +209,20 @@
               <goal>report</goal>
             </goals>
           </execution>
+          <!--
+            Regra da Aula 10: domínio (modelo e excecao) coberto pelos testes de
+            UNIDADE, >= 70% das linhas em cada pacote. Ligada à fase "test":
+            "mvn clean test" FALHA se a meta não for atingida.
+          -->
           <execution>
-            <!-- Regra da Aula 10: domínio coberto pelos testes de UNIDADE. -->
             <id>coverage-check</id>
             <phase>test</phase>
             <goals>
               <goal>check</goal>
             </goals>
             <configuration>
+              <haltOnFailure>true</haltOnFailure>
               <includes>
-                <!-- Padrão de caminho de classe (com barras). -->
                 <include>com/ecommerce/pedidos/modelo/**</include>
                 <include>com/ecommerce/pedidos/excecao/**</include>
               </includes>
@@ -255,14 +283,19 @@
               <outputDirectory>${project.reporting.outputDirectory}/jacoco-total</outputDirectory>
             </configuration>
           </execution>
+          <!--
+            Regra da Aula 11: projeto inteiro (unidade + integração), com os
+            mínimos de linhas e de ramos definidos nas properties.
+            "mvn clean verify" FALHA abaixo disso.
+          -->
           <execution>
-            <!-- Regra da Aula 11: cobertura do projeto inteiro (unidade + integração). -->
             <id>coverage-check-total</id>
             <phase>verify</phase>
             <goals>
               <goal>check</goal>
             </goals>
             <configuration>
+              <haltOnFailure>true</haltOnFailure>
               <dataFile>${project.build.directory}/jacoco-total.exec</dataFile>
               <rules>
                 <rule>

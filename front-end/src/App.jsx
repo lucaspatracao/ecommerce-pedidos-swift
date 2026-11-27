@@ -18,6 +18,7 @@ import { ProdutosPage } from './pages/ProdutosPage'
 import { PedidosPage } from './pages/PedidosPage'
 import { PagamentosPage } from './pages/PagamentosPage'
 import { DetalhePedidoPage } from './pages/DetalhePedidoPage'
+import { NovoPedidoPage } from './pages/NovoPedidoPage'
 import { HistoricoPage } from './pages/HistoricoPage'
 
 const navItems = [
@@ -58,35 +59,67 @@ function AppShell() {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const navigate = useNavigate()
 
+  // Cada fonte de dados: [nome exibido em caso de erro, chamada à API, onde guardar o resultado].
+  const fontes = {
+    clientes: ['clientes', listarClientes, setClientes],
+    produtos: ['produtos', listarProdutos, setProdutos],
+    pedidos: ['pedidos', listarPedidos, setPedidos],
+    pagamentos: ['pagamentos', listarPagamentos, setPagamentos],
+    historico: ['histórico', listarHistorico, setHistorico],
+    dashboard: ['resumo', buscarDashboard, (dados) => setDashboard(dados || estadoInicialDashboard)],
+  }
+
+  /**
+   * Busca as fontes em paralelo com Promise.allSettled.
+   * Diferente de Promise.all, uma chamada que falha NÃO descarta as outras:
+   * cada resultado bem-sucedido é aplicado e só as falhas são reportadas.
+   * Devolve os nomes das fontes que falharam.
+   */
+  const carregarFontes = async (chaves) => {
+    const selecionadas = chaves.map((chave) => fontes[chave])
+    const resultados = await Promise.allSettled(selecionadas.map(([, buscar]) => buscar()))
+    const falhas = []
+    resultados.forEach((resultado, indice) => {
+      const [nome, , aplicar] = selecionadas[indice]
+      if (resultado.status === 'fulfilled') {
+        aplicar(resultado.value)
+      } else {
+        falhas.push(nome)
+      }
+    })
+    return falhas
+  }
+
+  const mensagemDeFalha = (falhas) =>
+    falhas.length === 0 ? '' : `Não foi possível carregar: ${falhas.join(', ')}. Os demais dados foram atualizados.`
+
   const carregarDados = async () => {
     setLoading(true)
     setError('')
+    const falhas = await carregarFontes(Object.keys(fontes))
+    setError(mensagemDeFalha(falhas))
+    setLoading(false)
+  }
 
-    try {
-      const [clientesCarregados, produtosCarregados, pedidosCarregados, pagamentosCarregados, historicoCarregado, dashboardCarregado] = await Promise.all([
-        listarClientes(),
-        listarProdutos(),
-        listarPedidos(),
-        listarPagamentos(),
-        listarHistorico(),
-        buscarDashboard(),
-      ])
-
-      setClientes(clientesCarregados)
-      setProdutos(produtosCarregados)
-      setPedidos(pedidosCarregados)
-      setPagamentos(pagamentosCarregados)
-      setHistorico(historicoCarregado)
-      setDashboard(dashboardCarregado || estadoInicialDashboard)
-    } catch (err) {
-      setError('Não foi possível carregar os dados do sistema. Tente novamente.')
-    } finally {
-      setLoading(false)
+  /**
+   * Recarrega o que é derivado dos cadastros (resumo lateral, dashboard,
+   * pedidos, pagamentos e histórico) depois de qualquer alteração.
+   * Antes, o resumo só era buscado ao abrir a página e ficava desatualizado.
+   */
+  const atualizarResumo = async () => {
+    const falhas = await carregarFontes(['dashboard', 'pedidos', 'pagamentos', 'historico', 'produtos'])
+    if (falhas.length > 0) {
+      setError(mensagemDeFalha(falhas))
     }
   }
 
+  // Carga inicial: "loading" já começa true, então o estado só muda quando as respostas chegam.
   useEffect(() => {
-    carregarDados()
+    carregarFontes(Object.keys(fontes)).then((falhas) => {
+      setError(mensagemDeFalha(falhas))
+      setLoading(false)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleClienteSalvo = (cliente, edicao = false) => {
@@ -96,12 +129,14 @@ function AppShell() {
       }
       return [cliente, ...atual]
     })
+    atualizarResumo()
   }
 
   const handleClienteExcluido = async (cpf) => {
     try {
       await excluirCliente(cpf)
       setClientes((atual) => atual.filter((cliente) => cliente.cpf !== cpf))
+      atualizarResumo()
     } catch (error) {
       setError(error.message || 'Não foi possível excluir o cliente. Tente novamente.')
     }
@@ -114,12 +149,14 @@ function AppShell() {
       }
       return [produto, ...atual]
     })
+    atualizarResumo()
   }
 
   const handleProdutoExcluido = async (codigo) => {
     try {
       await excluirProduto(codigo)
       setProdutos((atual) => atual.filter((produto) => produto.codigo !== codigo))
+      atualizarResumo()
     } catch (error) {
       setError(error.message || 'Não foi possível excluir o produto. Tente novamente.')
     }
@@ -127,6 +164,12 @@ function AppShell() {
 
   const handleNovoPedido = () => {
     navigate('/pedidos/novo')
+  }
+
+  // Pedido criado: abre o detalhe (onde ele pode ser pago) e atualiza resumo, estoque e listas.
+  const handlePedidoCriado = (pedido) => {
+    navigate(`/pedido/${encodeURIComponent(pedido.numero)}`)
+    atualizarResumo()
   }
 
   return (
@@ -194,9 +237,9 @@ function AppShell() {
             <Route path="/clientes" element={<ClientesPage clientes={clientes} loading={loading} error={error} onClienteSalvo={handleClienteSalvo} onClienteDelete={handleClienteExcluido} />} />
             <Route path="/produtos" element={<ProdutosPage produtos={produtos} loading={loading} error={error} onProdutoSalvo={handleProdutoSalvo} onProdutoDelete={handleProdutoExcluido} />} />
             <Route path="/pedidos" element={<PedidosPage pedidos={pedidos} loading={loading} error={error} />} />
-            <Route path="/pedidos/novo" element={<PedidosPage pedidos={pedidos} loading={loading} error={error} />} />
+            <Route path="/pedidos/novo" element={<NovoPedidoPage clientes={clientes} produtos={produtos} loading={loading} onPedidoCriado={handlePedidoCriado} onDadosDesatualizados={atualizarResumo} />} />
             <Route path="/pagamentos" element={<PagamentosPage pagamentos={pagamentos} loading={loading} error={error} />} />
-            <Route path="/pedido/:id" element={<DetalhePedidoPage pedidos={pedidos} />} />
+            <Route path="/pedido/:id" element={<DetalhePedidoPage onPedidoAtualizado={atualizarResumo} />} />
             <Route path="/historico" element={<HistoricoPage historico={historico} loading={loading} error={error} />} />
           </Routes>
         </main>

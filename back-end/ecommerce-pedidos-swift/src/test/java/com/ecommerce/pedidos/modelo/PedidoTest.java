@@ -18,7 +18,7 @@ class PedidoTest {
 
     @BeforeEach
     void setUp() {
-        cliente = new Cliente("Ana Souza", "12345678909", "ana@email.com", "11998887766", new Endereco("Rua B", "Campinas", "13000-000"));
+        cliente = new Cliente("Ana Souza", "89910440261", "ana@email.com", "11998887766", new Endereco("Rua B", "Campinas", "13000-000"));
         pedido = new Pedido(cliente);
     }
 

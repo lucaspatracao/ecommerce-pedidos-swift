@@ -1,33 +1,21 @@
 package com.ecommerce.pedidos.servico;
 
-import com.ecommerce.pedidos.modelo.FormaPagamento;
-import com.ecommerce.pedidos.repositorio.FormaPagamentoRepository;
+import com.ecommerce.pedidos.dto.PagamentoRegistradoResponse;
+import com.ecommerce.pedidos.dto.PagamentoRequest;
+import com.ecommerce.pedidos.dto.PagamentoResumoResponse;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
-@Service
-public class PagamentoService {
-    private final FormaPagamentoRepository repository;
+/** Casos de uso de pagamento (Aula 14). */
+public interface PagamentoService {
 
-    @Autowired
-    public PagamentoService(FormaPagamentoRepository repository) {
-        this.repository = repository;
-    }
+    /** Todos os pagamentos registrados, mais recentes primeiro. */
+    List<PagamentoResumoResponse> listar();
 
-    public void registrar(FormaPagamento formaPagamento) {
-        repository.adicionar(formaPagamento);
-    }
-
-    public List<FormaPagamento> listarPagamentos() {
-        return repository.listarTodos();
-    }
-
-    public boolean processarTodos() {
-        boolean sucesso = true;
-        for (FormaPagamento formaPagamento : repository.listarTodos()) {
-            sucesso = formaPagamento.processar() && sucesso;
-        }
-        return sucesso;
-    }
+    /**
+     * Paga um pedido aberto.
+     *
+     * @throws com.ecommerce.pedidos.excecao.RecursoNaoEncontradoException (404) pedido inexistente
+     * @throws com.ecommerce.pedidos.excecao.PagamentoRecusadoException (409) recusa da forma de pagamento ou do gateway
+     */
+    PagamentoRegistradoResponse registrar(PagamentoRequest request);
 }

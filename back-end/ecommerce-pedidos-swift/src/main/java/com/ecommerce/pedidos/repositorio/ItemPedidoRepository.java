@@ -1,22 +1,25 @@
 package com.ecommerce.pedidos.repositorio;
 
 import com.ecommerce.pedidos.modelo.ItemPedido;
-import java.sql.Connection;
-import java.util.List;
+import com.ecommerce.pedidos.modelo.Produto;
+import java.math.BigDecimal;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 /**
- * Contrato de persistência de {@link ItemPedido}. Normalmente é usado através
- * do fluxo de pedido (o item não existe sem o pedido).
+ * Itens são gravados em cascata pelo {@code PedidoRepository}; este
+ * repositório existe só para consultas sobre itens.
  */
-public interface ItemPedidoRepository {
+public interface ItemPedidoRepository extends JpaRepository<ItemPedido, Long> {
 
-    /** Grava o item com o preço praticado na venda e preenche o id gerado. */
-    ItemPedido inserir(Connection conexao, Long pedidoId, ItemPedido item);
+    /** Usado para impedir a exclusão de produto que já foi vendido. */
+    boolean existsByProduto(Produto produto);
 
-    /** Itens do pedido, incluindo produtos já inativados. */
-    List<ItemPedido> listarPorPedido(Connection conexao, Long pedidoId);
-
-    void remover(Connection conexao, Long itemId);
-
-    long contarPorPedido(Connection conexao, Long pedidoId);
+    /**
+     * Receita total calculada NO BANCO com uma agregação JPQL (SUM), em vez
+     * de carregar todos os pedidos e somar em Java. {@code coalesce} devolve
+     * 0 quando ainda não há itens (SUM de nada é NULL em SQL).
+     */
+    @Query("select coalesce(sum(i.precoPraticado * i.quantidade), 0) from ItemPedido i")
+    BigDecimal calcularReceitaTotal();
 }

@@ -1,109 +1,130 @@
 package com.ecommerce.pedidos.modelo;
 
+import com.ecommerce.pedidos.util.Utils;
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+
 /**
- * Representa os dados cadastrais do cliente responsavel pela compra no
- * e-commerce.
+ * Cliente responsável pela compra no e-commerce.
+ *
+ * <p>O CPF é a identidade de negócio do cliente: é validado pelos dígitos
+ * verificadores e não muda depois do cadastro (por isso não há setter).
+ * Nome e contato são alterados juntos por {@link #atualizarContato}.</p>
+ *
+ * <p>Na tabela, o campo herdado {@code documento} vira a coluna {@code cpf}
+ * ({@code @AttributeOverride}).</p>
  */
+@Entity
+@AttributeOverride(name = "documento", column = @Column(name = "cpf", nullable = false, unique = true, length = 11))
 public class Cliente extends Pessoa {
-    private String email;
-    private String telefone;
-    private Endereco endereco;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false, length = 160)
+    private String email;
+
+    @Column(nullable = false, length = 20)
+    private String telefone;
+
+    @Embedded
+    private Endereco endereco;
+
+    /** Soft delete: inativo sai das listagens, mas continua nos pedidos antigos. */
+    @Column(nullable = false)
     private boolean ativo = true;
 
+    protected Cliente() {
+        // exigido pelo JPA
+    }
+
+    /**
+     * Construtor usado pela API, que recebe o endereço como texto livre.
+     * Cidade e CEP ficam como "Não informado" porque o front só envia o logradouro.
+     */
     public Cliente(String nome, String cpf, String email, String telefone, String endereco) {
-        this(nome, cpf, email, telefone, endereco == null || endereco.isBlank()
-                ? null
-                : new Endereco(endereco, "Não informado", "Não informado"));
+        this(nome, cpf, email, telefone, Endereco.aPartirDoTexto(endereco));
     }
 
     public Cliente(String nome, String cpf, String email, String telefone, Endereco endereco) {
-        super(nome, cpf);
-        setEmail(email);
-        setTelefone(telefone);
-        setEndereco(endereco);
+        // O CPF é validado e normalizado ANTES de chegar à superclasse.
+        super(nome, Utils.validarCpf(cpf));
+        definirContato(email, telefone, endereco);
     }
 
-
-    /**
-     * Identificador gerado pelo banco. {@code null} significa "ainda não
-     * persistido" — é o que o repositório usa para decidir entre INSERT e UPDATE.
-     */
     public Long getId() {
         return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    /** {@code false} quando o cliente foi inativado (soft delete). */
-    public boolean isAtivo() {
-        return ativo;
-    }
-
-    public void setAtivo(boolean ativo) {
-        this.ativo = ativo;
     }
 
     public String getCpf() {
         return getDocumento();
     }
 
-    public void setCpf(String cpf) {
-        setDocumento(cpf);
-    }
-
     public String getEmail() {
         return email;
-    }
-
-    public void setEmail(String email) {
-        if (email == null) {
-            throw new IllegalArgumentException("E-mail não pode ser nulo.");
-        }
-        String emailValidado = email.trim();
-        if (emailValidado.isEmpty()) {
-            throw new IllegalArgumentException("E-mail não pode estar vazio.");
-        }
-        if (!emailValidado.contains("@") || emailValidado.indexOf('@') == 0 || emailValidado.indexOf('@') == emailValidado.length() - 1) {
-            throw new IllegalArgumentException("E-mail inválido: " + emailValidado);
-        }
-        if (!emailValidado.contains(".")) {
-            throw new IllegalArgumentException("E-mail deve conter domínio válido.");
-        }
-        this.email = emailValidado;
     }
 
     public String getTelefone() {
         return telefone;
     }
 
-    public void setTelefone(String telefone) {
-        if (telefone == null) {
-            throw new IllegalArgumentException("Telefone não pode ser nulo.");
-        }
-        String telefoneValidado = telefone.trim();
-        if (telefoneValidado.isEmpty()) {
-            throw new IllegalArgumentException("Telefone não pode estar vazio.");
-        }
-        if (!telefoneValidado.matches("\\d+")) {
-            throw new IllegalArgumentException("Telefone deve conter apenas dígitos.");
-        }
-        this.telefone = telefoneValidado;
-    }
-
     public Endereco getEndereco() {
         return endereco;
     }
 
-    public void setEndereco(Endereco endereco) {
-        this.endereco = endereco;
+    public boolean isAtivo() {
+        return ativo;
+    }
+
+    /** Tira o cliente das listagens sem apagar o histórico de pedidos. */
+    public void inativar() {
+        if (!ativo) {
+            throw new IllegalStateException("Cliente já está inativo.");
+        }
+        ativo = false;
+    }
+
+    public void reativar() {
+        if (ativo) {
+            throw new IllegalStateException("Cliente já está ativo.");
+        }
+        ativo = true;
     }
 
     /**
-     * Identificacao textual do cliente, usada em recibos e logs de pedido.
+     * Atualiza os dados editáveis do cliente de uma só vez.
+     * Se algum valor for inválido, nada é alterado no nome (a validação do
+     * contato acontece antes da troca do nome).
      */
+    public void atualizarContato(String nome, String email, String telefone, Endereco endereco) {
+        String emailValidado = Utils.validarEmail(email);
+        String telefoneValidado = validarTelefone(telefone);
+        alterarNome(nome);
+        this.email = emailValidado;
+        this.telefone = telefoneValidado;
+        this.endereco = endereco;
+    }
+
+    private void definirContato(String email, String telefone, Endereco endereco) {
+        this.email = Utils.validarEmail(email);
+        this.telefone = validarTelefone(telefone);
+        this.endereco = endereco;
+    }
+
+    private static String validarTelefone(String telefone) {
+        String valor = Utils.textoObrigatorio(telefone, "Telefone");
+        if (!valor.matches("\\d+")) {
+            throw new IllegalArgumentException("Telefone deve conter apenas dígitos.");
+        }
+        return valor;
+    }
+
+    /** Identificação textual do cliente, usada em recibos e logs de pedido. */
     @Override
     public String getIdentificacao() {
         return String.format("%s (%s)", getNome(), getDocumento());

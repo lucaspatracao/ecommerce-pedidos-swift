@@ -601,7 +601,7 @@ th,
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
 }
 
@@ -617,6 +617,8 @@ th,
   border-radius: 10px;
   font-weight: 600;
   line-height: 1.2;
+  /* .btn também é usado em <a> (ex.: "Voltar aos pedidos"): sem sublinhado */
+  text-decoration: none;
   cursor: pointer;
   transition: background-color var(--transition), border-color var(--transition),
     color var(--transition), box-shadow var(--transition), transform var(--transition);
@@ -624,6 +626,11 @@ th,
 
 .btn:hover {
   transform: translateY(-1px);
+}
+
+/* Clique: o botão "assenta" de volta (vale para todas as variações) */
+.btn:active {
+  transform: translateY(0);
 }
 
 .btn-primary {
@@ -656,10 +663,15 @@ th,
   box-shadow: 0 1px 2px rgba(17, 17, 17, 0.04);
 }
 
+/* Antes usava --orange-300, token que não existe (a borda caía na cor do texto). */
 .btn-ghost:hover {
   background: var(--gray-50);
-  border-color: var(--orange-300);
+  border-color: var(--orange-400);
   color: var(--orange-700);
+}
+
+.btn-ghost:active {
+  background: var(--gray-100);
 }
 
 .btn-danger {
@@ -668,8 +680,13 @@ th,
   box-shadow: 0 8px 18px rgba(180, 35, 35, 0.18);
 }
 
+/* Sem cor fixa nova: o hover ganha um anel com o tom claro de perigo da paleta. */
 .btn-danger:hover {
-  background: #991b1b;
+  box-shadow: 0 0 0 3px var(--danger-100), 0 8px 18px rgba(180, 35, 35, 0.18);
+}
+
+.btn-danger:active {
+  box-shadow: 0 0 0 3px var(--danger-100);
 }
 
 .btn:disabled,
@@ -680,11 +697,19 @@ th,
   transform: none;
 }
 
+/* Botão compacto das tabelas (Editar/Excluir/Remover). Declaração ÚNICA:
+   havia uma segunda, com valores diferentes, na seção de tabelas. */
 .small-btn {
-  padding: 7px 12px;
-  font-size: 12px;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
   line-height: 1.2;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+/* Sem o "pulo" do hover dentro da linha da tabela; o feedback vem da cor/anel. */
+.small-btn:hover {
+  transform: none;
 }
 
 
@@ -843,46 +868,56 @@ th,
 }
 
 
-/* 10. TABELAS ----------------------------------------------------------- */
-.table-wrapper {
-  overflow-x: auto;
-  border: var(--border);
-  border-radius: var(--radius-md);
-}
-
-/* Dentro de um painel: sem borda dupla e com margem negativa igual ao
-   padding das células (16px), para o TEXTO da tabela alinhar com o título
-   do painel (24px da borda) em vez de ficar recuado em 40px. */
-.panel .table-wrapper {
-  margin-inline: calc(var(--space-4) * -1);
-  border: 0;
-  border-radius: 0;
-}
-
-.panel-header + .table-wrapper {
-  margin-top: calc(var(--space-2) * -1);
-}
-
+/* 10. TABELAS -----------------------------------------------------------
+   Duas classes de contêiner existem no projeto (.table-wrapper e
+   .table-responsive) e agora se comportam igual. */
+.table-wrapper,
 .table-responsive {
   width: 100%;
   overflow-x: auto;
 }
 
+.table-wrapper {
+  border: var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* A tabela ocupa toda a largura. "separate" + spacing 0 (em vez de
+   "collapse") deixa o arredondamento do cabeçalho funcionar sem criar
+   vãos entre as células. */
+.table-wrapper table,
 .table-responsive table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* Dentro de um painel: sem borda dupla e com margem negativa igual ao
+   padding das células (16px), para o TEXTO da tabela alinhar com o título
+   do painel (24px da borda) em vez de ficar recuado em 40px. */
+.panel .table-wrapper,
+.panel .table-responsive {
+  width: auto;
+  margin-inline: calc(var(--space-4) * -1);
+  border: 0;
+  border-radius: 0;
+}
+
+.panel-header + .table-wrapper,
+.panel-header + .table-responsive {
+  margin-top: calc(var(--space-2) * -1);
 }
 
 th,
 td {
-  padding: 12px var(--space-4);
+  padding: var(--space-3) var(--space-4);
   text-align: left;
   vertical-align: middle;
   border-bottom: 1px solid var(--color-border);
 }
 
 th {
-  background: #f8f9fa;
+  background: var(--gray-50);
   color: var(--gray-700);
   font-size: 11px;
   font-weight: 600;
@@ -913,19 +948,6 @@ tbody tr:last-child td {
   border-bottom: 0;
 }
 
-td {
-  padding: 12px var(--space-4);
-  vertical-align: middle;
-}
-
-.inline-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  width: 100%;
-}
-
 .inline-actions .btn,
 .inline-actions button {
   min-width: 0;
@@ -935,12 +957,6 @@ td:has(.inline-actions),
 .table-responsive td:nth-child(3),
 .table-responsive td:nth-child(4) {
   white-space: nowrap;
-}
-
-.small-btn {
-  padding: 6px 10px;
-  font-size: 12px;
-  line-height: 1.2;
 }
 
 .table-link {
@@ -1035,10 +1051,11 @@ td:has(.inline-actions),
   border-color: rgba(194, 65, 12, 0.08);
 }
 
+/* Estoque crítico é alerta de PERIGO (não "pendente"): mesmas cores do .status-danger */
 .badge-critical {
-  background: var(--pending-100);
-  color: var(--pending-700);
-  border-color: rgba(138, 83, 0, 0.08);
+  background: var(--danger-100);
+  color: var(--danger-700);
+  border-color: rgba(180, 35, 35, 0.08);
 }
 
 .badge-success {

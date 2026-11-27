@@ -1,34 +1,35 @@
 package com.ecommerce.pedidos.controller;
 
-import com.ecommerce.pedidos.repositorio.Pagina;
-import com.ecommerce.pedidos.repositorio.Visibilidade;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
-/** Conversão dos parâmetros de query string comuns às listagens. */
+/** Converte os parâmetros de paginação comuns às listagens da API. */
 final class ParametrosConsulta {
     static final int TAMANHO_PADRAO = 20;
+    static final int TAMANHO_MAXIMO = 500;
 
     private ParametrosConsulta() {
     }
 
-    /** Sem {@code pagina} nem {@code tamanho}: devolve tudo (compatível com o front atual). */
-    static Pagina pagina(Integer pagina, Integer tamanho) {
+    /**
+     * Sem {@code pagina} nem {@code tamanho}: devolve tudo (o front atual não
+     * pagina). Com um deles, a página começa em 0 e tem 20 itens por padrão.
+     */
+    static Pageable pagina(Integer pagina, Integer tamanho) {
         if (pagina == null && tamanho == null) {
-            return Pagina.todas();
+            return Pageable.unpaged();
         }
-        return Pagina.de(pagina == null ? 0 : pagina, tamanho == null ? TAMANHO_PADRAO : tamanho);
-    }
-
-    /** {@code situacao=ativos|inativos|todos}; padrão: ativos. */
-    static Visibilidade visibilidade(String situacao) {
-        if (situacao == null || situacao.isBlank()) {
-            return Visibilidade.ATIVOS;
+        int numero = pagina == null ? 0 : pagina;
+        int itens = tamanho == null ? TAMANHO_PADRAO : tamanho;
+        if (numero < 0) {
+            throw new IllegalArgumentException("Número da página não pode ser negativo.");
         }
-        return switch (situacao.trim().toLowerCase()) {
-            case "ativos" -> Visibilidade.ATIVOS;
-            case "inativos" -> Visibilidade.INATIVOS;
-            case "todos" -> Visibilidade.TODOS;
-            default -> throw new IllegalArgumentException(
-                "Parâmetro situacao inválido. Use ativos, inativos ou todos.");
-        };
+        if (itens <= 0) {
+            throw new IllegalArgumentException("Tamanho da página deve ser maior que zero.");
+        }
+        if (itens > TAMANHO_MAXIMO) {
+            throw new IllegalArgumentException("Tamanho da página deve ser no máximo " + TAMANHO_MAXIMO + ".");
+        }
+        return PageRequest.of(numero, itens);
     }
 }

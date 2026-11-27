@@ -1,8 +1,11 @@
 package com.ecommerce.pedidos.controller;
 
-import com.ecommerce.pedidos.modelo.Produto;
+import com.ecommerce.pedidos.dto.EstoqueRequest;
+import com.ecommerce.pedidos.dto.ProdutoRequest;
+import com.ecommerce.pedidos.dto.ProdutoResponse;
 import com.ecommerce.pedidos.servico.ProdutoService;
-import java.math.BigDecimal;
+import com.ecommerce.pedidos.servico.Visibilidade;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,94 +32,59 @@ public class ProdutoController {
     }
 
     /**
-     * Por padrão lista só produtos ativos. {@code situacao=inativos|todos}
-     * permite consultar os inativos explicitamente; {@code nome} filtra por
-     * trecho do nome; {@code pagina}/{@code tamanho} paginam.
+     * {@code situacao=ativos|inativos|todos} (padrão: ativos), {@code nome} (trecho)
+     * e {@code pagina}/{@code tamanho} opcionais.
      */
     @GetMapping
-    public List<Produto> listar(
-            @RequestParam(required = false) String situacao,
-            @RequestParam(required = false) String nome,
-            @RequestParam(required = false) Integer pagina,
-            @RequestParam(required = false) Integer tamanho) {
-        if (nome != null && !nome.isBlank()) {
-            return produtoService.buscarPorNome(nome);
-        }
-        return produtoService.listar(ParametrosConsulta.visibilidade(situacao),
-            ParametrosConsulta.pagina(pagina, tamanho));
+    public List<ProdutoResponse> listar(@RequestParam(name = "situacao", required = false) String situacao,
+                                        @RequestParam(name = "nome", required = false) String nome,
+                                        @RequestParam(name = "pagina", required = false) Integer pagina,
+                                        @RequestParam(name = "tamanho", required = false) Integer tamanho) {
+        return produtoService.listar(Visibilidade.deTexto(situacao), nome, ParametrosConsulta.pagina(pagina, tamanho));
     }
 
     @GetMapping("/{codigo}")
-    public Produto buscar(@PathVariable String codigo) {
+    public ProdutoResponse buscar(@PathVariable("codigo") String codigo) {
         return produtoService.buscarPorCodigo(codigo);
     }
 
     @PostMapping
-    public ResponseEntity<Produto> cadastrar(@RequestBody ProdutoRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(produtoService.salvar(request.paraProduto()));
+    public ResponseEntity<ProdutoResponse> cadastrar(@Valid @RequestBody ProdutoRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(produtoService.cadastrar(request));
     }
 
+    /** Envie {@code versao} para o controle otimista: versão desatualizada → 409. */
     @PutMapping("/{codigo}")
-    public Produto atualizar(@PathVariable String codigo, @RequestBody ProdutoRequest request) {
-        return produtoService.atualizar(codigo, request.paraProduto(), request.versao());
+    public ProdutoResponse atualizar(@PathVariable("codigo") String codigo, @Valid @RequestBody ProdutoRequest request) {
+        return produtoService.atualizar(codigo, request);
     }
 
-    /** Atualização parcial: altera somente o estoque. */
+    /** Atualização parcial: só o estoque. */
     @PatchMapping("/{codigo}/estoque")
-    public Produto atualizarEstoque(@PathVariable String codigo, @RequestBody EstoqueRequest request) {
-        if (request == null || request.quantidade() == null) {
-            throw new IllegalArgumentException("Quantidade em estoque é obrigatória.");
-        }
+    public ProdutoResponse atualizarEstoque(@PathVariable("codigo") String codigo,
+                                            @Valid @RequestBody EstoqueRequest request) {
         return produtoService.atualizarEstoque(codigo, request.quantidade());
     }
 
     /**
-     * Padrão: soft delete (inativa). Com {@code definitivo=true}, tenta a
-     * exclusão física, permitida apenas para produto nunca vendido (409 caso
-     * contrário).
+     * Padrão: soft delete (inativa). Com {@code definitivo=true} apaga de fato,
+     * permitido só para produto nunca vendido (409 caso contrário).
      */
     @DeleteMapping("/{codigo}")
-    public ResponseEntity<Void> excluir(@PathVariable String codigo,
-            @RequestParam(defaultValue = "false") boolean definitivo) {
-        if (definitivo) {
-            produtoService.excluirDefinitivamente(codigo);
-        } else {
-            produtoService.excluir(codigo);
-        }
+    public ResponseEntity<Void> excluir(@PathVariable("codigo") String codigo,
+                                        @RequestParam(name = "definitivo", defaultValue = "false") boolean definitivo) {
+        produtoService.excluir(codigo, definitivo);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{codigo}/inativar")
-    public ResponseEntity<Void> inativar(@PathVariable String codigo) {
+    public ResponseEntity<Void> inativar(@PathVariable("codigo") String codigo) {
         produtoService.inativar(codigo);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{codigo}/reativar")
-    public Produto reativar(@PathVariable String codigo) {
+    public ProdutoResponse reativar(@PathVariable("codigo") String codigo) {
         return produtoService.reativar(codigo);
-    }
-
-    public record ProdutoRequest(
-        String codigo,
-        String nome,
-        String descricao,
-        String preco,
-        Integer estoque,
-        Boolean disponivel,
-        Integer versao
-    ) {
-        Produto paraProduto() {
-            if (preco == null || preco.isBlank()) {
-                throw new IllegalArgumentException("Preço do produto é obrigatório.");
-            }
-            Produto produto = new Produto(codigo, nome, new BigDecimal(preco), estoque == null ? 0 : estoque);
-            produto.setDescricao(descricao);
-            produto.setAtivo(disponivel == null || disponivel);
-            return produto;
-        }
-    }
-
-    public record EstoqueRequest(Integer quantidade) {
     }
 }

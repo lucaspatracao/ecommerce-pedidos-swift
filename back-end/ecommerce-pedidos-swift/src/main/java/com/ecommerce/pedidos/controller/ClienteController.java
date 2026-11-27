@@ -1,9 +1,12 @@
 package com.ecommerce.pedidos.controller;
 
-import com.ecommerce.pedidos.modelo.Cliente;
-import com.ecommerce.pedidos.modelo.Pedido;
+import com.ecommerce.pedidos.dto.ClienteRequest;
+import com.ecommerce.pedidos.dto.ClienteResponse;
+import com.ecommerce.pedidos.dto.PedidoResponse;
 import com.ecommerce.pedidos.servico.ClienteService;
 import com.ecommerce.pedidos.servico.PedidoService;
+import com.ecommerce.pedidos.servico.Visibilidade;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +21,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Camada web de clientes: só traduz HTTP ↔ serviço.
+ * Regras ficam no domínio e no serviço; erros viram JSON no ApiExceptionHandler.
+ */
 @RestController
 @RequestMapping("/api/clientes")
 @CrossOrigin(origins = {"http://localhost:5173", "http://127.0.0.1:5173"})
@@ -30,77 +37,52 @@ public class ClienteController {
         this.pedidoService = pedidoService;
     }
 
-    /** Por padrão lista só clientes ativos; {@code situacao=inativos|todos} para os demais. */
+    /** {@code situacao=ativos|inativos|todos} (padrão: ativos); {@code pagina}/{@code tamanho} opcionais. */
     @GetMapping
-    public List<Cliente> listar(
-            @RequestParam(required = false) String situacao,
-            @RequestParam(required = false) Integer pagina,
-            @RequestParam(required = false) Integer tamanho) {
-        return clienteService.listar(ParametrosConsulta.visibilidade(situacao),
-            ParametrosConsulta.pagina(pagina, tamanho));
+    public List<ClienteResponse> listar(@RequestParam(name = "situacao", required = false) String situacao,
+                                        @RequestParam(name = "pagina", required = false) Integer pagina,
+                                        @RequestParam(name = "tamanho", required = false) Integer tamanho) {
+        return clienteService.listar(Visibilidade.deTexto(situacao), ParametrosConsulta.pagina(pagina, tamanho));
     }
 
     @GetMapping("/{cpf}")
-    public Cliente buscar(@PathVariable String cpf) {
+    public ClienteResponse buscar(@PathVariable("cpf") String cpf) {
         return clienteService.buscarPorCpf(cpf);
     }
 
-    /** Histórico de pedidos do cliente (também para cliente inativo). */
+    /** Pedidos do cliente, inclusive se ele estiver inativo (histórico). */
     @GetMapping("/{cpf}/pedidos")
-    public List<Pedido> listarPedidos(@PathVariable String cpf,
-            @RequestParam(required = false) Integer pagina,
-            @RequestParam(required = false) Integer tamanho) {
+    public List<PedidoResponse> listarPedidos(@PathVariable("cpf") String cpf,
+                                              @RequestParam(name = "pagina", required = false) Integer pagina,
+                                              @RequestParam(name = "tamanho", required = false) Integer tamanho) {
         return pedidoService.listarPorCliente(cpf, ParametrosConsulta.pagina(pagina, tamanho));
     }
 
     @PostMapping
-    public ResponseEntity<Cliente> criar(@RequestBody ClienteRequest request) {
-        Cliente cliente = new Cliente(
-            request.nome(),
-            request.cpf(),
-            request.email(),
-            request.telefone(),
-            request.endereco()
-        );
-        return ResponseEntity.status(HttpStatus.CREATED).body(clienteService.salvar(cliente));
+    public ResponseEntity<ClienteResponse> criar(@Valid @RequestBody ClienteRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(clienteService.cadastrar(request));
     }
 
     @PutMapping("/{cpf}")
-    public Cliente atualizar(@PathVariable String cpf, @RequestBody ClienteRequest request) {
-        Cliente clienteAtualizado = new Cliente(
-            request.nome(),
-            cpf,
-            request.email(),
-            request.telefone(),
-            request.endereco()
-        );
-        return clienteService.atualizar(cpf, clienteAtualizado);
+    public ClienteResponse atualizar(@PathVariable("cpf") String cpf, @Valid @RequestBody ClienteRequest request) {
+        return clienteService.atualizar(cpf, request);
     }
 
-    /** Exclusão definitiva: 409 se o cliente possuir pedidos (use a inativação). */
+    /** Exclusão definitiva; cliente com pedidos → 409 (use o inativar). */
     @DeleteMapping("/{cpf}")
-    public ResponseEntity<Void> excluir(@PathVariable String cpf) {
+    public ResponseEntity<Void> excluir(@PathVariable("cpf") String cpf) {
         clienteService.excluir(cpf);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{cpf}/inativar")
-    public ResponseEntity<Void> inativar(@PathVariable String cpf) {
+    public ResponseEntity<Void> inativar(@PathVariable("cpf") String cpf) {
         clienteService.inativar(cpf);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{cpf}/reativar")
-    public Cliente reativar(@PathVariable String cpf) {
+    public ClienteResponse reativar(@PathVariable("cpf") String cpf) {
         return clienteService.reativar(cpf);
-    }
-
-    public record ClienteRequest(
-        String nome,
-        String cpf,
-        String email,
-        String telefone,
-        String endereco
-    ) {
     }
 }

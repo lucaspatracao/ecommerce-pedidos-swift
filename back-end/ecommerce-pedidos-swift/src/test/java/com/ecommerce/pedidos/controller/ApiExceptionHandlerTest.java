@@ -1,50 +1,58 @@
 package com.ecommerce.pedidos.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 
-import com.ecommerce.pedidos.repositorio.RepositorioException;
 import java.sql.SQLException;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
+/**
+ * Casos do handler difíceis de provocar por HTTP (erro inesperado,
+ * concorrência). O handler é uma classe comum: basta instanciar e chamar.
+ */
 class ApiExceptionHandlerTest {
+
     private final ApiExceptionHandler handler = new ApiExceptionHandler();
 
     @Test
-    @DisplayName("registro inexistente vira 404")
-    void naoEncontradoVira404() {
-        var resposta = handler.handleRepositorio(RepositorioException.naoEncontrado("Cliente", "123"));
-        assertEquals(HttpStatus.NOT_FOUND, resposta.getStatusCode());
-    }
+    @DisplayName("erro inesperado vira 500 sem vazar detalhes internos")
+    void deveEsconderDetalhesNo500() {
+        ResponseEntity<Object> resposta = handler.tratarErroInesperado(new RuntimeException("senha do banco: x"));
 
-    @Test
-    @DisplayName("violação de integridade vira 409 com a mensagem de negócio")
-    void violacaoVira409() {
-        var resposta = handler.handleRepositorio(RepositorioException.violacaoIntegridade(
-            "Este cliente possui pedidos e não pode ser excluído.", new SQLException("fk", "23000", 1451)));
-        assertEquals(HttpStatus.CONFLICT, resposta.getStatusCode());
-        assertEquals("Este cliente possui pedidos e não pode ser excluído.", resposta.getBody().get("erro"));
-    }
-
-    @Test
-    @DisplayName("duplicidade e conflito de versão viram 409; validação vira 400")
-    void demaisTipos() {
-        assertEquals(HttpStatus.CONFLICT,
-            handler.handleRepositorio(RepositorioException.duplicado("dup", null)).getStatusCode());
-        assertEquals(HttpStatus.CONFLICT,
-            handler.handleRepositorio(RepositorioException.conflitoConcorrencia("Produto", "P1")).getStatusCode());
-        assertEquals(HttpStatus.BAD_REQUEST,
-            handler.handleRepositorio(RepositorioException.validacao("sem id")).getStatusCode());
-    }
-
-    @Test
-    @DisplayName("falha técnica vira 500 sem vazar detalhes do banco")
-    void falhaTecnicaNaoVazaDetalhes() {
-        var resposta = handler.handleRepositorio(RepositorioException.falhaTecnica(
-            "Erro ao acessar o banco de dados.", new SQLException("Table 'ecommerce.produto' doesn't exist")));
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, resposta.getStatusCode());
-        assertFalse(resposta.getBody().get("erro").contains("produto"));
+        assertEquals(Map.of("erro", "Erro interno no servidor. Tente novamente mais tarde."), resposta.getBody());
+    }
+
+    @Test
+    @DisplayName("violação de integridade do banco vira 409 com mensagem de negócio")
+    void deveTraduzirIntegridade() {
+        ResponseEntity<Object> resposta = handler.tratarIntegridade(
+            new DataIntegrityViolationException("FK", new SQLException("Cannot delete or update a parent row")));
+
+        assertEquals(HttpStatus.CONFLICT, resposta.getStatusCode());
+        assertEquals(Map.of("erro", "Operação viola a integridade dos dados (registro duplicado ou em uso)."),
+            resposta.getBody());
+    }
+
+    @Test
+    @DisplayName("conflito de versão (@Version) vira 409")
+    void deveTraduzirConcorrencia() {
+        ResponseEntity<Object> resposta = handler.tratarConcorrencia(
+            new ObjectOptimisticLockingFailureException("Produto", 1L));
+
+        assertEquals(HttpStatus.CONFLICT, resposta.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("mensagem vazia usa o texto padrão do status")
+    void deveUsarTextoPadrao() {
+        ResponseEntity<Object> resposta = handler.tratarConflito(new IllegalStateException());
+
+        assertEquals(Map.of("erro", "Conflict"), resposta.getBody());
     }
 }

@@ -1,108 +1,50 @@
 package com.ecommerce.pedidos.servico;
 
-import com.ecommerce.pedidos.modelo.Cliente;
-import com.ecommerce.pedidos.repositorio.ClienteRepository;
-import com.ecommerce.pedidos.repositorio.GerenciadorTransacao;
-import com.ecommerce.pedidos.repositorio.Pagina;
-import com.ecommerce.pedidos.repositorio.RepositorioException;
-import com.ecommerce.pedidos.repositorio.Visibilidade;
-import java.sql.Connection;
+import com.ecommerce.pedidos.dto.ClienteRequest;
+import com.ecommerce.pedidos.dto.ClienteResponse;
 import java.util.List;
-import java.util.Objects;
-import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Pageable;
 
-/** Regras de cadastro de clientes, dependentes apenas de interfaces. */
-@Service
-public class ClienteService {
-    private final ClienteRepository clienteRepository;
-    private final GerenciadorTransacao transacao;
+/**
+ * Casos de uso de cliente (Aula 14).
+ *
+ * <p>O controller depende desta INTERFACE, não da implementação. Assim a
+ * regra de negócio pode mudar de implementação (ou ser simulada num teste)
+ * sem tocar na camada web.</p>
+ *
+ * <p>Soft delete: cliente inativo some das listagens padrão e das buscas,
+ * mas continua no banco para preservar o histórico de pedidos.</p>
+ */
+public interface ClienteService {
 
-    public ClienteService(ClienteRepository clienteRepository, GerenciadorTransacao transacao) {
-        this.clienteRepository = clienteRepository;
-        this.transacao = transacao;
+    /** Clientes ativos, todos de uma vez (uso do front). */
+    default List<ClienteResponse> listarTodos() {
+        return listar(Visibilidade.ATIVOS, Pageable.unpaged());
     }
 
-    /** Somente clientes ativos (consulta padrão). */
-    public List<Cliente> listarTodos() {
-        return listar(Visibilidade.ATIVOS, Pagina.todas());
-    }
+    List<ClienteResponse> listar(Visibilidade visibilidade, Pageable pagina);
 
-    public List<Cliente> listar(Visibilidade visibilidade, Pagina pagina) {
-        return transacao.executar(conexao -> clienteRepository.listar(conexao, visibilidade, pagina));
-    }
+    /** Cliente ATIVO pelo CPF. @throws com.ecommerce.pedidos.excecao.ClienteNaoEncontradoException (404) */
+    ClienteResponse buscarPorCpf(String cpf);
 
-    /** Busca um cliente ativo pelo CPF; lança NAO_ENCONTRADO se não existir. */
-    public Cliente buscarPorCpf(String cpf) {
-        validarCpf(cpf);
-        return transacao.executar(conexao -> buscarExistente(conexao, cpf, Visibilidade.ATIVOS));
-    }
+    /** @throws com.ecommerce.pedidos.excecao.ConflitoException (409) se o CPF ou o e-mail já existirem */
+    ClienteResponse cadastrar(ClienteRequest request);
 
-    public Cliente buscarPorEmail(String email) {
-        return transacao.executar(conexao -> clienteRepository.buscarPorEmail(conexao, email)
-            .orElseThrow(() -> RepositorioException.naoEncontrado("Cliente", email)));
-    }
-
-    public Cliente salvar(Cliente cliente) {
-        Objects.requireNonNull(cliente, "Cliente não pode ser nulo.");
-        if (cliente.getId() != null) {
-            throw new IllegalArgumentException("Novo cliente não deve informar id.");
-        }
-        return transacao.executarEmTransacao(conexao -> clienteRepository.salvar(conexao, cliente));
-    }
-
-    public Cliente atualizar(String cpf, Cliente clienteAtualizado) {
-        validarCpf(cpf);
-        Objects.requireNonNull(clienteAtualizado, "Cliente atualizado não pode ser nulo.");
-        return transacao.executarEmTransacao(conexao -> {
-            Cliente existente = buscarExistente(conexao, cpf, Visibilidade.ATIVOS);
-            clienteAtualizado.setId(existente.getId());
-            clienteAtualizado.setAtivo(existente.isAtivo());
-            return clienteRepository.atualizar(conexao, clienteAtualizado);
-        });
-    }
+    /** Atualiza nome e contato de um cliente ativo; o CPF não muda. */
+    ClienteResponse atualizar(String cpf, ClienteRequest request);
 
     /**
-     * Exclusão definitiva. Cliente com pedidos é recusado pelo banco
-     * (RESTRICT) e vira um erro de negócio (HTTP 409); nesse caso a saída é
-     * {@link #inativar(String)}.
+     * Exclusão definitiva (ativo ou inativo).
+     * @throws com.ecommerce.pedidos.excecao.ConflitoException (409) se o cliente tiver pedidos: inative-o
      */
-    public void excluir(String cpf) {
-        validarCpf(cpf);
-        transacao.executarEmTransacao(conexao -> {
-            clienteRepository.remover(conexao, buscarExistente(conexao, cpf, Visibilidade.TODOS).getId());
-            return null;
-        });
-    }
+    void excluir(String cpf);
 
-    public void inativar(String cpf) {
-        validarCpf(cpf);
-        transacao.executarEmTransacao(conexao -> {
-            clienteRepository.inativar(conexao, buscarExistente(conexao, cpf, Visibilidade.ATIVOS).getId());
-            return null;
-        });
-    }
+    /** Soft delete. */
+    void inativar(String cpf);
 
-    public Cliente reativar(String cpf) {
-        validarCpf(cpf);
-        return transacao.executarEmTransacao(conexao -> {
-            Cliente inativo = buscarExistente(conexao, cpf, Visibilidade.INATIVOS);
-            clienteRepository.reativar(conexao, inativo.getId());
-            return buscarExistente(conexao, cpf, Visibilidade.ATIVOS);
-        });
-    }
+    /** Desfaz o soft delete. 404 se não houver cliente INATIVO com o CPF. */
+    ClienteResponse reativar(String cpf);
 
-    public long contar() {
-        return transacao.executar(clienteRepository::contar);
-    }
-
-    private Cliente buscarExistente(Connection conexao, String cpf, Visibilidade visibilidade) {
-        return clienteRepository.buscarPorCpf(conexao, cpf, visibilidade)
-            .orElseThrow(() -> RepositorioException.naoEncontrado("Cliente", cpf));
-    }
-
-    private void validarCpf(String cpf) {
-        if (cpf == null || cpf.isBlank()) {
-            throw new IllegalArgumentException("CPF do cliente não pode ser vazio.");
-        }
-    }
+    /** Quantidade de clientes ativos. */
+    long contar();
 }

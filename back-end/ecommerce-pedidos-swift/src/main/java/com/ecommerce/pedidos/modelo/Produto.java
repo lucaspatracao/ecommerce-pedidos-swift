@@ -1,66 +1,88 @@
 package com.ecommerce.pedidos.modelo;
 
 import com.ecommerce.pedidos.excecao.EstoqueInsuficienteException;
+import com.ecommerce.pedidos.util.Utils;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Objects;
 
 /**
- * Representa um item comercializavel no catalogo e administra o seu estoque
- * fisico.
+ * Item comercializável do catálogo. Também é dono das regras do seu estoque:
+ * ninguém altera {@code quantidadeEmEstoque} diretamente, só pelos métodos
+ * {@link #baixarEstoque}, {@link #adicionarEstoque} e {@link #definirEstoque}.
  */
+@Entity
 public class Produto {
-    private Long id;
-    private int versao;
-    private final String codigo;
-    private String nome;
-    private String descricao;
-    private BigDecimal preco;
-    private int quantidadeEmEstoque;
-    private boolean ativo;
+    private static final int TAMANHO_MINIMO_CODIGO = 3;
     private static int totalDeProdutosCriados = 0;
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true, length = 40)
+    private String codigo;
+
+    @Column(nullable = false, length = 120)
+    private String nome;
+
+    @Column(nullable = false, length = 500)
+    private String descricao;
+
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal preco;
+
+    @Column(nullable = false)
+    private int quantidadeEmEstoque;
+
+    @Column(nullable = false)
+    private boolean ativo;
+
+    /**
+     * Bloqueio otimista: o Hibernate inclui "WHERE versao = ?" em cada UPDATE.
+     * Se outra transação alterou o produto antes (ex.: duas vendas ao mesmo
+     * tempo), o UPDATE não acha a linha e a operação falha com 409, em vez
+     * de uma venda apagar a baixa de estoque da outra.
+     */
+    @Version
+    private Long versao;
+
+    protected Produto() {
+        // exigido pelo JPA
+    }
+
     public Produto(String codigo, String nome, BigDecimal preco, int quantidadeEmEstoque) {
-        this.codigo = validarCodigo(codigo);
-        setNome(nome);
-        setDescricao(null);
-        setPreco(preco);
-        setQuantidadeEmEstoque(quantidadeEmEstoque);
-        this.ativo = true;
-        totalDeProdutosCriados++;
+        this(codigo, nome, null, preco, quantidadeEmEstoque);
     }
 
     public Produto(String codigo, String nome, double preco, int quantidadeEmEstoque) {
         this(codigo, nome, BigDecimal.valueOf(preco), quantidadeEmEstoque);
     }
 
+    public Produto(String codigo, String nome, String descricao, BigDecimal preco, int quantidadeEmEstoque) {
+        this.codigo = validarCodigo(codigo);
+        atualizarDados(nome, descricao, preco);
+        definirEstoque(quantidadeEmEstoque);
+        this.ativo = true;
+        totalDeProdutosCriados++;
+    }
+
     public static int getTotalDeProdutosCriados() {
         return totalDeProdutosCriados;
     }
 
-
-    /**
-     * Identificador gerado pelo banco. {@code null} significa "ainda não
-     * persistido" — é o que o repositório usa para decidir entre INSERT e UPDATE.
-     */
     public Long getId() {
         return id;
     }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    /** Versão usada no controle de concorrência otimista. */
-    public int getVersao() {
+    /** Versão do controle de concorrência otimista; o Hibernate a incrementa a cada UPDATE. */
+    public Long getVersao() {
         return versao;
-    }
-
-    public void setVersao(int versao) {
-        if (versao < 0) {
-            throw new IllegalArgumentException("Versão não pode ser negativa.");
-        }
-        this.versao = versao;
     }
 
     public String getCodigo() {
@@ -71,63 +93,67 @@ public class Produto {
         return nome;
     }
 
-    public void setNome(String nome) {
-        if (nome == null) {
-            throw new IllegalArgumentException("Nome do produto não pode ser nulo.");
-        }
-        String nomeValidado = nome.trim();
-        if (nomeValidado.isEmpty()) {
-            throw new IllegalArgumentException("Nome do produto não pode estar vazio.");
-        }
-        this.nome = nomeValidado;
-    }
-
     public String getDescricao() {
         return descricao;
-    }
-
-    public void setDescricao(String descricao) {
-        this.descricao = descricao == null ? "" : descricao.trim();
     }
 
     public BigDecimal getPreco() {
         return preco;
     }
 
-    public void setPreco(BigDecimal preco) {
-        if (preco == null) {
-            throw new IllegalArgumentException("Preço do produto não pode ser nulo.");
-        }
-        if (preco.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Preço deve ser positivo, recebido: " + preco);
-        }
-        this.preco = preco.setScale(2, RoundingMode.HALF_UP);
-    }
-
     public int getQuantidadeEmEstoque() {
         return quantidadeEmEstoque;
-    }
-
-    public void setQuantidadeEmEstoque(int quantidadeEmEstoque) {
-        if (quantidadeEmEstoque < 0) {
-            throw new IllegalArgumentException("Estoque não pode ser negativo, recebido: " + quantidadeEmEstoque);
-        }
-        this.quantidadeEmEstoque = quantidadeEmEstoque;
     }
 
     public boolean isAtivo() {
         return ativo;
     }
 
-    public void setAtivo(boolean ativo) {
-        this.ativo = ativo;
+    /**
+     * Atualiza os dados cadastrais. Tudo é validado antes de qualquer
+     * atribuição, para o produto nunca ficar "meio atualizado".
+     */
+    public void atualizarDados(String nome, String descricao, BigDecimal preco) {
+        String nomeValidado = Utils.textoObrigatorio(nome, "Nome do produto");
+        BigDecimal precoValidado = validarPreco(preco);
+        this.nome = nomeValidado;
+        this.descricao = descricao == null ? "" : descricao.trim();
+        this.preco = precoValidado;
+    }
+
+    /** Troca o código do produto (usado quando o cadastro é corrigido). */
+    public void alterarCodigo(String novoCodigo) {
+        this.codigo = validarCodigo(novoCodigo);
+    }
+
+    /** Ajuste de inventário: define o saldo absoluto do estoque. */
+    public void definirEstoque(int quantidade) {
+        if (quantidade < 0) {
+            throw new IllegalArgumentException("Estoque não pode ser negativo, recebido: " + quantidade);
+        }
+        this.quantidadeEmEstoque = quantidade;
+    }
+
+    public void ativar() {
+        this.ativo = true;
+    }
+
+    public void desativar() {
+        this.ativo = false;
+    }
+
+    /** Atalho para a API, que envia a disponibilidade como booleano. */
+    public void definirDisponibilidade(boolean disponivel) {
+        if (disponivel) {
+            ativar();
+        } else {
+            desativar();
+        }
     }
 
     /**
-     * Verifica se ha unidades suficientes em estoque para atender a quantidade
-     * desejada.
-     * O produto so responde "sim" se, alem de ter unidades, tambem estiver ativo no
-     * catalogo.
+     * Verifica se há unidades suficientes para a quantidade desejada.
+     * Só responde "sim" se o produto também estiver ativo no catálogo.
      */
     public boolean temEstoqueDisponivel(int quantidadeDesejada) {
         if (quantidadeDesejada <= 0) {
@@ -136,10 +162,8 @@ public class Produto {
         return ativo && quantidadeEmEstoque >= quantidadeDesejada;
     }
 
-    /**
-     * Reduz o estoque apos uma venda confirmada.
-     */
-    public void baixarEstoque(int quantidade) throws EstoqueInsuficienteException {
+    /** Reduz o estoque após uma venda. */
+    public void baixarEstoque(int quantidade) {
         if (quantidade <= 0) {
             throw new IllegalArgumentException("Quantidade deve ser positiva, recebido: " + quantidade);
         }
@@ -149,11 +173,7 @@ public class Produto {
         this.quantidadeEmEstoque -= quantidade;
     }
 
-    /**
-     * Adiciona quantidade ao estoque (p.ex., devolução de item).
-     * @param quantidade a quantidade a adicionar
-     * @throws IllegalArgumentException se a quantidade for menor ou igual a zero
-     */
+    /** Devolve unidades ao estoque (ex.: item removido ou pedido cancelado). */
     public void adicionarEstoque(int quantidade) {
         if (quantidade <= 0) {
             throw new IllegalArgumentException("Quantidade para adição ao estoque deve ser positiva.");
@@ -161,21 +181,22 @@ public class Produto {
         this.quantidadeEmEstoque += quantidade;
     }
 
-    private String validarCodigo(String codigo) {
-        String codigoValidado = validarTextoObrigatorio(codigo, "Código do produto");
-        if (codigoValidado.length() < 3) {
+    private static String validarCodigo(String codigo) {
+        String valor = Utils.textoObrigatorio(codigo, "Código do produto");
+        if (valor.length() < TAMANHO_MINIMO_CODIGO) {
             throw new IllegalArgumentException("Código do produto deve ter pelo menos 3 caracteres.");
         }
-        return codigoValidado;
+        return valor;
     }
 
-    private String validarTextoObrigatorio(String valor, String nomeCampo) {
-        Objects.requireNonNull(valor, nomeCampo + " não pode ser nulo.");
-        String valorNormalizado = valor.trim();
-        if (valorNormalizado.isBlank()) {
-            throw new IllegalArgumentException(nomeCampo + " não pode estar em branco.");
+    private static BigDecimal validarPreco(BigDecimal preco) {
+        if (preco == null) {
+            throw new IllegalArgumentException("Preço do produto não pode ser nulo.");
         }
-        return valorNormalizado;
+        if (preco.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Preço deve ser positivo, recebido: " + preco);
+        }
+        return preco.setScale(2, RoundingMode.HALF_UP);
     }
 
     @Override

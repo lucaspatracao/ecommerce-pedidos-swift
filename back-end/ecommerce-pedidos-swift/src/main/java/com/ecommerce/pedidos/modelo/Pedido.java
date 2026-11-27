@@ -3,7 +3,20 @@ package com.ecommerce.pedidos.modelo;
 import com.ecommerce.pedidos.excecao.EstoqueInsuficienteException;
 import com.ecommerce.pedidos.excecao.PagamentoRecusadoException;
 import com.ecommerce.pedidos.excecao.PedidoInvalidoException;
-import com.ecommerce.pedidos.swift.util.PedidoUtils;
+import com.ecommerce.pedidos.util.PedidoUtils;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -11,101 +24,111 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
- * Consolida o carrinho de compras do cliente e gerencia o ciclo comercial e
- * financeiro.
+ * Carrinho de compras do cliente e ciclo de vida da venda
+ * (ABERTO → PAGO, ou → CANCELADO).
+ *
+ * <p>Relacionamentos (Aula 07): o pedido pertence a um {@link Cliente}
+ * (N–1), tem vários {@link ItemPedido} (1–N) e no máximo uma
+ * {@link FormaPagamento} (1–1).</p>
+ *
+ * <p>As regras ficam aqui dentro: o pedido calcula o próprio total, só aceita
+ * itens enquanto está aberto e só pode ser pago uma vez.</p>
  */
+@Entity
 public class Pedido {
-    private Long id;
-    private final String numero;
-    private final Cliente cliente;
-    private final List<ItemPedido> itens = new ArrayList<>();
-    private final LocalDate data;
-    private SituacaoPedido situacao;
-    private ProcessadorPagamento formaPagamento;
     private static int totalDePedidosCriados = 0;
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true, length = 20)
+    private String numero;
+
+    /**
+     * N–1: muitos pedidos para um cliente. LAZY = o cliente só é buscado no
+     * banco quando alguém acessa {@code getCliente()}; consultas que precisam
+     * dele usam JOIN FETCH (ver PedidoRepository).
+     */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "cliente_id", nullable = false)
+    private Cliente cliente;
+
+    /**
+     * 1–N: o lado "dono" da chave estrangeira é {@link ItemPedido#pedido}
+     * ({@code mappedBy}). {@code cascade = ALL} salva/apaga os itens junto com
+     * o pedido; {@code orphanRemoval} apaga do banco o item removido da lista.
+     */
+    @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ItemPedido> itens = new ArrayList<>();
+
+    @Column(name = "data_pedido", nullable = false)
+    private LocalDate data;
+
+    // Texto no banco ("ABERTO", "PAGO"...). O @JdbcTypeCode evita que o
+    // Hibernate espere o tipo nativo ENUM do MySQL, já que a coluna é VARCHAR.
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(nullable = false, length = 20)
+    private SituacaoPedido situacao;
+
+    /** 1–1: cada pedido tem no máximo um pagamento, salvo junto com ele. */
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "forma_pagamento_id", unique = true)
+    private FormaPagamento formaPagamento;
+
+    protected Pedido() {
+        // exigido pelo JPA
+    }
+
     public Pedido(Cliente cliente) {
-        this.numero = PedidoUtils.gerarNumeroDoPedido();
         if (cliente == null) {
             throw new IllegalArgumentException("Pedido exige um cliente");
         }
+        this.numero = PedidoUtils.gerarNumeroDoPedido();
         this.cliente = cliente;
         this.data = LocalDate.now();
         this.situacao = SituacaoPedido.ABERTO;
         totalDePedidosCriados++;
     }
 
-    private Pedido(Long id, String numero, Cliente cliente, LocalDate data, SituacaoPedido situacao,
-            List<ItemPedido> itens) {
-        if (numero == null || numero.isBlank()) {
-            throw new IllegalArgumentException("Número do pedido é obrigatório");
-        }
-        if (cliente == null) {
-            throw new IllegalArgumentException("Pedido exige um cliente");
-        }
-        if (data == null || situacao == null) {
-            throw new IllegalArgumentException("Data e situação do pedido são obrigatórias");
-        }
-        this.id = id;
-        this.numero = numero;
-        this.cliente = cliente;
-        this.data = data;
-        this.situacao = situacao;
-        if (itens != null) {
-            this.itens.addAll(itens);
-        }
-    }
-
-    /**
-     * Recria um pedido lido do banco, sem gerar novo número, sem baixar
-     * estoque e sem recalcular os preços dos itens (que já vêm gravados).
-     */
-    public static Pedido reconstituir(Long id, String numero, Cliente cliente, LocalDate data,
-            SituacaoPedido situacao, List<ItemPedido> itens) {
-        return new Pedido(id, numero, cliente, data, situacao, itens);
+    public static int getTotalDePedidosCriados() {
+        return totalDePedidosCriados;
     }
 
     public Long getId() {
         return id;
     }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    /** Localiza um item do pedido pelo id gravado no banco. */
-    public java.util.Optional<ItemPedido> buscarItemPorId(Long itemId) {
-        return itens.stream().filter(item -> item.getId() != null && item.getId().equals(itemId)).findFirst();
-    }
-
-    public static int getTotalDePedidosCriados() {
-        return totalDePedidosCriados;
-    }
-
     public String getNumero() {
         return numero;
+    }
+
+    /**
+     * Sorteia outro número. O número é aleatório (PED-ano-NNNNN), então dois
+     * pedidos podem sortear o mesmo; o serviço chama este método até achar
+     * um número livre antes de gravar.
+     */
+    public void renovarNumero() {
+        if (id != null) {
+            throw new IllegalStateException("Pedido já gravado não pode trocar de número");
+        }
+        this.numero = PedidoUtils.gerarNumeroDoPedido();
     }
 
     public Cliente getCliente() {
         return cliente;
     }
 
-    /**
-     * Obtém a lista de itens do pedido de forma imutável.
-     *
-     * @return cópia não modificável da lista de itens
-     */
+    /** Cópia somente leitura: itens só entram e saem pelos métodos do pedido. */
     public List<ItemPedido> getItens() {
         return Collections.unmodifiableList(new ArrayList<>(itens));
     }
 
-    /**
-     * Retorna o número total de itens no pedido.
-     *
-     * @return quantidade de itens
-     */
     public int quantidadeDeItens() {
         return itens.size();
     }
@@ -118,26 +141,28 @@ public class Pedido {
         return situacao;
     }
 
-    public ProcessadorPagamento getFormaPagamento() {
+    public FormaPagamento getFormaPagamento() {
         return formaPagamento;
     }
 
+    public boolean isAberto() {
+        return situacao == SituacaoPedido.ABERTO;
+    }
+
     /**
-     * Tenta adicionar um item ao pedido, dando baixa no estoque do produto
-     * correspondente.
+     * Adiciona um item e dá baixa no estoque do produto. Se o produto já
+     * estiver no pedido, só aumenta a quantidade.
      *
-     * @param produto   o produto a ser adicionado ao pedido
-     * @param quantidade a quantidade solicitada
-     * @throws EstoqueInsuficienteException quando o estoque não basta para atender a venda
+     * @throws EstoqueInsuficienteException quando o estoque não basta
      */
-    public void adicionarItem(Produto produto, int quantidade) throws EstoqueInsuficienteException {
+    public void adicionarItem(Produto produto, int quantidade) {
         if (produto == null) {
             throw new IllegalArgumentException("Produto é obrigatório");
         }
         if (quantidade <= 0) {
             throw new IllegalArgumentException("Quantidade deve ser positiva");
         }
-        if (situacao != SituacaoPedido.ABERTO) {
+        if (!isAberto()) {
             throw new IllegalStateException("Não é possível adicionar itens a pedido " + situacao);
         }
 
@@ -145,21 +170,16 @@ public class Pedido {
 
         for (ItemPedido item : itens) {
             if (item.getProduto().getCodigo().equals(produto.getCodigo())) {
-                item.setQuantidade(item.getQuantidade() + quantidade);
+                item.aumentarQuantidade(quantidade);
                 return;
             }
         }
-        itens.add(new ItemPedido(produto, quantidade));
+        itens.add(new ItemPedido(this, produto, quantidade));
     }
 
-    /**
-     * Remove um item do pedido e devolver a quantidade ao estoque do produto.
-     *
-     * @param index o índice do item a ser removido
-     * @throws IndexOutOfBoundsException se o índice for inválido
-     */
+    /** Remove um item e devolve a quantidade ao estoque do produto. */
     public void removerItem(int index) {
-        if (situacao != SituacaoPedido.ABERTO) {
+        if (!isAberto()) {
             throw new IllegalStateException("Somente pedidos abertos podem remover itens");
         }
         if (index < 0 || index >= itens.size()) {
@@ -169,6 +189,7 @@ public class Pedido {
         itemRemovido.getProduto().adicionarEstoque(itemRemovido.getQuantidade());
     }
 
+    /** Regra de negócio: o total é a soma dos subtotais dos itens. */
     public BigDecimal calcularValorTotal() {
         BigDecimal total = BigDecimal.ZERO;
         for (ItemPedido item : itens) {
@@ -183,43 +204,46 @@ public class Pedido {
                 .toList();
     }
 
-    public void pagar(ProcessadorPagamento processador) throws PagamentoRecusadoException, PedidoInvalidoException {
-        if (processador == null) {
-            throw new IllegalArgumentException("Processador é obrigatório");
+    /**
+     * Paga o pedido cobrando o total na forma de pagamento recebida.
+     *
+     * <p>O pedido não sabe se é Pix, boleto ou cartão: só chama
+     * {@code processar}, e cada subclasse decide se aprova (polimorfismo).</p>
+     */
+    public void pagar(FormaPagamento pagamento) {
+        if (pagamento == null) {
+            throw new IllegalArgumentException("Forma de pagamento é obrigatória");
         }
-        if (situacao != SituacaoPedido.ABERTO) {
+        if (!isAberto()) {
             throw new PedidoInvalidoException("Pedido " + situacao + " não pode ser pago");
         }
         if (itens.isEmpty()) {
             throw new PedidoInvalidoException("Pedido sem itens não pode ser pago");
         }
 
-        BigDecimal valorTotal = calcularValorTotal();
-        if (!processador.processar(valorTotal)) {
-            throw new PagamentoRecusadoException(processador.getDescricao(), "processador retornou recusa");
+        if (!pagamento.processar(calcularValorTotal())) {
+            throw new PagamentoRecusadoException(pagamento.getDescricao(), "processador retornou recusa");
         }
 
-        this.formaPagamento = processador;
+        this.formaPagamento = pagamento;
         this.situacao = SituacaoPedido.PAGO;
     }
 
-    public void pagar() throws PagamentoRecusadoException, PedidoInvalidoException {
-        if (formaPagamento == null) {
-            throw new IllegalStateException("Pedido não possui forma de pagamento definida");
-        }
-        pagar(formaPagamento);
-    }
-
-    public void pagarCom(FormaPagamento formaPagamento) throws PagamentoRecusadoException, PedidoInvalidoException {
-        if (formaPagamento == null) {
+    /**
+     * Variante usada pela API: o valor informado no pagamento precisa bater
+     * com o total do pedido (evita pagar a menos ou a mais).
+     */
+    public void pagarCom(FormaPagamento pagamento) {
+        if (pagamento == null) {
             throw new IllegalArgumentException("Forma de pagamento é obrigatória");
         }
-        if (formaPagamento.getValor().compareTo(calcularValorTotal()) != 0) {
+        if (pagamento.getValor().compareTo(calcularValorTotal()) != 0) {
             throw new IllegalStateException("Valor do pagamento deve ser igual ao total do pedido");
         }
-        pagar((ProcessadorPagamento) formaPagamento);
+        pagar(pagamento);
     }
 
+    /** Cancela o pedido: devolve o estoque e, se já estava pago, estorna o pagamento. */
     public void cancelar() {
         if (situacao == SituacaoPedido.CANCELADO) {
             throw new IllegalStateException("Pedido já está cancelado");
@@ -227,8 +251,8 @@ public class Pedido {
         for (ItemPedido item : itens) {
             item.getProduto().adicionarEstoque(item.getQuantidade());
         }
-        if (formaPagamento instanceof FormaPagamento pagamento) {
-            pagamento.setSituacao(SituacaoPagamento.ESTORNADO);
+        if (formaPagamento != null) {
+            formaPagamento.estornar();
         }
         situacao = SituacaoPedido.CANCELADO;
     }

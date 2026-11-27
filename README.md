@@ -27,52 +27,272 @@ A solução também possui uma interface administrativa para consumo e apresenta
 
 ---
 
-### Funcionalidades Previstas
+### Funcionalidades
 
-* **Gerenciamento de Produtos:** Cadastro, atualização, consulta e controle de disponibilidade.
-* **Gerenciamento de Clientes:** Cadastro, edição de dados cadastrais e histórico de compras.
-* **Gestão de Pedidos:** Abertura, inclusão de itens, cálculo de totais, alteração de status e cancelamento.
-* **Processamento de Pagamentos:** Suporte a múltiplos métodos (Cartão de Crédito, Boleto Bancário, Pix e Vale Compras), com arquitetura polimórfica.
-* **Dashboard:** Visualização de informações gerais do sistema, pedidos recentes, clientes, produtos e indicadores disponíveis.
-* **Interface Administrativa:** Interface web para consulta e gerenciamento das informações do sistema.
-* **Integração Front-end / Back-end:** Consumo dos endpoints reais da API REST pelo Front-end.
-* **Garantia de Qualidade:** Testes automatizados unitários e de integração com relatórios de cobertura.
-* **Integração Contínua (CI/CD):** Pipeline para execução de build e testes automatizados.
-* **API RESTful:** Endpoints estruturados para integração e consumo pela aplicação Front-end e futuras aplicações.
-
----
-
-### Pagamento Polimórfico e Princípio Aberto/Fechado
-
-A camada de pagamentos foi estruturada com um contrato comum para desacoplar o pedido da implementação concreta de cada meio de pagamento.
-
-- `ProcessadorPagamento` define o contrato mínimo para processar o valor e expor comprovante/descrição.
-- `FormaPagamento` atua como base comum da hierarquia e mantém os atributos compartilhados.
-- `Pix`, `Boleto`, `CartaoCredito` e `ValeCompras` implementam o processamento específico de cada modalidade.
-- `Pedido` recebe qualquer `ProcessadorPagamento` em vez de depender de tipos concretos, reduzindo acoplamento e facilitando extensão.
-
-Esse desenho permite adicionar novas formas de pagamento sem alterar a lógica central do pedido, respeitando o princípio aberto/fechado (OCP).
+* **Gerenciamento de Produtos:** cadastro, atualização completa (com versão otimista) e parcial (estoque), consulta com filtros e paginação, soft delete (inativar/reativar) e exclusão definitiva de produto nunca vendido.
+* **Gerenciamento de Clientes:** cadastro com CPF validado por dígitos verificadores e e-mail único, edição, soft delete e exclusão de cliente sem pedidos.
+* **Gestão de Pedidos:** abertura com vários itens, cálculo de totais, baixa de estoque transacional, remoção de item, cancelamento e exclusão de pedido em aberto.
+* **Processamento de Pagamentos:** Cartão de Crédito, Boleto, Pix (e Vale-Compras no domínio), com arquitetura polimórfica.
+* **Dashboard e Histórico:** totais, receita, estoque crítico e pedidos recentes.
+* **Interface Administrativa:** front-end React consumindo a API real.
+* **Garantia de Qualidade:** testes unitários, de integração e de API, com cobertura mínima verificada no build.
 
 ---
 
 ### Tecnologias
 
-* **Linguagem:** Java 17 (versão LTS)
-* **Gerenciador de Build e Dependências:** Apache Maven
-* **Framework Web:** Spring Boot
-* **API:** REST
-* **Testes:** JUnit 5, Spring MockMvc, Surefire/Failsafe e JaCoCo
-* **Front-end:** React
-* **Build / Desenvolvimento Front-end:** Vite
-* **Controle de Versão e Colaboração:** Git & GitHub
-* **Banco de Dados:** MySQL 8 via JDBC (`mysql-connector-j`), com migrations versionadas
+* **Linguagem:** Java 17 (LTS)
+* **Build e dependências:** Apache Maven
+* **Framework:** Spring Boot 3.3 (Web, Validation, Data JPA)
+* **Persistência:** Hibernate/JPA, **MySQL 8** (desenvolvimento) e **Flyway** (migrations)
+* **Testes:** JUnit 5, Mockito, MockMvc, H2 em memória (modo MySQL), Surefire/Failsafe e **JaCoCo** (cobertura)
+* **Front-end:** React + Vite (Axios para a API)
+* **Controle de versão:** Git & GitHub
 * **CI/CD:** GitHub Actions — previsto no roadmap
 
 ---
 
-### Regras de Negócio e Constantes (Aula 03)
+### Como Rodar o Projeto
 
-Foram definidas e documentadas as seguintes regras e limites financeiros para o funcionamento da aplicação:
+#### Pré-requisitos
+
+| Ferramenta | Versão |
+| :--- | :--- |
+| JDK | 17 |
+| Maven | 3.9+ |
+| MySQL | 8.x |
+| Node.js | 18+ (para o front-end) |
+
+#### 1. Criar o banco de desenvolvimento (uma vez)
+
+O perfil `dev` usa um banco **novo e dedicado**, chamado `ecommerce_swift`. As tabelas **não** são criadas à mão: o Flyway cria tudo na primeira subida da API.
+
+```powershell
+mysql -u root -p -e "CREATE DATABASE ecommerce_swift CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+```
+
+#### 2. Configurar a conexão (variáveis de ambiente)
+
+A API lê a conexão de três variáveis. **Nenhuma senha fica no repositório**: `DB_PASSWORD` não tem valor padrão, e sem ela a aplicação não sobe.
+
+| Variável | Obrigatória? | Exemplo |
+| :--- | :--- | :--- |
+| `DB_URL` | Não no perfil `dev` (padrão: `localhost:3306/ecommerce_swift`) | `jdbc:mysql://localhost:3307/ecommerce_swift?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC` |
+| `DB_USERNAME` | Sim | `root` |
+| `DB_PASSWORD` | Sim | *(a sua senha local)* |
+
+**Opção A: variáveis na sessão do PowerShell** (valem até fechar o terminal):
+
+```powershell
+$env:DB_USERNAME = "root"
+$env:DB_PASSWORD = "sua-senha-local"
+
+# Só se o MySQL NÃO estiver em localhost:3306. Exemplo: instância na porta 3307
+$env:DB_URL = "jdbc:mysql://localhost:3307/ecommerce_swift?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+```
+
+**Opção B: arquivo `.env`** (não precisa repetir a cada terminal). Copie o modelo e preencha a senha:
+
+```powershell
+cd back-end\ecommerce-pedidos-swift
+Copy-Item .env.example .env
+notepad .env
+```
+
+O `.env` está no `.gitignore` e nunca é versionado. Se a mesma variável existir no PowerShell e no `.env`, vale a do PowerShell.
+
+#### 3. Subir o back-end
+
+```powershell
+cd back-end\ecommerce-pedidos-swift
+mvn spring-boot:run "-Dspring-boot.run.profiles=dev"
+```
+
+> `dev` já é o perfil padrão (`spring.profiles.default=dev`), então `mvn spring-boot:run` também funciona. O parâmetro explícito deixa claro qual perfil está ativo. No PowerShell, as **aspas** são obrigatórias por causa do `-D` com ponto.
+
+Na primeira subida o log mostra `Successfully applied 1 migration`. A API fica em:
+
+```text
+http://localhost:8080/api
+```
+
+#### 4. Subir o front-end
+
+Em outro terminal:
+
+```powershell
+cd front-end
+npm install
+npm run dev
+```
+
+Acesse o endereço exibido pelo Vite (normalmente `http://localhost:5173`). O back-end libera CORS para essa origem.
+
+#### 5. Rodar os testes
+
+```powershell
+cd back-end\ecommerce-pedidos-swift
+mvn clean test     # só a suíte de unidade (rápida, sem Spring)
+mvn clean verify   # unidade + integração (Spring, H2 e Flyway) + regras de cobertura
+```
+
+* Os testes de integração têm `@Tag("integracao")` e rodam pelo Failsafe no `verify`. Usam o perfil `test`: **H2 em memória** no modo MySQL, com as **mesmas migrations** do Flyway. Não precisam de MySQL nem de variáveis de ambiente.
+* Regras do **JaCoCo** (o build **falha** abaixo delas):
+  * `mvn test`: pacotes `modelo` e `excecao` com no mínimo **70% das linhas** cobertas pelos testes de unidade;
+  * `mvn verify`: projeto inteiro (unidade + integração) com no mínimo **85% das linhas** e **65% dos ramos**.
+* Ficam fora da medição só a classe `main` e os `record` de DTO.
+* Relatórios: `back-end/ecommerce-pedidos-swift/target/site/jacoco/` (unidade), `jacoco-it/` (integração) e `jacoco-total/` (as duas somadas). Abra o `index.html` no navegador.
+
+---
+
+### Perfis de Execução
+
+| Perfil | Banco | Para quê | Arquivo |
+| :--- | :--- | :--- | :--- |
+| `dev` (padrão) | MySQL `ecommerce_swift` | Desenvolvimento local; mostra o SQL formatado no console (`show-sql`, `format_sql`) | `src/main/resources/application-dev.properties` |
+| `test` | H2 em memória, `MODE=MySQL` | Testes automatizados (`@ActiveProfiles("test")`) | `src/test/resources/application-test.properties` |
+
+Configurações comuns (`application.properties`): `ddl-auto=validate` (o Hibernate só confere o schema criado pelo Flyway; nunca cria tabelas), `open-in-view=false` e leitura de `${DB_URL}`, `${DB_USERNAME}` e `${DB_PASSWORD}`.
+
+---
+
+### Arquitetura (Aula 14)
+
+```text
+Front-end (React)
+    ↓  HTTP + JSON
+controller   → recebe a requisição, aplica @Valid e devolve DTOs
+    ↓
+servico      → interfaces (ClienteService...) + implementações (...Impl) com @Transactional
+    ↓
+modelo       → entidades JPA com as regras de negócio (Pedido calcula o total, Produto controla o estoque)
+    ↓
+repositorio  → interfaces Spring Data JPA (CRUD + @Query JPQL + JOIN FETCH)
+    ↓
+MySQL (schema versionado pelo Flyway)
+```
+
+* **DTOs** (`dto/`): os *requests* têm Bean Validation (`@NotBlank`, `@Email`, `@Positive`...). Os *responses* fixam o JSON que o front-end consome, sem expor as relações do banco. Clientes, produtos e pedidos são identificados por CPF, código e número; só o item do pedido expõe o `id`, usado para removê-lo.
+* **Erros** (`ApiExceptionHandler`): todo erro volta como `{ "erro": "mensagem" }`, que é a chave lida pelo front.
+* **Transação**: criar um pedido baixa o estoque de todos os itens numa transação só. Se qualquer item falhar, nada é gravado (rollback).
+* **Consultas**: `@Query` em JPQL (cliente por CPF, estoque crítico, receita via `SUM`) e `JOIN FETCH` no `PedidoRepository`, que carrega pedido, cliente, itens, produtos e pagamento numa única consulta e evita o problema N+1.
+
+---
+
+### API REST
+
+Base: `http://localhost:8080/api`
+
+| Método | Rota | Descrição | Sucesso | Erros comuns |
+| :--- | :--- | :--- | :---: | :--- |
+| GET | `/clientes?situacao=&pagina=&tamanho=` | Lista clientes (padrão: ativos) | 200 | 400 (parâmetro inválido) |
+| GET | `/clientes/{cpf}` | Busca cliente ativo | 200 | 404 |
+| GET | `/clientes/{cpf}/pedidos?pagina=&tamanho=` | Pedidos do cliente, inclusive inativo | 200 | 404 |
+| POST | `/clientes` | Cadastra cliente | 201 | 400 (validação/CPF), 409 (CPF ou e-mail duplicado) |
+| PUT | `/clientes/{cpf}` | Atualiza nome e contato (o CPF não muda) | 200 | 400, 404, 409 (e-mail em uso) |
+| DELETE | `/clientes/{cpf}` | Exclui cliente sem pedidos | 204 | 404, 409 (tem pedidos: inative-o) |
+| POST | `/clientes/{cpf}/inativar` · `/reativar` | Soft delete e reativação | 204 · 200 | 404 |
+| GET | `/produtos?situacao=&nome=&pagina=&tamanho=` | Lista produtos (padrão: ativos) | 200 | 400 |
+| GET | `/produtos/{codigo}` | Busca produto ativo | 200 | 404 |
+| POST | `/produtos` | Cadastra produto | 201 | 400, 409 (código duplicado) |
+| PUT | `/produtos/{codigo}` | Atualiza produto (inclusive inativo); `versao` opcional | 200 | 400, 404, 409 (código duplicado / versão desatualizada) |
+| PATCH | `/produtos/{codigo}/estoque` | Altera só o estoque: `{"quantidade": n}` | 200 | 400, 404 |
+| DELETE | `/produtos/{codigo}` | Soft delete (inativa) | 204 | 404 |
+| DELETE | `/produtos/{codigo}?definitivo=true` | Exclui produto nunca vendido | 204 | 404, 409 (já vendido: inative-o) |
+| POST | `/produtos/{codigo}/inativar` · `/reativar` | Soft delete e reativação | 204 · 200 | 404 |
+| GET | `/pedidos?situacao=&pagina=&tamanho=` | Lista pedidos (mais recentes primeiro) | 200 | 400 |
+| GET | `/pedidos/{numero}` | Busca pedido completo | 200 | 404 |
+| POST | `/pedidos` | Cria pedido e baixa o estoque | 201 | 400, 404 (cliente/produto), 409 (estoque/produto inativo) |
+| PUT | `/pedidos/{numero}/status` | `CANCELADO` = cancelar; `ABERTO` não muda nada | 200 | 400, 404, 409 |
+| POST | `/pedidos/{numero}/cancelar` | Devolve estoque e estorna pagamento | 200 | 404, 409 (já cancelado) |
+| DELETE | `/pedidos/{numero}` | Exclui pedido em aberto (devolve estoque) | 204 | 404, 409 (pago ou cancelado) |
+| DELETE | `/pedidos/{numero}/itens/{itemId}` | Remove item de pedido aberto (devolve estoque) | 200 | 404, 409 (pedido não está aberto) |
+| GET | `/pagamentos` | Lista pagamentos | 200 | |
+| POST | `/pagamentos` | Paga um pedido aberto | 201 | 400, 404, 409 (recusado/valor ≠ total) |
+| GET | `/dashboard` | Indicadores (contagens de ativos) | 200 | |
+| GET | `/historico` | Últimos 10 pedidos | 200 | |
+
+Parâmetros das listagens: `situacao=ativos|inativos|todos` (clientes e produtos) ou `aberto|pago|cancelado` (pedidos); `pagina` começa em 0 e `tamanho` vai de 1 a 500 (padrão 20). Sem `pagina` nem `tamanho`, a lista vem inteira, como o front espera.
+
+Exemplo de criação de pedido:
+
+```json
+POST /api/pedidos
+{ "clienteCpf": "78617768916", "itens": [ { "codigo": "CAM-001", "quantidade": 2 } ] }
+```
+
+Exemplo de pagamento (campos usados dependem do `tipo`):
+
+```json
+POST /api/pagamentos
+{ "tipo": "PIX", "valor": "99.80", "chave": "cliente@email.com", "tipoChave": "EMAIL", "pedidoNumero": "PED-2026-01234" }
+{ "tipo": "BOLETO", "valor": "99.80", "vencimento": "2026-12-31", "codigo": "34191.79001", "pedidoNumero": "..." }
+{ "tipo": "CARTAO", "valor": "99.80", "numero": "**** 4242", "bandeira": "Visa", "parcelas": 3, "pedidoNumero": "..." }
+```
+
+> Os CPFs deste README e dos testes são **sintéticos**, gerados com dígitos verificadores válidos apenas para exemplo. Não use CPFs reais em testes.
+
+---
+
+### CRUD Completo, Integridade Referencial e Transações (Aula 13)
+
+As regras vieram da branch `feature/crud-completo` (PR #18), que as implementou com JDBC manual. Nesta versão elas rodam sobre **Spring Data JPA + Flyway**, com o mesmo comportamento na API.
+
+| Entidade | Create | Read | Update | Delete |
+| :--- | :--- | :--- | :--- | :--- |
+| Produto | ✅ | ativos por padrão, inativos sob pedido, busca por nome, paginação | completo (com versão otimista) e parcial (só estoque) | soft delete; exclusão definitiva só se nunca foi vendido |
+| Cliente | ✅ (CPF e e-mail únicos) | ativos por padrão, por CPF, paginação | ✅ | exclusão definitiva (bloqueada se tiver pedidos) + soft delete |
+| Pedido | ✅ transacional | por número, por cliente, por situação, paginação | situação (pagar / cancelar) | só pedido `ABERTO`; pago ou cancelado nunca é excluído |
+| ItemPedido | ✅ junto com o pedido | ✅ junto com o pedido | — (o preço é histórico) | remover item de pedido aberto (devolve o estoque) |
+
+#### Políticas de exclusão
+
+| Relacionamento | Política | Por quê |
+| :--- | :--- | :--- |
+| Pedido → ItemPedido | `ON DELETE CASCADE` (+ `orphanRemoval` no JPA) | Composição: o item não existe sem o pedido. |
+| Cliente → Pedido | `RESTRICT` + soft delete do cliente | O histórico de vendas não some com o cadastro. Cliente com pedidos é **inativado**. |
+| Produto → ItemPedido | `RESTRICT` + soft delete do produto | Pedido antigo precisa do produto vendido. O `DELETE` da API **inativa** o produto. |
+| Pedido pago | regra no serviço | Pedido pago é **cancelado** (estoque volta, pagamento estornado), nunca excluído. |
+
+| Situação | O que acontece |
+| :--- | :--- |
+| Excluir pedido com itens | Só para pedido `ABERTO`: os itens saem em cascata e o estoque reservado volta, na mesma transação. |
+| Excluir cliente com pedidos | **409**: "Este cliente possui pedidos e não pode ser excluído. Inative-o..." |
+| Excluir produto que está em pedidos | `DELETE /api/produtos/{codigo}` inativa (204). Com `?definitivo=true` → **409**. |
+| Excluir pedido já pago | **409**: "Pedido já pago não pode ser excluído. Cancele o pedido..." Use `POST /api/pedidos/{numero}/cancelar`. |
+
+#### Soft delete
+
+* A coluna `ativo` existe em `produto` (desde a V1) e em `cliente` (V2).
+* Listagens e buscas por CPF/código mostram só ativos. Inativos são pedidos de forma **explícita**: `?situacao=inativos|todos`. O enum `Visibilidade` (`ATIVOS`, `INATIVOS`, `TODOS`) faz esse filtro no serviço.
+* Pedidos carregam cliente e produtos **sem** o filtro, de propósito: um pedido antigo continua mostrando o produto e o cliente, mesmo inativos, e o preço cobrado (`item_pedido.preco_praticado`).
+* No front, o campo "Disponível" do produto é o próprio soft delete: desmarcado, o produto sai da listagem padrão.
+
+#### Transação e concorrência
+
+* `PedidoServiceImpl.criar` é `@Transactional`: pedido, itens e baixa de estoque são gravados juntos. Qualquer exceção (estoque insuficiente, produto inexistente) desfaz tudo.
+* Os produtos da venda são lidos **com bloqueio** (`@Lock(PESSIMISTIC_WRITE)`, ou seja `SELECT ... FOR UPDATE`): duas vendas simultâneas do mesmo produto acontecem uma depois da outra, o estoque nunca fica negativo e a mensagem de estoque insuficiente mostra o saldo real.
+* `Produto` tem `@Version`: o `PUT` aceita `versao` e recusa com **409** uma versão desatualizada.
+* Cancelamento, pagamento, exclusão de pedido e remoção de item também são transacionais.
+
+#### Migrations (Flyway)
+
+Ficam em `back-end/ecommerce-pedidos-swift/src/main/resources/db/migration/`:
+
+| Versão | Conteúdo |
+| :--- | :--- |
+| `V1__esquema_inicial.sql` | Tabelas de cliente, produto (com `ativo` e `versao`), pedido, itens e formas de pagamento (herança JOINED) |
+| `V2__soft_delete_integridade_e_auditoria.sql` | `cliente.ativo`, e-mail único, `ON DELETE CASCADE` dos itens, produto único por pedido, `atualizado_em` (auditoria) e índices |
+
+> **Banco criado pela versão JDBC:** quem rodou a `feature/crud-completo` tem tabelas criadas pelo executor de migrations antigo (`db/migracao`), que o Flyway não reconhece. Crie o banco `ecommerce_swift` de novo (veja "Como Rodar") antes de subir esta versão.
+
+---
+
+### Domínio e Conceitos por Aula
+
+#### Utils e boas práticas (Aula 03)
+
+`util/Utils` é `final`, tem construtor privado e só métodos estáticos: validação de **CPF** (dígitos verificadores, aceita máscara), **e-mail** e texto obrigatório. As entidades a usam em vez de repetir validações. `util/PedidoUtils` mantém as regras de cálculo definidas na aula:
 
 | Constante | Valor Adotado | Regra de Negócio |
 | :--- | :--- | :--- |
@@ -82,353 +302,124 @@ Foram definidas e documentadas as seguintes regras e limites financeiros para o 
 | `TAXA_DESCONTO` | 10% (0.10) | Percentual de desconto padrão aplicado sobre o subtotal da compra. |
 | `DESCONTO_MAXIMO` | R$ 50,00 | Teto máximo de desconto concedido por pedido. |
 
+#### Encapsulamento e abstração (Aulas 04–05)
+
+Atributos privados e **sem setters públicos**. As mudanças passam por métodos de intenção que validam antes de alterar: `Cliente.atualizarContato`, `Produto.atualizarDados`, `Produto.baixarEstoque`, `FormaPagamento.estornar`. As regras ficam na entidade: `Pedido.calcularValorTotal()` e `ItemPedido.calcularSubtotal()`.
+
+#### Herança (Aula 06)
+
+* `Pessoa` (abstrata, `@MappedSuperclass`) → `Cliente` (entidade) e `Funcionario`.
+* `FormaPagamento` (abstrata, `processar()` abstrato) → `CartaoCredito`, `Boleto`, `Pix`, `ValeCompras`. No banco: herança **JOINED** (tabela `forma_pagamento` + uma tabela por subclasse).
+
+#### Relacionamentos (Aula 07)
+
+| Relacionamento | Multiplicidade | Mapeamento JPA |
+| :--- | :--- | :--- |
+| `Pedido` → `Cliente` | N : 1 | `@ManyToOne(fetch = LAZY)` |
+| `Pedido` → `ItemPedido` | 1 : N | `@OneToMany(mappedBy, cascade = ALL, orphanRemoval)` |
+| `ItemPedido` → `Produto` | N : 1 | `@ManyToOne(fetch = LAZY)` |
+| `Pedido` → `FormaPagamento` | 1 : 0..1 | `@OneToOne(cascade = ALL)` + `UNIQUE` |
+| `Cliente` → `Endereco` | 1 : 0..1 | `@Embeddable` (colunas na tabela `cliente`) |
+| `Categoria` → `Produto` | 1 : N | Agregação apenas no domínio |
+
+Itens repetidos do mesmo produto são somados num único `ItemPedido`, e o preço praticado é copiado do produto no momento da compra (histórico preservado).
+
+#### Polimorfismo e princípio aberto/fechado (Aula 08)
+
+O serviço de pagamento trabalha só com a abstração `FormaPagamento`, sem `instanceof` nem `switch` por tipo:
+
+* `FabricaFormaPagamento` usa um **mapa** `tipo → construtor` no lugar do `switch`;
+* `processar()`, `descreverMetodo()` e `dadosEspecificos()` são implementados por cada subclasse;
+* adicionar uma nova forma de pagamento = nova subclasse + uma entrada no mapa, sem alterar `Pedido` nem o serviço.
+
+#### Exceções (Aula 09)
+
+Todas as exceções de negócio são **unchecked** (`RuntimeException`): o erro sobe até o `ApiExceptionHandler`, e o `@Transactional` só faz rollback automático em exceções unchecked.
+
+| Exceção | Quando | HTTP |
+| :--- | :--- | :---: |
+| `NegocioException` | raiz das exceções de negócio | 400 |
+| `RecursoNaoEncontradoException` / `ClienteNaoEncontradoException` | cliente, produto ou pedido inexistente | 404 |
+| `ConflitoException` | duplicado, produto vendido, cliente com pedidos | 409 |
+| `EstoqueInsuficienteException` (código, solicitada, disponível) | estoque não basta | 409 |
+| `PedidoInvalidoException` | pagar pedido vazio ou já pago | 409 |
+| `PagamentoRecusadoException` (forma, motivo) | limite do cartão ou gateway recusou | 409 |
+| `IllegalArgumentException` / Bean Validation | dado inválido | 400 |
+| `IllegalStateException` | operação incompatível com o estado | 409 |
+| qualquer outra | erro inesperado (detalhe só no log) | 500 |
+
+#### Testes (Aulas 10, 11 e 14)
+
+| Tipo | Exemplos | Suíte |
+| :--- | :--- | :---: |
+| Unitários | `ProdutoTest`, `ClienteTest`, `PedidoTest`, `ItemPedidoTest`, `FormasPagamentoTest`, `UtilsTest`, `ParametrosConsultaTest` | `mvn test` |
+| Integração (fluxo) | `FluxoCompraIntegracaoTest`: cadastro → pedido → pagamento com classes reais; Mockito só no `GatewayPagamento` (sistema externo) | `mvn verify` |
+| Transação | `TransacaoPedidoTest`: falha no 2º item desfaz a baixa do 1º; duas vendas simultâneas da última unidade, só uma passa | `mvn verify` |
+| Persistência | `PersistenciaIntegracaoTest`: soft delete, RESTRICT, CASCADE, UNIQUE, CHECK, versão otimista e auditoria conferidos direto no banco | `mvn verify` |
+| Consultas | `RepositoriosConsultaTest`: `@Query` e prova do `JOIN FETCH` contando os SQLs | `mvn verify` |
+| API | `ApiIntegracaoTest` e `CrudCompletoApiTest`: MockMvc com rotas, status e corpo `{ "erro" }` | `mvn verify` |
+
 ---
 
-### Estado Atual da Integração
-
-O projeto encontra-se com o **Front-end conectado à API real do Back-end**, sem utilização de dados mockados no fluxo principal da aplicação.
-
-O Back-end é executado utilizando Spring Boot e disponibiliza a API através de:
+### Estrutura de Pastas
 
 ```text
-http://localhost:8080/api
+ecommerce-pedidos-swift/
+├── back-end/ecommerce-pedidos-swift/
+│   ├── .env.example                      # modelo das variáveis (sem senha)
+│   ├── pom.xml
+│   └── src/
+│       ├── main/java/com/ecommerce/pedidos/
+│       │   ├── controller/               # REST + ApiExceptionHandler
+│       │   ├── dto/                      # requests (validação) e responses (contrato JSON)
+│       │   ├── excecao/                  # hierarquia de exceções de negócio
+│       │   ├── modelo/                   # entidades e regras de negócio
+│       │   ├── repositorio/              # interfaces Spring Data JPA
+│       │   ├── servico/                  # interfaces + implementações (@Transactional)
+│       │   └── util/                     # Utils e PedidoUtils
+│       ├── main/resources/
+│       │   ├── application.properties
+│       │   ├── application-dev.properties
+│       │   └── db/migration/             # V1 e V2 (Flyway)
+│       └── test/
+│           ├── java/...                  # unitários, integração e API
+│           └── resources/application-test.properties
+├── front-end/                            # React + Vite (src/api, src/pages, src/components)
+├── .gitignore
+└── README.md
 ```
-
-O Front-end utiliza essa API como fonte de dados para as principais áreas do sistema:
-
-* Clientes
-* Produtos
-* Pedidos
-* Pagamentos
-* Histórico de compras
-* Dashboard
-
-O estado da interface é determinado pelos dados efetivamente retornados pela API.
-
-Quando não existem registros, a interface apresenta estados vazios, por exemplo:
-
-```text
-Nenhum cliente cadastrado ainda.
-Nenhum produto cadastrado ainda.
-Nenhum pedido registrado ainda.
-```
-
-Da mesma forma, falhas de comunicação com a API são apresentadas ao usuário por meio de mensagens de erro amigáveis.
-
-Não são utilizados registros fictícios apenas para preencher tabelas, cards, indicadores ou outras áreas da interface.
 
 ---
 
-### Front-end
+### Roadmap do Projeto (Status por Aula)
 
-O Front-end foi estruturado como uma interface administrativa para gerenciamento do sistema de e-commerce.
-
-A interface possui:
-
-* Dashboard
-* Gestão de Clientes
-* Gestão de Produtos
-* Gestão de Pedidos
-* Pagamentos
-* Histórico de compras
-* Navegação lateral
-* Busca
-* Estados de carregamento
-* Estados vazios
-* Mensagens de erro
-* Atualização dos dados
-
-A identidade visual utiliza como base o **laranja associado à marca Swift**, combinado com branco, preto e tons neutros.
-
-A proposta visual prioriza:
-
-* Interface limpa e profissional.
-* Hierarquia visual clara.
-* Cards e tabelas organizados.
-* Uso consistente da cor principal.
-* Feedback visual para sucesso, erro e estados do sistema.
-* Responsividade e organização dos componentes.
-* Ausência de dados simulados na aplicação real.
-
-O Front-end não deve criar ou inventar informações que não tenham sido retornadas pela API.
+| Aula | Entrega Prevista | Status |
+| :---: | :--- | :---: |
+| **01** | Repositório criado, estruturado, com README e commit inicial | 🟢 Concluído |
+| **02** | Fluxo de branches e primeiro Pull Request revisado | 🟢 Concluído |
+| **03** | Classes utilitárias (`Utils`, `PedidoUtils`) usadas pelo domínio | 🟢 Concluído |
+| **04** | Classes de domínio (Produto, Cliente, Pedido, ItemPedido) | 🟢 Concluído |
+| **05** | Encapsulamento e abstração aplicados | 🟢 Concluído |
+| **06** | Herança (`Pessoa`, `FormaPagamento`) | 🟢 Concluído |
+| **07** | Relacionamentos entre classes do domínio | 🟢 Concluído |
+| **08** | Módulo de pagamento polimórfico | 🟢 Concluído |
+| **09** | Tratamento de exceções e validações | 🟢 Concluído |
+| **10** | Suíte de testes unitários | 🟢 Concluído |
+| **11** | Testes de integração + cobertura (JaCoCo: 85% das linhas e 65% dos ramos no total) | 🟢 Concluído |
+| **12** | Persistência: conexão, Create e Read (Spring Data JPA) | 🟢 Concluído |
+| **13** | Persistência: CRUD completo, soft delete, integridade referencial e transações | 🟢 Concluído |
+| **14** | Spring Boot: camadas, DTOs, validação, perfis, Flyway, `@Query`, `JOIN FETCH` | 🟢 Concluído |
+| **15** | API REST completa + integração com Front-end + pipeline de CI/CD | 🟡 Em desenvolvimento |
+| **16** | Entrega final, documentação consolidada e apresentação | ⏳ Pendente |
 
 ---
 
 ### Dívidas Técnicas Registradas
 
-1. **Precisão de Valores Monetários (`double` vs `BigDecimal`):** Os valores monetários de subtotal, frete e desconto foram inicialmente implementados utilizando `double` para fins didáticos. A utilização de `BigDecimal` permanece como referência para a evolução da camada financeira, evitando inconsistências de arredondamento em operações monetárias.
-
-2. **Persistência:** Implementada com MySQL/JDBC e padrão Repository (Aula 13). Os registros de pagamento (`FormaPagamentoRepository`) ainda ficam em memória.
-
-3. **Autenticação e Autorização:** O projeto ainda não possui um mecanismo completo de autenticação e autorização de usuários.
-
-4. **Fluxo Completo de Pedidos:** A integração visual e a comunicação com a API já estão estruturadas, porém o ciclo completo de criação, edição, inclusão de itens, pagamento e alteração de status continuará sendo desenvolvido conforme as próximas etapas do projeto.
-
----
-
-### Relacionamentos (Aula 07)
-
-| Relacionamento | Tipo | Multiplicidade | Regra no código |
-| :--- | :--- | :--- | :--- |
-| `Pedido` → `Cliente` | Associação | `1 : 1` | Todo pedido exige um cliente no construtor. |
-| `Pedido` → `ItemPedido` | Composição | `1 : 0..*` | O pedido cria os itens e expõe somente uma lista imutável. |
-| `ItemPedido` → `Produto` | Associação | `1 : 1` | O produto é obrigatório e fica final no item. |
-| `Pedido` → `FormaPagamento` | Associação opcional | `1 : 0..1` | O pagamento só é guardado após processamento aprovado. |
-| `Categoria` → `Produto` | Agregação | `1 : 0..*` | A categoria mantém produtos, mas não os cria nem destrói. |
-| `Cliente` → `Endereco` | Associação opcional | `1 : 0..1` | O endereço pode ser nulo e é validado quando informado. |
-
-Itens repetidos do mesmo produto são consolidados em um único `ItemPedido`. A nova quantidade é somada, o estoque é baixado somente pela quantidade adicional e o preço praticado permanece o da primeira inclusão. Essa decisão evita linhas duplicadas no pedido e preserva o preço histórico da transação.
-
-**Status da Aula 07:** concluída na branch `feature/relacionamentos`, com composição, associação, agregação, controle de estoque, cancelamento e validações demonstrados em `Aplicacao.java`.
-
----
-
-### CRUD Completo, Integridade Referencial e Transações (Aula 13)
-
-A persistência saiu da memória e passou para o **MySQL 8**, usando **JDBC puro** (`mysql-connector-j` + `ConexaoFactory`), a mesma biblioteca já adotada na Aula 12. Nenhum ORM foi adicionado.
-
-> **Adaptação registrada:** o enunciado da tarefa descrevia um backend em Swift. O backend real deste repositório é **Java 17 + Spring Boot** ("swift" é o nome da squad). Os conceitos foram aplicados de forma idiomática em Java/JDBC: o "enum de erro que conforma `Error`" virou `RepositorioException` com um `enum Tipo`; os "protocolos" viraram `interface`s; a transação usa `setAutoCommit(false)` com `commit`/`rollback` explícitos.
-
-#### Visão geral das funcionalidades
-
-| Entidade | Create | Read | Update | Delete |
-| :--- | :--- | :--- | :--- | :--- |
-| Produto | ✅ | ✅ ativos por padrão, inativos sob pedido, busca por nome, paginação | ✅ completo (com versão otimista) e parcial (só estoque) | Soft delete (inativar/reativar). Exclusão definitiva só se nunca foi vendido |
-| Cliente | ✅ | ✅ ativos por padrão, por CPF, por e-mail, paginação | ✅ | Exclusão definitiva (bloqueada se tiver pedidos) + soft delete |
-| Pedido | ✅ finalização transacional | ✅ por número, por cliente, por situação, paginação | ✅ situação (pagar / cancelar) | Só pedido `ABERTO`. Pago/cancelado nunca é excluído |
-| ItemPedido | ✅ junto com o pedido | ✅ junto com o pedido | — (o preço é histórico) | ✅ remover item de pedido aberto (devolve o estoque) |
-
-Regras aplicadas em **todo** UPDATE/DELETE:
-
-- Sempre com `WHERE id = ?` e parâmetros (`PreparedStatement`). Nunca há concatenação de valores no SQL.
-- Objeto sem `id` não pode ser atualizado nem removido: lança `RepositorioException` do tipo `VALIDACAO`.
-- As **linhas afetadas são verificadas**. Zero linhas não é erro para o banco (o comando rodou, só não encontrou nenhuma linha); é a aplicação que decide que isso significa "não existe". Por isso vira `RepositorioException.naoEncontrado(...)` → **HTTP 404**, em vez de ser ignorado.
-- Erros do MySQL nunca sobem crus: `TradutorErroSql` converte **1451 / SQLSTATE 23000** (linha referenciada por FK) em mensagem de negócio, sem citar tabela nem constraint. Também traduz 1062 (duplicado) e 1452 (referência inexistente) → **HTTP 409**.
-
-#### Políticas de exclusão (integridade referencial)
-
-Definidas na migration `V2__politicas_integridade_referencial.sql`:
-
-| Relacionamento | Política | Justificativa de negócio |
-| :--- | :--- | :--- |
-| Pedido → ItemPedido | `ON DELETE CASCADE` | Composição: o item não existe sem o pedido. Excluir um pedido (em aberto) leva os itens junto. |
-| Cliente → Pedido | `ON DELETE RESTRICT` + soft delete do cliente | O histórico de vendas não pode sumir com o cadastro. Cliente com pedidos é **inativado**, não excluído. |
-| Produto → ItemPedido | `ON DELETE RESTRICT` + soft delete do produto | Pedido antigo precisa do produto vendido. O `DELETE` da API **inativa** o produto. |
-| Pedido pago/cancelado | Regra na camada de serviço | Pedido pago é **cancelado** (a situação muda e o estoque volta), nunca excluído. |
-
-Respostas às situações da aula:
-
-| Situação | O que acontece |
-| :--- | :--- |
-| Excluir pedido com itens | Permitido só para pedido `ABERTO`: os itens saem em cascata e o estoque reservado é devolvido, na mesma transação. |
-| Excluir cliente com pedidos | **409**: "Este cliente possui pedidos e não pode ser excluído. Inative o cadastro para preservar o histórico de compras." |
-| Excluir produto que está em pedidos | `DELETE /api/produtos/{codigo}` inativa (204). Com `?definitivo=true` → **409**: "Este produto já foi vendido e não pode ser excluído. Inative-o para retirá-lo do catálogo." |
-| Excluir produto nunca vendido | `DELETE /api/produtos/{codigo}?definitivo=true` remove de fato (204). |
-| Excluir pedido já pago | **409**: "Pedido já pago não pode ser excluído. Cancele o pedido para preservar o histórico de vendas." Use `POST /api/pedidos/{numero}/cancelar`. |
-
-#### Soft delete e filtro nas consultas
-
-- A migration `V3__soft_delete.sql` adiciona `ativo BOOLEAN NOT NULL DEFAULT TRUE` em `produto` e `cliente`.
-- `inativar(id)` e `reativar(id)` existem nos repositórios e serviços.
-- **Todas** as consultas de produto e cliente filtram `ativo = TRUE` por padrão. O filtro é centralizado: cada repositório monta seus SELECTs por um único método (`select(Visibilidade, condicao)`), e o enum `Visibilidade` (`ATIVOS`, `INATIVOS`, `TODOS`) gera a condição. Não dá para escrever uma consulta "esquecendo" o filtro.
-- Buscar inativos é **explícito**: `?situacao=inativos|todos` na API, ou `Visibilidade.INATIVOS/TODOS` no código.
-- Pedidos carregam cliente e produtos **sem** o filtro, de propósito: um pedido antigo continua exibindo o produto vendido e o cliente, mesmo inativos.
-- O preço cobrado fica gravado em `item_pedido.preco_unitario`. Se o produto mudar de preço ou for inativado, o pedido antigo continua mostrando o valor da época (coberto por teste).
-- **Adaptação:** o campo `ativo` do domínio já existia e é exibido no front como "Disponível". Agora ele é o próprio soft delete: produto cadastrado ou editado com "disponível" desmarcado sai da listagem padrão (aparece em `?situacao=inativos`).
-
-#### Finalização do pedido (transação)
-
-`PedidoService.criarPedido` é atômico, **tudo ou nada**:
-
-```text
-BEGIN (setAutoCommit(false))
-  busca cliente ativo e produtos ativos
-  monta o Pedido no domínio (valida, consolida itens, congela o preço)
-  INSERT pedido
-  para cada item:
-      INSERT item_pedido
-      UPDATE produto SET quantidade_em_estoque = quantidade_em_estoque - ?
-             WHERE id = ? AND ativo = TRUE AND quantidade_em_estoque >= ?
-      0 linhas afetadas → EstoqueInsuficienteException (antes do commit)
-COMMIT                         ← qualquer exceção acima → ROLLBACK completo
-```
-
-- `GerenciadorTransacao` (interface) / `JdbcGerenciadorTransacao` (implementação) abre **uma** conexão, repassa **a mesma** para todos os repositórios (primeiro parâmetro de todo método), faz `commit` ou `rollback` e sempre fecha a conexão, inclusive no caminho de falha.
-- A baixa de estoque é condicional no próprio `UPDATE`, então duas vendas simultâneas não deixam o estoque negativo (evita condição de corrida). A mensagem de estoque insuficiente relê o estoque com `SELECT ... FOR UPDATE`, para mostrar o valor realmente disponível naquele momento.
-- Cancelamento, pagamento, exclusão de pedido e remoção de item também são transacionais (situação e estoque juntos).
-
-#### Estrutura de repositórios
-
-```text
-repositorio/                          ← contratos (serviços dependem só disto)
-├── ProdutoRepository                 salvar, atualizar, atualizarEstoque, baixarEstoque, devolverEstoque,
-│                                     inativar, reativar, remover, buscarPorId, buscarPorIdParaAtualizacao,
-│                                     buscarPorCodigo, listarTodos, listar(Visibilidade), buscarPorNome, contar
-├── ClienteRepository                 salvar, atualizar, remover, inativar, reativar, buscarPorId,
-│                                     buscarPorCpf, buscarPorEmail, listarTodos, listar, contar
-├── PedidoRepository                  salvar, atualizarSituacao, remover, buscarPorId, buscarPorNumero,
-│                                     listarTodos, listarPorCliente, listarPorSituacao, contar
-├── ItemPedidoRepository              inserir, listarPorPedido, remover, contarPorPedido
-├── GerenciadorTransacao              executarEmTransacao / executar
-├── RepositorioException (+ Tipo)     erro de persistência tipado
-├── Pagina, Visibilidade              paginação (LIMIT/OFFSET) e filtro de soft delete
-└── mysql/                            ← implementações (só o PersistenciaConfig as conhece)
-    ├── RepositorioJdbcBase           PreparedStatement, linhas afetadas, tradução de erros
-    ├── ProdutoRepositoryMySql, ClienteRepositoryMySql, PedidoRepositoryMySql, ItemPedidoRepositoryMySql
-    ├── JdbcGerenciadorTransacao, TradutorErroSql, Mapeadores
-    └── ExecutorMigracoes             aplica db/migracao/V*.sql
-```
-
-- `salvar` decide entre INSERT e UPDATE pelo id (`null` = novo).
-- Convenções iguais em todos: conexão como primeiro parâmetro, `Optional` nas buscas, `RepositorioException` em toda falha.
-- Controllers e serviços recebem as interfaces por injeção de dependência (`config/PersistenciaConfig`). Não há SQL fora de `repositorio/mysql`.
-- O antigo `ProdutoDAO` foi migrado para `ProdutoRepositoryMySql` e removido.
-- **Adaptação:** as entidades ganharam um `id` numérico (chave do banco), mas a API continua identificando os registros por CPF, código e número nas URLs, para não quebrar o front.
-- `FormaPagamentoRepository` (pagamentos) continua em memória: os pagamentos não fazem parte do escopo da Aula 13. A situação `PAGO` do pedido, porém, é gravada no banco.
-
-#### Desejáveis implementados
-
-- **Atualização parcial:** `PATCH /api/produtos/{codigo}/estoque`.
-- **Concorrência otimista:** coluna `produto.versao`. O `UPDATE ... WHERE id = ? AND versao = ?` recusa gravação com versão antiga → **409** (coberto por teste). O `PUT` aceita `versao` opcional no corpo.
-- **Paginação:** `?pagina=0&tamanho=20` em produtos, clientes e pedidos (sem os parâmetros, devolve tudo, como antes).
-- **Auditoria:** coluna `atualizado_em` com `ON UPDATE CURRENT_TIMESTAMP` em produto, cliente e pedido.
-
-#### Endpoints novos/alterados e códigos de erro
-
-| Método | Rota | Sucesso | Erros |
-| :--- | :--- | :--- | :--- |
-| GET | `/api/produtos?situacao=&nome=&pagina=&tamanho=` | 200 | 400 (parâmetro inválido) |
-| GET | `/api/produtos/{codigo}` | 200 | 404 |
-| PUT | `/api/produtos/{codigo}` | 200 | 404, 409 (código duplicado / versão desatualizada), 400 |
-| PATCH | `/api/produtos/{codigo}/estoque` `{"quantidade": n}` | 200 | 404, 400 |
-| DELETE | `/api/produtos/{codigo}` (inativa) | 204 | 404 |
-| DELETE | `/api/produtos/{codigo}?definitivo=true` | 204 | 404, 409 (já vendido) |
-| POST | `/api/produtos/{codigo}/inativar` · `/reativar` | 204 · 200 | 404 |
-| GET | `/api/clientes?situacao=&pagina=&tamanho=` | 200 | 400 |
-| GET | `/api/clientes/{cpf}` · `/api/clientes/{cpf}/pedidos` | 200 | 404 |
-| POST | `/api/clientes` | 201 | 409 (CPF/e-mail duplicado), 400 |
-| PUT | `/api/clientes/{cpf}` | 200 | 404, 409, 400 |
-| DELETE | `/api/clientes/{cpf}` | 204 | 404, 409 (possui pedidos) |
-| POST | `/api/clientes/{cpf}/inativar` · `/reativar` | 204 · 200 | 404 |
-| GET | `/api/pedidos?situacao=ABERTO\|PAGO\|CANCELADO&pagina=&tamanho=` | 200 | 400 |
-| GET | `/api/pedidos/{numero}` | 200 | 404 (antes devolvia 200 vazio) |
-| POST | `/api/pedidos` | 201 | 404 (cliente/produto), 422 (estoque insuficiente), 400 |
-| PUT | `/api/pedidos/{numero}/status` | 200 | 404, 409 |
-| POST | `/api/pedidos/{numero}/cancelar` | 200 | 404, 409 (já cancelado) |
-| DELETE | `/api/pedidos/{numero}` | 204 | 404, 409 (pago ou cancelado) |
-| DELETE | `/api/pedidos/{numero}/itens/{itemId}` | 200 | 404, 409 (pedido não está aberto) |
-| POST | `/api/pagamentos` | 201 | 404 (pedido), 409, 422 (pedido inválido / pagamento recusado) |
-
-Falhas técnicas do banco devolvem **500** com mensagem genérica; o detalhe vai só para o log. Todas as respostas de erro seguem o formato `{"erro": "mensagem"}`, já consumido pelo front.
-
-#### Migrations
-
-Ficam em `back-end/ecommerce-pedidos-swift/src/main/resources/db/migracao/`:
-
-| Versão | Conteúdo |
-| :--- | :--- |
-| `V1__esquema_inicial.sql` | Tabelas `cliente`, `produto`, `pedido`, `item_pedido` (com `preco_unitario`) |
-| `V2__politicas_integridade_referencial.sql` | CASCADE / RESTRICT explícitos nas FKs |
-| `V3__soft_delete.sql` | Coluna `ativo` em produto e cliente |
-| `V4__concorrencia_e_auditoria.sql` | `versao` e `atualizado_em` |
-
-**Aplicação automática:** ao subir a aplicação, o `ExecutorMigracoes` aplica as versões pendentes e as registra na tabela `schema_migracao`. O banco `ecommerce` é criado automaticamente (`createDatabaseIfNotExist=true`). Para desligar, use `db.migracoes.automaticas=false`.
-
-**Aplicação manual** (alternativa):
-
-```bash
-cd back-end/ecommerce-pedidos-swift/src/main/resources/db/migracao
-mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS ecommerce"
-for f in V1__*.sql V2__*.sql V3__*.sql V4__*.sql; do mysql -u root -p ecommerce < "$f"; done
-```
-
-#### Como rodar os testes
-
-```bash
-cd back-end/ecommerce-pedidos-swift
-mvn clean test      # só a suíte de unidade (sem banco)
-mvn clean verify    # unidade + integração com MySQL + relatório de cobertura
-```
-
-- Os testes de integração (tag `integracao`, pacote `integracao/`) usam um banco **separado**, `ecommerce_test`. Ele é criado se não existir, o esquema é recriado pelas próprias migrations e os dados são limpos após cada teste. A URL é configurável por `DB_TEST_URL`; usuário e senha vêm de `DB_USERNAME`/`DB_PASSWORD` ou do `application.properties`.
-- Se o MySQL não estiver acessível, os testes de integração são **ignorados** (não falham). Detalhes das suítes e da cobertura na seção da Aula 11.
-- Os serviços também são testados sem banco, com repositórios em memória (`apoio/BancoEmMemoria`).
-
-Cenários cobertos: atualizar e conferir o valor gravado; atualizar id inexistente (erro de domínio); excluir e confirmar vazio; RESTRICT com mensagem de negócio; CASCADE; soft delete fora das listagens; preço histórico; concorrência otimista; paginação; e os **4 cenários de transação**: sucesso completo, falha ao gravar o segundo item, falha ao baixar estoque e estoque insuficiente no meio do laço (venda concorrente em outra conexão). Nos cenários de falha, o teste confirma que nenhum pedido, item ou alteração de estoque permaneceu.
-
-**Resultado na entrega da Aula 13:** 73 testes, 0 falhas (41 sem banco + 32 de integração). Com a Aula 11, a suíte passou a ter 113 testes (ver abaixo).
-
-**Status da Aula 13:** concluída na branch `feature/crud-completo`.
-
----
-
-### Suíte de Testes de Integração e Relatório de Cobertura (Aula 11)
-
-Os testes foram separados em duas suítes, no padrão do Maven, e a cobertura passou a ser medida e exigida para o projeto inteiro.
-
-#### As duas suítes
-
-| Suíte | Plugin | Comando | Precisa de MySQL? | O que cobre |
-| :--- | :--- | :--- | :---: | :--- |
-| **Unidade** | Surefire | `mvn test` | Não | Domínio, exceções, `PedidoUtils`, regras dos serviços (com repositórios em memória), tradução de erros, mapeamento HTTP |
-| **Integração** | Failsafe | `mvn verify` | Sim | Repositórios contra o MySQL real, transações e rollback, e a **API REST ponta a ponta** (HTTP → controller → serviço → repositório → banco) |
-
-- A separação é feita pela tag JUnit `@Tag("integracao")`: o Surefire exclui a tag e o Failsafe roda só ela.
-- `mvn verify` executa as duas suítes, nesta ordem, e depois verifica a cobertura.
-- Os testes de integração usam o banco separado `ecommerce_test` (criado automaticamente, recriado pelas migrations e limpo após cada teste). URL configurável por `DB_TEST_URL`.
-
-#### Testes de integração da API (`ApiIntegracaoTest`)
-
-Sobem o contexto Spring completo (`@SpringBootTest` + `MockMvc`), inclusive a aplicação automática das migrations, e conferem tanto o código HTTP quanto o que ficou gravado no banco:
-
-- **Produtos:** cadastrar → buscar → atualizar → atualização parcial de estoque; versão desatualizada (409); soft delete e reativação; exclusão definitiva (204 se nunca vendido, 409 se vendido); busca por nome, paginação, parâmetros inválidos (400), código duplicado (409), produto inexistente (404).
-- **Clientes:** buscar e atualizar; atualizar inexistente (404); excluir com pedidos (409 com a mensagem de negócio); inativar/reativar mantendo o histórico de pedidos; CPF duplicado (409); excluir duas vezes (204 e depois 404).
-- **Pedidos e pagamentos:** estoque insuficiente (422, nada gravado); cliente/produto inexistente (404); pedido sem itens (400); pagar → tentar excluir (409) → cancelar (estoque devolvido) → cancelar de novo (409); pagamento com valor errado (409) ou tipo inválido (400); remover item e excluir pedido em aberto (estoque devolvido); dashboard e histórico.
-
-#### Relatório de cobertura (JaCoCo)
-
-Após `mvn verify`, abra no navegador:
-
-| Relatório | Arquivo |
-| :--- | :--- |
-| Suíte de unidade | `back-end/ecommerce-pedidos-swift/target/site/jacoco/index.html` |
-| Suíte de integração | `back-end/ecommerce-pedidos-swift/target/site/jacoco-it/index.html` |
-| **Total (unidade + integração)** | `back-end/ecommerce-pedidos-swift/target/site/jacoco-total/index.html` |
-
-Cada relatório também gera `jacoco.csv` e `jacoco.xml` (úteis para CI). As classes de entrada sem lógica (`EcommercePedidosSwiftApplication` e `swift/Aplicacao`) ficam fora da métrica.
-
-**Regras verificadas no build:**
-
-| Regra | Fase | Mínimo |
-| :--- | :--- | :--- |
-| Pacotes `modelo` e `excecao` cobertos pela suíte de unidade | `mvn test` | 70% de linhas por pacote |
-| Projeto inteiro (unidade + integração) | `mvn verify` | 85% de linhas e 65% de ramos |
-
-Os mínimos totais ficam nas propriedades `cobertura.minima.linhas` e `cobertura.minima.ramos` do `pom.xml`.
-
-> **Correção:** a regra de 70% do domínio (Aula 10) usava nomes com ponto (`com.ecommerce.pedidos.modelo.*`), mas o JaCoCo espera caminhos de classe com barra (`com/ecommerce/pedidos/modelo/**`). Com isso a regra não verificava nenhuma classe e sempre passava, mesmo com `modelo` em 69% e `excecao` em 56%. O padrão foi corrigido e os testes que faltavam foram escritos (`DominioComplementarTest`, `ExcecoesTest`, `PedidoUtilsTest`).
-
-#### Resultado atual
-
-| Suíte | Testes | Falhas | Cobertura de linhas | Cobertura de ramos |
-| :--- | :---: | :---: | :---: | :---: |
-| Unidade | 67 | 0 | 44,0% | 43,3% |
-| Integração | 46 | 0 | 75,6% | 51,1% |
-| **Total** | **113** | **0** | **90,8%** | **71,8%** |
-
-Cobertura total por pacote: `controller` 90%, `servico` 90%, `repositorio` 98%, `repositorio.mysql` 89%, `modelo` 92%, `excecao` 100%, `swift.util` 100%. Antes desta etapa, a cobertura total era de 64% de linhas e 46% de ramos, com os controllers praticamente sem testes (7%).
-
-#### Como rodar
-
-```bash
-cd back-end/ecommerce-pedidos-swift
-mvn clean test      # só a suíte de unidade (rápida, sem banco)
-mvn clean verify    # unidade + integração + relatórios + verificação de cobertura (precisa do MySQL)
-```
-
-Se o MySQL não estiver acessível, os testes de integração são ignorados; nesse caso o `mvn verify` falha na regra de cobertura total, de propósito, para que um build sem a suíte de integração não passe despercebido. Sem banco, use `mvn test`.
-
-**Status da Aula 11:** concluída na branch `feature/crud-completo`.
+1. **`PedidoUtils` com `double`:** os cálculos de frete e desconto da Aula 03 continuam em `double` por fins didáticos. O domínio (preços, totais, pagamentos) já usa `BigDecimal`.
+2. **Autenticação e autorização:** a API ainda não exige login.
+3. **Gateway de pagamento simulado:** `GatewayPagamentoSimulado` autoriza tudo. Uma integração real implementaria a interface `GatewayPagamento`.
+4. **CI/CD:** pipeline do GitHub Actions ainda não configurado.
 
 ---
 
@@ -452,7 +443,7 @@ Para assegurar a integridade da branch principal (`main`), estabelecemos o segui
 
 3. **Commits Pequenos e Atômicos:**
 
-   Commits devem conter apenas uma ideia, utilizando mensagens padronizadas:
+   Commits devem conter apenas uma ideia, utilizando mensagens padronizadas (Conventional Commits):
 
    ```text
    tipo: descrição curta no imperativo
@@ -480,157 +471,7 @@ Para assegurar a integridade da branch principal (`main`), estabelecemos o segui
 
    O revisor deve analisar a aba *Files changed* do PR, comentando pontos fortes e sugerindo melhorias técnicas diretamente nas linhas de código antes de aprovar.
 
----
-
-### Estrutura Real de Pastas (Back-end & Front-end)
-
-A estrutura atual do repositório separa o Back-end e o Front-end:
-
-```text
-ecommerce-pedidos-swift/
-├── back-end/
-│   └── ecommerce-pedidos-swift/
-│       ├── src/
-│       │   ├── main/
-│       │   │   └── java/
-│       │       └── com/ecommerce/pedidos/
-│       │           ├── config/          (injeção das implementações MySQL)
-│       │           ├── controller/
-│       │           ├── excecao/
-│       │           ├── modelo/
-│       │           ├── repositorio/     (interfaces)
-│       │           │   └── mysql/       (implementações JDBC)
-│       │           ├── servico/
-│       │           ├── util/            (ConexaoFactory)
-│       │           └── swift/
-│       │   └── resources/db/migracao/   (V1..V4 .sql)
-│       └── test/
-│           └── java/com/ecommerce/pedidos/
-│               ├── modelo/  servico/  controller/  repositorio/mysql/
-│               ├── apoio/               (repositórios em memória)
-│               └── integracao/          (testes com MySQL)
-│       └── pom.xml
-│
-├── front-end/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   └── ...
-│   ├── public/
-│   ├── package.json
-│   └── vite.config.*
-│
-├── .gitignore
-└── README.md
-```
-
-> A estrutura interna do `front-end/src` pode evoluir conforme a organização dos componentes e serviços da aplicação.
-
----
-
-### Como Rodar o Projeto
-
-#### Back-end
-
-Pré-requisito: MySQL 8 em execução (padrão `localhost:3306`, usuário e senha do `application.properties` ou das variáveis `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`). O banco e as tabelas são criados automaticamente na primeira execução.
-
-Navegue até o diretório que contém o `pom.xml`:
-
-```bash
-cd back-end/ecommerce-pedidos-swift
-```
-
-Execute a aplicação Spring Boot:
-
-```bash
-mvn spring-boot:run
-```
-
-A API estará disponível em:
-
-```text
-http://localhost:8080/api
-```
-
-#### Front-end
-
-Em outro terminal, navegue até o diretório:
-
-```bash
-cd front-end
-```
-
-Instale as dependências:
-
-```bash
-npm install
-```
-
-Execute o servidor de desenvolvimento:
-
-```bash
-npm run dev
-```
-
-O endereço exibido pelo Vite deverá ser utilizado para acessar a interface.
-
-#### Execução completa
-
-Para utilizar o sistema integrado, o **Back-end deve estar em execução antes ou simultaneamente ao Front-end**, pois a interface consome os dados disponibilizados pela API REST.
-
-Fluxo:
-
-```text
-Front-end
-    ↓
-API REST
-    ↓
-Spring Boot
-    ↓
-Camada de domínio / serviços / persistência
-```
-
----
-
-### Roadmap do Projeto (Status por Aula)
-
-| Aula | Entrega Prevista | Status |
-| :---: | :--- | :---: |
-| **01** | Repositório criado, estruturado, com README e commit inicial | 🟢 Concluído |
-| **02** | Fluxo de branches e primeiro Pull Request revisado | 🟢 Concluído |
-| **03** | Classe utilitária (`PedidoUtils.java`) do domínio incorporada | 🟢 Concluído |
-| **04** | Classes de domínio inicial (Produto, Cliente, Pedido, ItemPedido) | 🟢 Concluído |
-| **05** | Encapsulamento e abstração aplicados | 🟢 Concluído |
-| **06** | Hierarquia de formas de pagamento (herança) | 🟢 Concluído |
-| **07** | Relacionamentos entre classes do domínio | 🟢 Concluído |
-| **08** | Módulo de pagamento polimórfico | 🟢 Concluído |
-| **09** | Tratamento de exceções e validações | 🟢 Concluído |
-| **10** | Suíte de testes unitários | 🟢 Concluído |
-| **11** | Suíte de testes de integração + relatório de cobertura | 🟢 Concluído |
-| **12** | Persistência: conexão, operações Create e Read | 🟢 Concluído |
-| **13** | Persistência: operações Update, Delete e padrão DAO/Repository | 🟢 Concluído |
-| **14** | Migração e estruturação com Spring Boot | 🟢 Concluído |
-| **15** | API REST completa + integração com Front-end + pipeline de CI/CD | 🟡 Em desenvolvimento |
-| **16** | Entrega final, documentação consolidada e apresentação | ⏳ Pendente |
-
----
-
-### Próximos Passos
-
-As próximas evoluções do projeto estão concentradas em:
-
-1. **Completar os relacionamentos do domínio**, conforme os requisitos das aulas.
-2. **Consolidar o módulo de pagamentos** utilizando polimorfismo.
-3. **Implementar tratamento de exceções e validações** na API.
-4. **Ampliar a cobertura de testes unitários e de integração.**
-5. **Implementar e consolidar a persistência em banco de dados.**
-6. **Completar as operações CRUD necessárias.**
-7. **Finalizar o ciclo completo de pedidos e seus itens.**
-8. **Consolidar a API REST para todos os módulos.**
-9. **Evoluir a integração Front-end / Back-end.**
-10. **Implementar o pipeline de CI/CD.**
-11. **Realizar os ajustes finais de UX, documentação e apresentação.**
+6. **Segredos fora do Git:** senhas e tokens ficam em variáveis de ambiente ou no `.env` (ignorado pelo Git), nunca em arquivos versionados.
 
 ---
 
@@ -647,68 +488,3 @@ As próximas evoluções do projeto estão concentradas em:
 ### Licença
 
 Projeto estritamente acadêmico — **Faculdade de Tecnologia SENAI "Antonio Adolpho Lobbe"**. Todos os direitos reservados aos autores e à instituição.
-
----
-
-### Tratamento de Exceções de Negócio e Regras de Domínio
-
-Durante a fase de refinamento do domínio, o projeto adotou uma hierarquia de exceções própria para separar erro técnico de erro de negócio.
-
-#### Pacote de exceções
-
-O pacote é `com.ecommerce.pedidos.excecao` e contém:
-
-- `ECommerceException` — raiz do domínio, estende `Exception` e aceita mensagem e causa.
-- `EstoqueInsuficienteException` — representa falta de estoque com dados do produto e da quantidade solicitada.
-- `PagamentoRecusadoException` — representa recusa de processamento com a forma de pagamento e o motivo.
-- `ClienteNaoEncontradoException` — identificador buscado do cliente.
-- `PedidoInvalidoException` — representa pedido inválido para pagamento, como pedido sem itens ou fora do estado `ABERTO`.
-
-#### Critério checked × unchecked
-
-A equipe definiu um único critério para todo o projeto:
-
-- `Estoque insuficiente` → `checked` (`ECommerceException` / `EstoqueInsuficienteException`)
-  - Quem chamou pode tentar outro produto ou quantidade.
-- `Pagamento recusado` → `checked` (`PagamentoRecusadoException`)
-  - Quem chamou pode sugerir outra forma de pagamento.
-- `Pedido já pago` → `unchecked` (`IllegalStateException`)
-  - Erro de uso da classe, não uma situação de negócio recuperável no runtime.
-- `Produto nulo em adicionarItem` → `unchecked` (`IllegalArgumentException`)
-  - Defeito de quem chamou.
-- `Preço negativo em Produto` → `unchecked` (`IllegalArgumentException`)
-  - Nenhuma reação automática em runtime resolve isso.
-
-#### Regras de negócio aplicadas
-
-- `Produto.baixarEstoque(int quantidade)`:
-  - quantidade negativa ou zero → `IllegalArgumentException`
-  - quantidade maior que o estoque → `EstoqueInsuficienteException`
-- `Pedido.adicionarItem(Produto produto, int quantidade)`:
-  - produto nulo → `IllegalArgumentException`
-  - quantidade inválida → `IllegalArgumentException`
-  - pedido fora de `ABERTO` → `IllegalStateException`
-  - estoque indisponível → `EstoqueInsuficienteException`
-- `Pedido.pagar(ProcessadorPagamento processador)`:
-  - processador nulo → `IllegalArgumentException`
-  - pedido sem itens → `PedidoInvalidoException`
-  - pedido fora de `ABERTO` → `PedidoInvalidoException`
-  - processamento recusado → `PagamentoRecusadoException`
-  - em caso de recusa, o pedido permanece `ABERTO` e não muda de situação.
-
-#### Status da Aula 12
-
-O backend do projeto foi modernizado e padronizado para atender aos requisitos da aula atual:
-
-- os subpacotes foram unificados em Português, com `modelo`, `servico`, `repositorio`, `excecao`, `controller` e `swift` em uso consistente;
-- a suíte de testes cobre os fluxos de domínio e foi ampliada com o teste de integração `PedidoIntegracaoTest`, isolando o ciclo de criação do pedido e processamento de pagamento;
-- a persistência inicial foi configurada com a dependência oficial do MySQL e a classe `ConexaoFactory` via JDBC, preparadas para a etapa de armazenamento real em banco de dados.
-
-A validação recomendada é:
-
-```bash
-git switch feat/aula-12-refatoracao
-mvn clean test
-```
-
----

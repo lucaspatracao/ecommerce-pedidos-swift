@@ -1,76 +1,56 @@
 package com.ecommerce.pedidos.repositorio;
 
 import com.ecommerce.pedidos.modelo.Produto;
-import java.sql.Connection;
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-/**
- * Contrato de persistência de {@link Produto}.
- *
- * Convenções comuns a todos os repositórios:
- * <ul>
- *   <li>a conexão é sempre o primeiro parâmetro, para que várias operações
- *       participem da mesma transação;</li>
- *   <li>buscas devolvem {@link Optional} vazio quando não encontram nada;</li>
- *   <li>alterações e remoções sem linha afetada lançam
- *       {@link RepositorioException} do tipo {@code NAO_ENCONTRADO};</li>
- *   <li>consultas de produto filtram {@code ativo = TRUE} por padrão.</li>
- * </ul>
- */
-public interface ProdutoRepository {
-
-    /** Insere quando o id é nulo; caso contrário, atualiza (com controle de versão). */
-    Produto salvar(Connection conexao, Produto produto);
-
-    /** Atualiza todos os campos pelo id. Produto sem id gera erro de validação. */
-    Produto atualizar(Connection conexao, Produto produto);
-
-    /** Atualização parcial: altera apenas o estoque. */
-    void atualizarEstoque(Connection conexao, Long id, int novaQuantidade);
+/** Acesso a dados de {@link Produto}. CRUD herdado de {@code JpaRepository}. */
+public interface ProdutoRepository extends JpaRepository<Produto, Long> {
 
     /**
-     * Baixa de estoque atômica, protegida contra condição de corrida:
-     * só altera se houver quantidade suficiente e o produto estiver ativo.
-     *
-     * @return {@code false} quando não havia estoque suficiente
+     * Listagem com soft delete e busca por nome. {@code ativo} nulo = todos;
+     * {@code nome} nulo = sem filtro. O {@code Pageable} vira LIMIT/OFFSET no banco.
      */
-    boolean baixarEstoque(Connection conexao, Long id, int quantidade);
+    @Query("""
+        select p from Produto p
+        where (:ativo is null or p.ativo = :ativo)
+          and (:nome is null or lower(p.nome) like lower(concat('%', :nome, '%')))
+        order by p.nome, p.id
+        """)
+    List<Produto> listar(@Param("ativo") Boolean ativo, @Param("nome") String nome, Pageable pagina);
 
-    /** Devolve unidades ao estoque (cancelamento/remoção de item). */
-    void devolverEstoque(Connection conexao, Long id, int quantidade);
-
-    /** Soft delete: o produto some das consultas padrão, mas continua no banco. */
-    void inativar(Connection conexao, Long id);
-
-    void reativar(Connection conexao, Long id);
+    Optional<Produto> findByCodigoAndAtivo(String codigo, boolean ativo);
 
     /**
-     * Exclusão definitiva. Só funciona para produto nunca vendido: se houver
-     * itens de pedido referenciando-o, lança {@code VIOLACAO_INTEGRIDADE}.
+     * Leitura COM BLOQUEIO (SELECT ... FOR UPDATE) usada na venda: uma segunda
+     * venda do mesmo produto espera esta transação terminar e enxerga o estoque
+     * real, em vez de um valor lido antes.
      */
-    void remover(Connection conexao, Long id);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from Produto p where p.codigo = :codigo")
+    Optional<Produto> buscarPorCodigoParaVenda(@Param("codigo") String codigo);
 
-    Optional<Produto> buscarPorId(Connection conexao, Long id);
+    long countByAtivoTrue();
 
-    Optional<Produto> buscarPorId(Connection conexao, Long id, Visibilidade visibilidade);
+    Optional<Produto> findByCodigo(String codigo);
+
+    boolean existsByCodigo(String codigo);
 
     /**
-     * Leitura com bloqueio ({@code SELECT ... FOR UPDATE}): devolve o valor
-     * mais recente confirmado no banco, inclusive dentro de uma transação
-     * REPEATABLE READ, e trava a linha até o fim da transação.
+     * Estoque crítico em JPQL: produtos com saldo abaixo do limite, do menor
+     * para o maior. A consulta derivada equivalente teria um nome enorme
+     * ({@code findByQuantidadeEmEstoqueLessThanOrderByQuantidadeEmEstoqueAsc}).
      */
-    Optional<Produto> buscarPorIdParaAtualizacao(Connection conexao, Long id);
-
-    Optional<Produto> buscarPorCodigo(Connection conexao, String codigo);
-
-    Optional<Produto> buscarPorCodigo(Connection conexao, String codigo, Visibilidade visibilidade);
-
-    List<Produto> listarTodos(Connection conexao, Pagina pagina);
-
-    List<Produto> listar(Connection conexao, Visibilidade visibilidade, Pagina pagina);
-
-    List<Produto> buscarPorNome(Connection conexao, String trechoDoNome);
-
-    long contar(Connection conexao);
+    @Query("""
+        select p from Produto p
+        where p.ativo = true and p.quantidadeEmEstoque < :limite
+        order by p.quantidadeEmEstoque asc, p.nome asc
+        """)
+    List<Produto> buscarComEstoqueAbaixoDe(@Param("limite") int limite);
 }

@@ -1,18 +1,11 @@
 package com.ecommerce.pedidos.controller;
 
-import com.ecommerce.pedidos.excecao.ECommerceException;
-import com.ecommerce.pedidos.modelo.Boleto;
-import com.ecommerce.pedidos.modelo.CartaoCredito;
-import com.ecommerce.pedidos.modelo.FormaPagamento;
-import com.ecommerce.pedidos.modelo.Pix;
+import com.ecommerce.pedidos.dto.PagamentoRegistradoResponse;
+import com.ecommerce.pedidos.dto.PagamentoRequest;
+import com.ecommerce.pedidos.dto.PagamentoResumoResponse;
 import com.ecommerce.pedidos.servico.PagamentoService;
-import com.ecommerce.pedidos.servico.PedidoService;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
+import jakarta.validation.Valid;
 import java.util.List;
-import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -26,93 +19,19 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api")
 @CrossOrigin(origins = {"http://localhost:5173", "http://127.0.0.1:5173"})
 public class PagamentoController {
-    private final PagamentoService service;
-    private final PedidoService pedidoService;
+    private final PagamentoService pagamentoService;
 
-    public PagamentoController(PagamentoService service, PedidoService pedidoService) {
-        this.service = service;
-        this.pedidoService = pedidoService;
+    public PagamentoController(PagamentoService pagamentoService) {
+        this.pagamentoService = pagamentoService;
     }
 
     @GetMapping("/pagamentos")
-    public List<Map<String, Object>> listarPagamentos() {
-        List<Map<String, Object>> resposta = new ArrayList<>();
-
-        for (FormaPagamento pagamento : service.listarPagamentos()) {
-            Map<String, Object> item = new HashMap<>();
-            item.put("tipo", pagamento.getClass().getSimpleName());
-            item.put("valor", pagamento.getValor());
-            item.put("status", pagamento.getSituacao().name());
-            item.put("ultimaTransacao", pagamento.getDataDoPagamento().toString());
-
-            if (pagamento instanceof CartaoCredito cartao) {
-                item.put("metodo", cartao.getBandeira() + " •••• " + cartao.getNumeroMascarado());
-            } else if (pagamento instanceof Boleto boleto) {
-                item.put("metodo", "Código: " + boleto.getCodigoDeBarras());
-            } else if (pagamento instanceof Pix pix) {
-                item.put("metodo", "Chave: " + pix.getChave());
-            } else {
-                item.put("metodo", "Pagamento registrado");
-            }
-
-            resposta.add(item);
-        }
-
-        return resposta;
+    public List<PagamentoResumoResponse> listarPagamentos() {
+        return pagamentoService.listar();
     }
 
     @PostMapping("/pagamentos")
-    public ResponseEntity<Map<String, Object>> registrar(@RequestBody PagamentoRequest request)
-            throws ECommerceException {
-        if (request == null || request.pedidoNumero() == null || request.pedidoNumero().isBlank()) {
-            throw new IllegalArgumentException("Número do pedido é obrigatório para registrar o pagamento.");
-        }
-        if (request.tipo() == null || request.tipo().isBlank()) {
-            throw new IllegalArgumentException("Tipo de pagamento é obrigatório.");
-        }
-
-        FormaPagamento pagamento;
-
-        switch (request.tipo()) {
-            case "CARTAO" -> pagamento = new CartaoCredito(
-                new BigDecimal(request.valor()),
-                request.numero(),
-                request.bandeira(),
-                Integer.parseInt(request.parcelas())
-            );
-            case "BOLETO" -> pagamento = new Boleto(
-                new BigDecimal(request.valor()),
-                LocalDate.parse(request.vencimento()),
-                request.codigo()
-            );
-            case "PIX" -> pagamento = new Pix(
-                new BigDecimal(request.valor()),
-                request.chave(),
-                request.tipoChave()
-            );
-            default -> throw new IllegalArgumentException("Tipo de pagamento inválido.");
-        }
-
-        // Processa o pagamento e grava a situação PAGO na mesma transação.
-        pedidoService.registrarPagamento(request.pedidoNumero(), pagamento);
-        service.registrar(pagamento);
-        Map<String, Object> resposta = new HashMap<>();
-        resposta.put("mensagem", "Pagamento registrado com sucesso.");
-        resposta.put("pagamento", pagamento);
-        return ResponseEntity.status(HttpStatus.CREATED).body(resposta);
-    }
-
-    public record PagamentoRequest(
-        String tipo,
-        String valor,
-        String numero,
-        String bandeira,
-        String parcelas,
-        String vencimento,
-        String codigo,
-        String chave,
-        String tipoChave,
-        String pedidoNumero
-    ) {
+    public ResponseEntity<PagamentoRegistradoResponse> registrar(@Valid @RequestBody PagamentoRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(pagamentoService.registrar(request));
     }
 }
