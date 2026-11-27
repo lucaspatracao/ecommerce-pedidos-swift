@@ -27,52 +27,205 @@ A solução também possui uma interface administrativa para consumo e apresenta
 
 ---
 
-### Funcionalidades Previstas
+### Funcionalidades
 
-* **Gerenciamento de Produtos:** Cadastro, atualização, consulta e controle de disponibilidade.
-* **Gerenciamento de Clientes:** Cadastro, edição de dados cadastrais e histórico de compras.
-* **Gestão de Pedidos:** Abertura, inclusão de itens, cálculo de totais, alteração de status e cancelamento.
-* **Processamento de Pagamentos:** Suporte a múltiplos métodos (Cartão de Crédito, Boleto Bancário, Pix e Vale Compras), com arquitetura polimórfica.
-* **Dashboard:** Visualização de informações gerais do sistema, pedidos recentes, clientes, produtos e indicadores disponíveis.
-* **Interface Administrativa:** Interface web para consulta e gerenciamento das informações do sistema.
-* **Integração Front-end / Back-end:** Consumo dos endpoints reais da API REST pelo Front-end.
-* **Garantia de Qualidade:** Testes automatizados unitários e de integração com relatórios de cobertura.
-* **Integração Contínua (CI/CD):** Pipeline para execução de build e testes automatizados.
-* **API RESTful:** Endpoints estruturados para integração e consumo pela aplicação Front-end e futuras aplicações.
-
----
-
-### Pagamento Polimórfico e Princípio Aberto/Fechado
-
-A camada de pagamentos foi estruturada com um contrato comum para desacoplar o pedido da implementação concreta de cada meio de pagamento.
-
-- `ProcessadorPagamento` define o contrato mínimo para processar o valor e expor comprovante/descrição.
-- `FormaPagamento` atua como base comum da hierarquia e mantém os atributos compartilhados.
-- `Pix`, `Boleto`, `CartaoCredito` e `ValeCompras` implementam o processamento específico de cada modalidade.
-- `Pedido` recebe qualquer `ProcessadorPagamento` em vez de depender de tipos concretos, reduzindo acoplamento e facilitando extensão.
-
-Esse desenho permite adicionar novas formas de pagamento sem alterar a lógica central do pedido, respeitando o princípio aberto/fechado (OCP).
+* **Gerenciamento de Produtos:** cadastro, atualização, consulta, exclusão e controle de disponibilidade e estoque.
+* **Gerenciamento de Clientes:** cadastro com CPF validado por dígitos verificadores, edição e exclusão.
+* **Gestão de Pedidos:** abertura com vários itens, cálculo de totais, baixa de estoque transacional, cancelamento e exclusão.
+* **Processamento de Pagamentos:** Cartão de Crédito, Boleto, Pix (e Vale-Compras no domínio), com arquitetura polimórfica.
+* **Dashboard e Histórico:** totais, receita, estoque crítico e pedidos recentes.
+* **Interface Administrativa:** front-end React consumindo a API real.
+* **Garantia de Qualidade:** testes unitários, de integração e de API, com cobertura mínima verificada no build.
 
 ---
 
 ### Tecnologias
 
-* **Linguagem:** Java 17 (versão LTS)
-* **Gerenciador de Build e Dependências:** Apache Maven
-* **Framework Web:** Spring Boot
-* **API:** REST
-* **Testes:** JUnit 5
-* **Front-end:** React
-* **Build / Desenvolvimento Front-end:** Vite
-* **Controle de Versão e Colaboração:** Git & GitHub
-* **Banco de Dados:** Em evolução conforme as etapas de persistência do projeto
+* **Linguagem:** Java 17 (LTS)
+* **Build e dependências:** Apache Maven
+* **Framework:** Spring Boot 3.3 (Web, Validation, Data JPA)
+* **Persistência:** Hibernate/JPA, **MySQL 8** (desenvolvimento) e **Flyway** (migrations)
+* **Testes:** JUnit 5, Mockito, MockMvc, H2 em memória (modo MySQL) e **JaCoCo** (cobertura)
+* **Front-end:** React + Vite (Axios para a API)
+* **Controle de versão:** Git & GitHub
 * **CI/CD:** GitHub Actions — previsto no roadmap
 
 ---
 
-### Regras de Negócio e Constantes (Aula 03)
+### Como Rodar o Projeto
 
-Foram definidas e documentadas as seguintes regras e limites financeiros para o funcionamento da aplicação:
+#### Pré-requisitos
+
+| Ferramenta | Versão |
+| :--- | :--- |
+| JDK | 17 |
+| Maven | 3.9+ |
+| MySQL | 8.x |
+| Node.js | 18+ (para o front-end) |
+
+#### 1. Criar o banco de desenvolvimento (uma vez)
+
+O perfil `dev` usa um banco **novo e dedicado**, chamado `ecommerce_swift`. As tabelas **não** são criadas à mão: o Flyway cria tudo na primeira subida da API.
+
+```powershell
+mysql -u root -p -e "CREATE DATABASE ecommerce_swift CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+```
+
+#### 2. Configurar a conexão (variáveis de ambiente)
+
+A API lê a conexão de três variáveis. **Nenhuma senha fica no repositório**: `DB_PASSWORD` não tem valor padrão, e sem ela a aplicação não sobe.
+
+| Variável | Obrigatória? | Exemplo |
+| :--- | :--- | :--- |
+| `DB_URL` | Não no perfil `dev` (padrão: `localhost:3306/ecommerce_swift`) | `jdbc:mysql://localhost:3307/ecommerce_swift?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC` |
+| `DB_USERNAME` | Sim | `root` |
+| `DB_PASSWORD` | Sim | *(a sua senha local)* |
+
+**Opção A: variáveis na sessão do PowerShell** (valem até fechar o terminal):
+
+```powershell
+$env:DB_USERNAME = "root"
+$env:DB_PASSWORD = "sua-senha-local"
+
+# Só se o MySQL NÃO estiver em localhost:3306. Exemplo: instância na porta 3307
+$env:DB_URL = "jdbc:mysql://localhost:3307/ecommerce_swift?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+```
+
+**Opção B: arquivo `.env`** (não precisa repetir a cada terminal). Copie o modelo e preencha a senha:
+
+```powershell
+cd back-end\ecommerce-pedidos-swift
+Copy-Item .env.example .env
+notepad .env
+```
+
+O `.env` está no `.gitignore` e nunca é versionado. Se a mesma variável existir no PowerShell e no `.env`, vale a do PowerShell.
+
+#### 3. Subir o back-end
+
+```powershell
+cd back-end\ecommerce-pedidos-swift
+mvn spring-boot:run "-Dspring-boot.run.profiles=dev"
+```
+
+> `dev` já é o perfil padrão (`spring.profiles.default=dev`), então `mvn spring-boot:run` também funciona. O parâmetro explícito deixa claro qual perfil está ativo. No PowerShell, as **aspas** são obrigatórias por causa do `-D` com ponto.
+
+Na primeira subida o log mostra `Successfully applied 1 migration`. A API fica em:
+
+```text
+http://localhost:8080/api
+```
+
+#### 4. Subir o front-end
+
+Em outro terminal:
+
+```powershell
+cd front-end
+npm install
+npm run dev
+```
+
+Acesse o endereço exibido pelo Vite (normalmente `http://localhost:5173`). O back-end libera CORS para essa origem.
+
+#### 5. Rodar os testes
+
+```powershell
+cd back-end\ecommerce-pedidos-swift
+mvn clean test
+```
+
+* Os testes usam o perfil `test`: **H2 em memória** no modo MySQL, com as **mesmas migrations** do Flyway. Não precisam de MySQL nem de variáveis de ambiente.
+* O **JaCoCo** exige no mínimo **70% das linhas cobertas** no projeto inteiro. Abaixo disso, `mvn clean test` **falha**.
+* Relatório de cobertura: abra `back-end/ecommerce-pedidos-swift/target/site/jacoco/index.html` no navegador.
+
+---
+
+### Perfis de Execução
+
+| Perfil | Banco | Para quê | Arquivo |
+| :--- | :--- | :--- | :--- |
+| `dev` (padrão) | MySQL `ecommerce_swift` | Desenvolvimento local; mostra o SQL formatado no console (`show-sql`, `format_sql`) | `src/main/resources/application-dev.properties` |
+| `test` | H2 em memória, `MODE=MySQL` | Testes automatizados (`@ActiveProfiles("test")`) | `src/test/resources/application-test.properties` |
+
+Configurações comuns (`application.properties`): `ddl-auto=validate` (o Hibernate só confere o schema criado pelo Flyway; nunca cria tabelas), `open-in-view=false` e leitura de `${DB_URL}`, `${DB_USERNAME}` e `${DB_PASSWORD}`.
+
+---
+
+### Arquitetura (Aula 14)
+
+```text
+Front-end (React)
+    ↓  HTTP + JSON
+controller   → recebe a requisição, aplica @Valid e devolve DTOs
+    ↓
+servico      → interfaces (ClienteService...) + implementações (...Impl) com @Transactional
+    ↓
+modelo       → entidades JPA com as regras de negócio (Pedido calcula o total, Produto controla o estoque)
+    ↓
+repositorio  → interfaces Spring Data JPA (CRUD + @Query JPQL + JOIN FETCH)
+    ↓
+MySQL (schema versionado pelo Flyway)
+```
+
+* **DTOs** (`dto/`): os *requests* têm Bean Validation (`@NotBlank`, `@Email`, `@Positive`...). Os *responses* fixam o JSON que o front-end consome, sem expor ids nem relações do banco.
+* **Erros** (`ApiExceptionHandler`): todo erro volta como `{ "erro": "mensagem" }`, que é a chave lida pelo front.
+* **Transação**: criar um pedido baixa o estoque de todos os itens numa transação só. Se qualquer item falhar, nada é gravado (rollback).
+* **Consultas**: `@Query` em JPQL (cliente por CPF, estoque crítico, receita via `SUM`) e `JOIN FETCH` no `PedidoRepository`, que carrega pedido, cliente, itens, produtos e pagamento numa única consulta e evita o problema N+1.
+
+---
+
+### API REST
+
+Base: `http://localhost:8080/api`
+
+| Método | Rota | Descrição | Sucesso | Erros comuns |
+| :--- | :--- | :--- | :---: | :--- |
+| GET | `/clientes` | Lista clientes | 200 | |
+| GET | `/clientes/{cpf}` | Busca cliente | 200 | 404 |
+| POST | `/clientes` | Cadastra cliente | 201 | 400 (validação/CPF), 409 (CPF duplicado) |
+| PUT | `/clientes/{cpf}` | Atualiza nome e contato | 200 | 400, 404 |
+| DELETE | `/clientes/{cpf}` | Exclui cliente sem pedidos | 204 | 404, 409 (tem pedidos) |
+| GET | `/produtos` | Lista produtos | 200 | |
+| GET | `/produtos/{codigo}` | Busca produto | 200 | 404 |
+| POST | `/produtos` | Cadastra produto | 201 | 400, 409 (código duplicado) |
+| PUT | `/produtos/{codigo}` | Atualiza produto | 200 | 400, 404, 409 |
+| DELETE | `/produtos/{codigo}` | Exclui produto nunca vendido | 204 | 404, 409 (já vendido: desative-o) |
+| GET | `/pedidos` | Lista pedidos (mais recentes primeiro) | 200 | |
+| GET | `/pedidos/{numero}` | Busca pedido completo | 200 | 404 |
+| POST | `/pedidos` | Cria pedido e baixa o estoque | 201 | 400, 404, 409 (estoque/produto inativo) |
+| PUT | `/pedidos/{numero}/status` | `CANCELADO` devolve estoque e estorna pagamento | 200 | 400, 404, 409 |
+| DELETE | `/pedidos/{numero}` | Exclui pedido não pago (aberto devolve estoque) | 204 | 404, 409 (pago) |
+| GET | `/pagamentos` | Lista pagamentos | 200 | |
+| POST | `/pagamentos` | Paga um pedido aberto | 201 | 400, 404, 409 (recusado/valor ≠ total) |
+| GET | `/dashboard` | Indicadores | 200 | |
+| GET | `/historico` | Últimos 10 pedidos | 200 | |
+
+Exemplo de criação de pedido:
+
+```json
+POST /api/pedidos
+{ "clienteCpf": "78617768916", "itens": [ { "codigo": "CAM-001", "quantidade": 2 } ] }
+```
+
+Exemplo de pagamento (campos usados dependem do `tipo`):
+
+```json
+POST /api/pagamentos
+{ "tipo": "PIX", "valor": "99.80", "chave": "cliente@email.com", "tipoChave": "EMAIL", "pedidoNumero": "PED-2026-01234" }
+{ "tipo": "BOLETO", "valor": "99.80", "vencimento": "2026-12-31", "codigo": "34191.79001", "pedidoNumero": "..." }
+{ "tipo": "CARTAO", "valor": "99.80", "numero": "**** 4242", "bandeira": "Visa", "parcelas": 3, "pedidoNumero": "..." }
+```
+
+> Os CPFs deste README e dos testes são **sintéticos**, gerados com dígitos verificadores válidos apenas para exemplo. Não use CPFs reais em testes.
+
+---
+
+### Domínio e Conceitos por Aula
+
+#### Utils e boas práticas (Aula 03)
+
+`util/Utils` é `final`, tem construtor privado e só métodos estáticos: validação de **CPF** (dígitos verificadores, aceita máscara), **e-mail** e texto obrigatório. As entidades a usam em vez de repetir validações. `util/PedidoUtils` mantém as regras de cálculo definidas na aula:
 
 | Constante | Valor Adotado | Regra de Negócio |
 | :--- | :--- | :--- |
@@ -82,104 +235,123 @@ Foram definidas e documentadas as seguintes regras e limites financeiros para o 
 | `TAXA_DESCONTO` | 10% (0.10) | Percentual de desconto padrão aplicado sobre o subtotal da compra. |
 | `DESCONTO_MAXIMO` | R$ 50,00 | Teto máximo de desconto concedido por pedido. |
 
+#### Encapsulamento e abstração (Aulas 04–05)
+
+Atributos privados e **sem setters públicos**. As mudanças passam por métodos de intenção que validam antes de alterar: `Cliente.atualizarContato`, `Produto.atualizarDados`, `Produto.baixarEstoque`, `FormaPagamento.estornar`. As regras ficam na entidade: `Pedido.calcularValorTotal()` e `ItemPedido.calcularSubtotal()`.
+
+#### Herança (Aula 06)
+
+* `Pessoa` (abstrata, `@MappedSuperclass`) → `Cliente` (entidade) e `Funcionario`.
+* `FormaPagamento` (abstrata, `processar()` abstrato) → `CartaoCredito`, `Boleto`, `Pix`, `ValeCompras`. No banco: herança **JOINED** (tabela `forma_pagamento` + uma tabela por subclasse).
+
+#### Relacionamentos (Aula 07)
+
+| Relacionamento | Multiplicidade | Mapeamento JPA |
+| :--- | :--- | :--- |
+| `Pedido` → `Cliente` | N : 1 | `@ManyToOne(fetch = LAZY)` |
+| `Pedido` → `ItemPedido` | 1 : N | `@OneToMany(mappedBy, cascade = ALL, orphanRemoval)` |
+| `ItemPedido` → `Produto` | N : 1 | `@ManyToOne(fetch = LAZY)` |
+| `Pedido` → `FormaPagamento` | 1 : 0..1 | `@OneToOne(cascade = ALL)` + `UNIQUE` |
+| `Cliente` → `Endereco` | 1 : 0..1 | `@Embeddable` (colunas na tabela `cliente`) |
+| `Categoria` → `Produto` | 1 : N | Agregação apenas no domínio |
+
+Itens repetidos do mesmo produto são somados num único `ItemPedido`, e o preço praticado é copiado do produto no momento da compra (histórico preservado).
+
+#### Polimorfismo e princípio aberto/fechado (Aula 08)
+
+O serviço de pagamento trabalha só com a abstração `FormaPagamento`, sem `instanceof` nem `switch` por tipo:
+
+* `FabricaFormaPagamento` usa um **mapa** `tipo → construtor` no lugar do `switch`;
+* `processar()`, `descreverMetodo()` e `dadosEspecificos()` são implementados por cada subclasse;
+* adicionar uma nova forma de pagamento = nova subclasse + uma entrada no mapa, sem alterar `Pedido` nem o serviço.
+
+#### Exceções (Aula 09)
+
+Todas as exceções de negócio são **unchecked** (`RuntimeException`): o erro sobe até o `ApiExceptionHandler`, e o `@Transactional` só faz rollback automático em exceções unchecked.
+
+| Exceção | Quando | HTTP |
+| :--- | :--- | :---: |
+| `NegocioException` | raiz das exceções de negócio | 400 |
+| `RecursoNaoEncontradoException` / `ClienteNaoEncontradoException` | cliente, produto ou pedido inexistente | 404 |
+| `ConflitoException` | duplicado, produto vendido, cliente com pedidos | 409 |
+| `EstoqueInsuficienteException` (código, solicitada, disponível) | estoque não basta | 409 |
+| `PedidoInvalidoException` | pagar pedido vazio ou já pago | 409 |
+| `PagamentoRecusadoException` (forma, motivo) | limite do cartão ou gateway recusou | 409 |
+| `IllegalArgumentException` / Bean Validation | dado inválido | 400 |
+| `IllegalStateException` | operação incompatível com o estado | 409 |
+| qualquer outra | erro inesperado (detalhe só no log) | 500 |
+
+#### Testes (Aulas 10, 11 e 14)
+
+| Tipo | Exemplos | Spring? |
+| :--- | :--- | :---: |
+| Unitários | `ProdutoTest`, `ClienteTest`, `PedidoTest`, `ItemPedidoTest`, `FormasPagamentoTest`, `UtilsTest` | Não |
+| Integração (fluxo) | `FluxoCompraIntegracaoTest`: cadastro → pedido → pagamento com classes reais; Mockito só no `GatewayPagamento` (sistema externo) | Sim |
+| Transação | `TransacaoPedidoTest`: falha no 2º item desfaz a baixa de estoque do 1º | Sim |
+| Consultas | `RepositoriosConsultaTest`: `@Query` e prova do `JOIN FETCH` contando os SQLs | Sim |
+| API | `ApiIntegracaoTest`: MockMvc com rotas, status e corpo `{ "erro" }` | Sim |
+
 ---
 
-### Estado Atual da Integração
-
-O projeto encontra-se com o **Front-end conectado à API real do Back-end**, sem utilização de dados mockados no fluxo principal da aplicação.
-
-O Back-end é executado utilizando Spring Boot e disponibiliza a API através de:
+### Estrutura de Pastas
 
 ```text
-http://localhost:8080/api
+ecommerce-pedidos-swift/
+├── back-end/ecommerce-pedidos-swift/
+│   ├── .env.example                      # modelo das variáveis (sem senha)
+│   ├── pom.xml
+│   └── src/
+│       ├── main/java/com/ecommerce/pedidos/
+│       │   ├── controller/               # REST + ApiExceptionHandler
+│       │   ├── dto/                      # requests (validação) e responses (contrato JSON)
+│       │   ├── excecao/                  # hierarquia de exceções de negócio
+│       │   ├── modelo/                   # entidades e regras de negócio
+│       │   ├── repositorio/              # interfaces Spring Data JPA
+│       │   ├── servico/                  # interfaces + implementações (@Transactional)
+│       │   └── util/                     # Utils e PedidoUtils
+│       ├── main/resources/
+│       │   ├── application.properties
+│       │   ├── application-dev.properties
+│       │   └── db/migration/             # V1__esquema_inicial.sql (Flyway)
+│       └── test/
+│           ├── java/...                  # unitários, integração e API
+│           └── resources/application-test.properties
+├── front-end/                            # React + Vite (src/api, src/pages, src/components)
+├── .gitignore
+└── README.md
 ```
-
-O Front-end utiliza essa API como fonte de dados para as principais áreas do sistema:
-
-* Clientes
-* Produtos
-* Pedidos
-* Pagamentos
-* Histórico de compras
-* Dashboard
-
-O estado da interface é determinado pelos dados efetivamente retornados pela API.
-
-Quando não existem registros, a interface apresenta estados vazios, por exemplo:
-
-```text
-Nenhum cliente cadastrado ainda.
-Nenhum produto cadastrado ainda.
-Nenhum pedido registrado ainda.
-```
-
-Da mesma forma, falhas de comunicação com a API são apresentadas ao usuário por meio de mensagens de erro amigáveis.
-
-Não são utilizados registros fictícios apenas para preencher tabelas, cards, indicadores ou outras áreas da interface.
 
 ---
 
-### Front-end
+### Roadmap do Projeto (Status por Aula)
 
-O Front-end foi estruturado como uma interface administrativa para gerenciamento do sistema de e-commerce.
-
-A interface possui:
-
-* Dashboard
-* Gestão de Clientes
-* Gestão de Produtos
-* Gestão de Pedidos
-* Pagamentos
-* Histórico de compras
-* Navegação lateral
-* Busca
-* Estados de carregamento
-* Estados vazios
-* Mensagens de erro
-* Atualização dos dados
-
-A identidade visual utiliza como base o **laranja associado à marca Swift**, combinado com branco, preto e tons neutros.
-
-A proposta visual prioriza:
-
-* Interface limpa e profissional.
-* Hierarquia visual clara.
-* Cards e tabelas organizados.
-* Uso consistente da cor principal.
-* Feedback visual para sucesso, erro e estados do sistema.
-* Responsividade e organização dos componentes.
-* Ausência de dados simulados na aplicação real.
-
-O Front-end não deve criar ou inventar informações que não tenham sido retornadas pela API.
+| Aula | Entrega Prevista | Status |
+| :---: | :--- | :---: |
+| **01** | Repositório criado, estruturado, com README e commit inicial | 🟢 Concluído |
+| **02** | Fluxo de branches e primeiro Pull Request revisado | 🟢 Concluído |
+| **03** | Classes utilitárias (`Utils`, `PedidoUtils`) usadas pelo domínio | 🟢 Concluído |
+| **04** | Classes de domínio (Produto, Cliente, Pedido, ItemPedido) | 🟢 Concluído |
+| **05** | Encapsulamento e abstração aplicados | 🟢 Concluído |
+| **06** | Herança (`Pessoa`, `FormaPagamento`) | 🟢 Concluído |
+| **07** | Relacionamentos entre classes do domínio | 🟢 Concluído |
+| **08** | Módulo de pagamento polimórfico | 🟢 Concluído |
+| **09** | Tratamento de exceções e validações | 🟢 Concluído |
+| **10** | Suíte de testes unitários | 🟢 Concluído |
+| **11** | Testes de integração + cobertura (JaCoCo ≥ 70%) | 🟢 Concluído |
+| **12** | Persistência: conexão, Create e Read (Spring Data JPA) | 🟢 Concluído |
+| **13** | Persistência: Update, Delete e Repository | 🟢 Concluído |
+| **14** | Spring Boot: camadas, DTOs, validação, perfis, Flyway, `@Query`, `JOIN FETCH` | 🟢 Concluído |
+| **15** | API REST completa + integração com Front-end + pipeline de CI/CD | 🟡 Em desenvolvimento |
+| **16** | Entrega final, documentação consolidada e apresentação | ⏳ Pendente |
 
 ---
 
 ### Dívidas Técnicas Registradas
 
-1. **Precisão de Valores Monetários (`double` vs `BigDecimal`):** Os valores monetários de subtotal, frete e desconto foram inicialmente implementados utilizando `double` para fins didáticos. A utilização de `BigDecimal` permanece como referência para a evolução da camada financeira, evitando inconsistências de arredondamento em operações monetárias.
-
-2. **Persistência:** A camada de persistência ainda está em evolução de acordo com as etapas previstas no roadmap do projeto.
-
-3. **Autenticação e Autorização:** O projeto ainda não possui um mecanismo completo de autenticação e autorização de usuários.
-
-4. **Fluxo Completo de Pedidos:** A integração visual e a comunicação com a API já estão estruturadas, porém o ciclo completo de criação, edição, inclusão de itens, pagamento e alteração de status continuará sendo desenvolvido conforme as próximas etapas do projeto.
-
----
-
-### Relacionamentos (Aula 07)
-
-| Relacionamento | Tipo | Multiplicidade | Regra no código |
-| :--- | :--- | :--- | :--- |
-| `Pedido` → `Cliente` | Associação | `1 : 1` | Todo pedido exige um cliente no construtor. |
-| `Pedido` → `ItemPedido` | Composição | `1 : 0..*` | O pedido cria os itens e expõe somente uma lista imutável. |
-| `ItemPedido` → `Produto` | Associação | `1 : 1` | O produto é obrigatório e fica final no item. |
-| `Pedido` → `FormaPagamento` | Associação opcional | `1 : 0..1` | O pagamento só é guardado após processamento aprovado. |
-| `Categoria` → `Produto` | Agregação | `1 : 0..*` | A categoria mantém produtos, mas não os cria nem destrói. |
-| `Cliente` → `Endereco` | Associação opcional | `1 : 0..1` | O endereço pode ser nulo e é validado quando informado. |
-
-Itens repetidos do mesmo produto são consolidados em um único `ItemPedido`. A nova quantidade é somada, o estoque é baixado somente pela quantidade adicional e o preço praticado permanece o da primeira inclusão. Essa decisão evita linhas duplicadas no pedido e preserva o preço histórico da transação.
-
-**Status da Aula 07:** concluída na branch `feature/relacionamentos`, com composição, associação, agregação, controle de estoque, cancelamento e validações demonstrados em `Aplicacao.java`.
+1. **`PedidoUtils` com `double`:** os cálculos de frete e desconto da Aula 03 continuam em `double` por fins didáticos. O domínio (preços, totais, pagamentos) já usa `BigDecimal`.
+2. **Autenticação e autorização:** a API ainda não exige login.
+3. **Gateway de pagamento simulado:** `GatewayPagamentoSimulado` autoriza tudo. Uma integração real implementaria a interface `GatewayPagamento`.
+4. **CI/CD:** pipeline do GitHub Actions ainda não configurado.
 
 ---
 
@@ -203,7 +375,7 @@ Para assegurar a integridade da branch principal (`main`), estabelecemos o segui
 
 3. **Commits Pequenos e Atômicos:**
 
-   Commits devem conter apenas uma ideia, utilizando mensagens padronizadas:
+   Commits devem conter apenas uma ideia, utilizando mensagens padronizadas (Conventional Commits):
 
    ```text
    tipo: descrição curta no imperativo
@@ -231,149 +403,7 @@ Para assegurar a integridade da branch principal (`main`), estabelecemos o segui
 
    O revisor deve analisar a aba *Files changed* do PR, comentando pontos fortes e sugerindo melhorias técnicas diretamente nas linhas de código antes de aprovar.
 
----
-
-### Estrutura Real de Pastas (Back-end & Front-end)
-
-A estrutura atual do repositório separa o Back-end e o Front-end:
-
-```text
-ecommerce-pedidos-swift/
-├── back-end/
-│   └── ecommerce-pedidos-swift/
-│       ├── src/
-│       │   ├── main/
-│       │   │   └── java/
-│       │       └── com/ecommerce/pedidos/
-│       │           ├── model/
-│       │           ├── service/
-│       │           ├── repository/
-│       │           ├── controller/
-│       │           └── swift/
-│       │               └── Aplicacao.java
-│       └── test/
-│           └── java/
-│               └── com/ecommerce/pedidos/model/
-│       └── pom.xml
-│
-├── front-end/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   └── ...
-│   ├── public/
-│   ├── package.json
-│   └── vite.config.*
-│
-├── .gitignore
-└── README.md
-```
-
-> A estrutura interna do `front-end/src` pode evoluir conforme a organização dos componentes e serviços da aplicação.
-
----
-
-### Como Rodar o Projeto
-
-#### Back-end
-
-Navegue até o diretório que contém o `pom.xml`:
-
-```bash
-cd back-end
-```
-
-Execute a aplicação Spring Boot:
-
-```bash
-mvn spring-boot:run
-```
-
-A API estará disponível em:
-
-```text
-http://localhost:8080/api
-```
-
-#### Front-end
-
-Em outro terminal, navegue até o diretório:
-
-```bash
-cd front-end
-```
-
-Instale as dependências:
-
-```bash
-npm install
-```
-
-Execute o servidor de desenvolvimento:
-
-```bash
-npm run dev
-```
-
-O endereço exibido pelo Vite deverá ser utilizado para acessar a interface.
-
-#### Execução completa
-
-Para utilizar o sistema integrado, o **Back-end deve estar em execução antes ou simultaneamente ao Front-end**, pois a interface consome os dados disponibilizados pela API REST.
-
-Fluxo:
-
-```text
-Front-end
-    ↓
-API REST
-    ↓
-Spring Boot
-    ↓
-Camada de domínio / serviços / persistência
-```
-
----
-
-### Roadmap do Projeto (Status por Aula)
-
-| Aula | Entrega Prevista | Status |
-| :---: | :--- | :---: |
-| **01** | Repositório criado, estruturado, com README e commit inicial | 🟢 Concluído |
-| **02** | Fluxo de branches e primeiro Pull Request revisado | 🟢 Concluído |
-| **03** | Classe utilitária (`PedidoUtils.java`) do domínio incorporada | 🟢 Concluído |
-| **04** | Classes de domínio inicial (Produto, Cliente, Pedido, ItemPedido) | 🟢 Concluído |
-| **05** | Encapsulamento e abstração aplicados | 🟢 Concluído |
-| **06** | Hierarquia de formas de pagamento (herança) | 🟢 Concluído |
-| **07** | Relacionamentos entre classes do domínio | 🟢 Concluído |
-| **08** | Módulo de pagamento polimórfico | 🟢 Concluído |
-| **09** | Tratamento de exceções e validações | 🟢 Concluído |
-| **10** | Suíte de testes unitários | 🟢 Concluído |
-| **11** | Suíte de testes de integração + relatório de cobertura | ⏳ Pendente |
-| **12** | Persistência: conexão, operações Create e Read | ⏳ Pendente |
-| **13** | Persistência: operações Update, Delete e padrão DAO/Repository | ⏳ Pendente |
-| **14** | Migração e estruturação com Spring Boot | 🟢 Concluído |
-| **15** | API REST completa + integração com Front-end + pipeline de CI/CD | 🟡 Em desenvolvimento |
-| **16** | Entrega final, documentação consolidada e apresentação | ⏳ Pendente |
-
----
-
-### Próximos Passos
-
-As próximas evoluções do projeto estão concentradas em:
-
-1. **Completar os relacionamentos do domínio**, conforme os requisitos das aulas.
-2. **Consolidar o módulo de pagamentos** utilizando polimorfismo.
-3. **Implementar tratamento de exceções e validações** na API.
-4. **Ampliar a cobertura de testes unitários e de integração.**
-5. **Implementar e consolidar a persistência em banco de dados.**
-6. **Completar as operações CRUD necessárias.**
-7. **Finalizar o ciclo completo de pedidos e seus itens.**
-8. **Consolidar a API REST para todos os módulos.**
-9. **Evoluir a integração Front-end / Back-end.**
-10. **Implementar o pipeline de CI/CD.**
-11. **Realizar os ajustes finais de UX, documentação e apresentação.**
+6. **Segredos fora do Git:** senhas e tokens ficam em variáveis de ambiente ou no `.env` (ignorado pelo Git), nunca em arquivos versionados.
 
 ---
 
@@ -390,68 +420,3 @@ As próximas evoluções do projeto estão concentradas em:
 ### Licença
 
 Projeto estritamente acadêmico — **Faculdade de Tecnologia SENAI "Antonio Adolpho Lobbe"**. Todos os direitos reservados aos autores e à instituição.
-
----
-
-### Tratamento de Exceções de Negócio e Regras de Domínio
-
-Durante a fase de refinamento do domínio, o projeto adotou uma hierarquia de exceções própria para separar erro técnico de erro de negócio.
-
-#### Pacote de exceções
-
-O pacote é `com.ecommerce.pedidos.excecao` e contém:
-
-- `ECommerceException` — raiz do domínio, estende `Exception` e aceita mensagem e causa.
-- `EstoqueInsuficienteException` — representa falta de estoque com dados do produto e da quantidade solicitada.
-- `PagamentoRecusadoException` — representa recusa de processamento com a forma de pagamento e o motivo.
-- `ClienteNaoEncontradoException` — identificador buscado do cliente.
-- `PedidoInvalidoException` — representa pedido inválido para pagamento, como pedido sem itens ou fora do estado `ABERTO`.
-
-#### Critério checked × unchecked
-
-A equipe definiu um único critério para todo o projeto:
-
-- `Estoque insuficiente` → `checked` (`ECommerceException` / `EstoqueInsuficienteException`)
-  - Quem chamou pode tentar outro produto ou quantidade.
-- `Pagamento recusado` → `checked` (`PagamentoRecusadoException`)
-  - Quem chamou pode sugerir outra forma de pagamento.
-- `Pedido já pago` → `unchecked` (`IllegalStateException`)
-  - Erro de uso da classe, não uma situação de negócio recuperável no runtime.
-- `Produto nulo em adicionarItem` → `unchecked` (`IllegalArgumentException`)
-  - Defeito de quem chamou.
-- `Preço negativo em Produto` → `unchecked` (`IllegalArgumentException`)
-  - Nenhuma reação automática em runtime resolve isso.
-
-#### Regras de negócio aplicadas
-
-- `Produto.baixarEstoque(int quantidade)`:
-  - quantidade negativa ou zero → `IllegalArgumentException`
-  - quantidade maior que o estoque → `EstoqueInsuficienteException`
-- `Pedido.adicionarItem(Produto produto, int quantidade)`:
-  - produto nulo → `IllegalArgumentException`
-  - quantidade inválida → `IllegalArgumentException`
-  - pedido fora de `ABERTO` → `IllegalStateException`
-  - estoque indisponível → `EstoqueInsuficienteException`
-- `Pedido.pagar(ProcessadorPagamento processador)`:
-  - processador nulo → `IllegalArgumentException`
-  - pedido sem itens → `PedidoInvalidoException`
-  - pedido fora de `ABERTO` → `PedidoInvalidoException`
-  - processamento recusado → `PagamentoRecusadoException`
-  - em caso de recusa, o pedido permanece `ABERTO` e não muda de situação.
-
-#### Status da Aula 12
-
-O backend do projeto foi modernizado e padronizado para atender aos requisitos da aula atual:
-
-- os subpacotes foram unificados em Português, com `modelo`, `servico`, `repositorio`, `excecao`, `controller` e `swift` em uso consistente;
-- a suíte de testes cobre os fluxos de domínio e foi ampliada com o teste de integração `PedidoIntegracaoTest`, isolando o ciclo de criação do pedido e processamento de pagamento;
-- a persistência inicial foi configurada com a dependência oficial do MySQL e a classe `ConexaoFactory` via JDBC, preparadas para a etapa de armazenamento real em banco de dados.
-
-A validação recomendada é:
-
-```bash
-git switch feat/aula-12-refatoracao
-mvn clean test
-```
-
----
