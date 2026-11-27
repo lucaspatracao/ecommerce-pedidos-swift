@@ -1,7 +1,9 @@
 package com.ecommerce.pedidos.repositorio;
 
 import com.ecommerce.pedidos.modelo.Cliente;
+import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -32,4 +34,19 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
 
     /** Consulta derivada: o Spring monta o SQL a partir do nome do método. */
     boolean existsByDocumento(String cpf);
+
+    boolean existsByEmail(String email);
+
+    /** Outro cliente (id diferente) já usa este e-mail? Usado na atualização. */
+    boolean existsByEmailAndIdNot(String email, Long id);
+
+    /** Listagem com soft delete: {@code ativo} nulo = todos. */
+    @Query("""
+        select c from Cliente c
+        where (:ativo is null or c.ativo = :ativo)
+        order by c.nome, c.id
+        """)
+    List<Cliente> listar(@Param("ativo") Boolean ativo, Pageable pagina);
+
+    long countByAtivoTrue();
 }

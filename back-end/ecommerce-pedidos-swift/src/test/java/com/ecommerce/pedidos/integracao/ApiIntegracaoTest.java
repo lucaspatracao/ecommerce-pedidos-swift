@@ -4,6 +4,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -111,8 +112,10 @@ class ApiIntegracaoTest {
                 .andExpect(jsonPath("$.nome").value("Renomeado"))
                 .andExpect(jsonPath("$.ativo").value(false));
 
-            mvc.perform(delete("/api/produtos/{codigo}", codigo)).andExpect(status().isNoContent());
-            mvc.perform(delete("/api/produtos/{codigo}", codigo))
+            // Nunca vendido: pode ser apagado de fato com definitivo=true.
+            mvc.perform(delete("/api/produtos/{codigo}", codigo).param("definitivo", "true"))
+                .andExpect(status().isNoContent());
+            mvc.perform(delete("/api/produtos/{codigo}", codigo).param("definitivo", "true"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.erro").value(containsString("Produto não encontrado")));
         }
@@ -127,7 +130,7 @@ class ApiIntegracaoTest {
                 {"codigo":"%s","nome":"Dup","preco":"1.00","estoque":1}
                 """.formatted(codigo))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("Já existe produto")));
+                .andExpect(jsonPath("$.erro").value("Já existe um produto com este código."));
 
             enviar("PUT", "/api/produtos/" + outro, """
                 {"codigo":"%s","nome":"Dup","preco":"1.00","estoque":1}
@@ -147,14 +150,14 @@ class ApiIntegracaoTest {
         }
 
         @Test
-        @DisplayName("produto já vendido não pode ser excluído (409)")
+        @DisplayName("produto já vendido não pode ser excluído definitivamente (409)")
         void naoDeveExcluirProdutoVendido() throws Exception {
             String codigo = novoProduto("10.00", 5);
             novoPedido(novoCliente(), codigo, 1);
 
-            mvc.perform(delete("/api/produtos/{codigo}", codigo))
+            mvc.perform(delete("/api/produtos/{codigo}", codigo).param("definitivo", "true"))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("Desative-o")));
+                .andExpect(jsonPath("$.erro").value(containsString("Inative-o")));
         }
     }
 
@@ -214,7 +217,7 @@ class ApiIntegracaoTest {
 
             mvc.perform(delete("/api/clientes/{cpf}", cpf))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value("Cliente possui pedidos e não pode ser excluído."));
+                .andExpect(jsonPath("$.erro").value(startsWith("Este cliente possui pedidos e não pode ser excluído.")));
         }
     }
 

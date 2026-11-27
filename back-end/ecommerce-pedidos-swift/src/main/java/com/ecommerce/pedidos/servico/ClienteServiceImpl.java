@@ -10,6 +10,7 @@ import com.ecommerce.pedidos.repositorio.ClienteRepository;
 import com.ecommerce.pedidos.repositorio.PedidoRepository;
 import com.ecommerce.pedidos.util.Utils;
 import java.util.List;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,13 +35,15 @@ public class ClienteServiceImpl implements ClienteService {
     }
 
     @Override
-    public List<ClienteResponse> listarTodos() {
-        return clienteRepository.findAll().stream().map(ClienteResponse::de).toList();
+    public List<ClienteResponse> listar(Visibilidade visibilidade, Pageable pagina) {
+        return clienteRepository.listar(visibilidade.filtroAtivo(), pagina).stream()
+            .map(ClienteResponse::de)
+            .toList();
     }
 
     @Override
     public ClienteResponse buscarPorCpf(String cpf) {
-        return ClienteResponse.de(buscarEntidade(cpf));
+        return ClienteResponse.de(buscarEntidade(cpf, Visibilidade.ATIVOS));
     }
 
     @Override
@@ -52,15 +55,24 @@ public class ClienteServiceImpl implements ClienteService {
         if (clienteRepository.existsByDocumento(cliente.getCpf())) {
             throw new ConflitoException("Já existe cliente cadastrado com o CPF " + cliente.getCpf());
         }
+        if (clienteRepository.existsByEmail(cliente.getEmail())) {
+            throw new ConflitoException("Já existe cliente cadastrado com o e-mail " + cliente.getEmail());
+        }
         return ClienteResponse.de(clienteRepository.save(cliente));
     }
 
     @Override
     @Transactional
     public ClienteResponse atualizar(String cpf, ClienteRequest request) {
-        Cliente cliente = buscarEntidade(cpf);
+        Cliente cliente = buscarEntidade(cpf, Visibilidade.ATIVOS);
+        // Confere o e-mail ANTES de alterar a entidade: a consulta faria o
+        // Hibernate gravar a alteração pendente e o banco recusaria o UPDATE.
+        String email = Utils.validarEmail(request.email());
+        if (clienteRepository.existsByEmailAndIdNot(email, cliente.getId())) {
+            throw new ConflitoException("Já existe cliente cadastrado com o e-mail " + email);
+        }
         // O CPF da rota identifica o cliente; o CPF do corpo é ignorado (CPF não muda).
-        cliente.atualizarContato(request.nome(), request.email(), request.telefone(),
+        cliente.atualizarContato(request.nome(), email, request.telefone(),
             Endereco.aPartirDoTexto(request.endereco()));
         return ClienteResponse.de(cliente);
     }
@@ -68,22 +80,39 @@ public class ClienteServiceImpl implements ClienteService {
     @Override
     @Transactional
     public void excluir(String cpf) {
-        Cliente cliente = buscarEntidade(cpf);
+        Cliente cliente = buscarEntidade(cpf, Visibilidade.TODOS);
         if (pedidoRepository.existsByCliente(cliente)) {
-            throw new ConflitoException("Cliente possui pedidos e não pode ser excluído.");
+            throw new ConflitoException("Este cliente possui pedidos e não pode ser excluído. "
+                + "Inative-o para tirá-lo das listagens sem perder o histórico.");
         }
         clienteRepository.delete(cliente);
     }
 
     @Override
-    public long contar() {
-        return clienteRepository.count();
+    @Transactional
+    public void inativar(String cpf) {
+        buscarEntidade(cpf, Visibilidade.ATIVOS).inativar();
     }
 
-    private Cliente buscarEntidade(String cpf) {
-        // Aceita CPF com ou sem máscara; no banco ele fica só com dígitos.
+    @Override
+    @Transactional
+    public ClienteResponse reativar(String cpf) {
+        Cliente cliente = buscarEntidade(cpf, Visibilidade.INATIVOS);
+        cliente.reativar();
+        return ClienteResponse.de(cliente);
+    }
+
+    @Override
+    public long contar() {
+        return clienteRepository.countByAtivoTrue();
+    }
+
+    /** Busca pelo CPF (com ou sem máscara) respeitando o filtro do soft delete. */
+    private Cliente buscarEntidade(String cpf, Visibilidade visibilidade) {
         String chave = Utils.apenasDigitos(Utils.textoObrigatorio(cpf, "CPF do cliente"));
+        Boolean ativo = visibilidade.filtroAtivo();
         return clienteRepository.buscarPorCpf(chave)
+            .filter(cliente -> ativo == null || cliente.isAtivo() == ativo)
             .orElseThrow(() -> new ClienteNaoEncontradoException(chave));
     }
 }

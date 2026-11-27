@@ -18,7 +18,8 @@ public record ClienteResponse(
     EnderecoResponse endereco,
     String cpf,
     String identificacao,
-    String resumo
+    String resumo,
+    boolean ativo
 ) {
 
     public static ClienteResponse de(Cliente cliente) {
@@ -30,7 +31,8 @@ public record ClienteResponse(
             EnderecoResponse.de(cliente.getEndereco()),
             cliente.getCpf(),
             cliente.getIdentificacao(),
-            cliente.getResumo()
+            cliente.getResumo(),
+            cliente.isAtivo()
         );
     }
 }
