@@ -108,6 +108,18 @@ public class Pedido {
         return numero;
     }
 
+    /**
+     * Sorteia outro número. O número é aleatório (PED-ano-NNNNN), então dois
+     * pedidos podem sortear o mesmo; o serviço chama este método até achar
+     * um número livre antes de gravar.
+     */
+    public void renovarNumero() {
+        if (id != null) {
+            throw new IllegalStateException("Pedido já gravado não pode trocar de número");
+        }
+        this.numero = PedidoUtils.gerarNumeroDoPedido();
+    }
+
     public Cliente getCliente() {
         return cliente;
     }

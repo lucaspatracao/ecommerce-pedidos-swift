@@ -35,13 +35,6 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
-      <dependency>
-        <groupId>org.junit</groupId>
-        <artifactId>junit-bom</artifactId>
-        <version>5.11.0</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -50,6 +43,11 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
+    <!--
+      Testes: JUnit 5 (com @ParameterizedTest), Mockito, AssertJ e MockMvc.
+      A versão vem do BOM do Spring Boot; nada de JUnit com escopo compile,
+      para não ir parar no JAR de produção.
+    -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
@@ -85,21 +83,6 @@
     <dependency>
       <groupId>com.h2database</groupId>
       <artifactId>h2</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter</artifactId>
-      <version>5.10.2</version>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-api</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-params</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -164,6 +147,20 @@
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
         <version>0.8.14</version>
+        <!--
+          Cobertura (Aula 11). Os padrões usam o CAMINHO do .class (com "/"),
+          não o nome do pacote com pontos. Com pontos o JaCoCo não acha nenhuma
+          classe e a regra "passa" sem medir nada.
+          Ficam de fora só a classe main e os records de DTO (dados sem regra).
+          Valem para o relatório e para a regra.
+        -->
+        <configuration>
+          <excludes>
+            <exclude>com/ecommerce/pedidos/EcommercePedidosSwiftApplication.class</exclude>
+            <exclude>com/ecommerce/pedidos/dto/*Request.class</exclude>
+            <exclude>com/ecommerce/pedidos/dto/*Response.class</exclude>
+          </excludes>
+        </configuration>
         <executions>
           <execution>
             <id>prepare-agent</id>
@@ -178,6 +175,11 @@
               <goal>report</goal>
             </goals>
           </execution>
+          <!--
+            Regra: o projeto inteiro (BUNDLE) precisa de >= 70% das linhas
+            cobertas. Ligada à fase "test", então "mvn clean test" FALHA se a
+            meta não for atingida. Relatório: target/site/jacoco/index.html
+          -->
           <execution>
             <id>coverage-check</id>
             <phase>test</phase>
@@ -185,13 +187,10 @@
               <goal>check</goal>
             </goals>
             <configuration>
-              <includes>
-                <include>com.ecommerce.pedidos.modelo.*</include>
-                <include>com.ecommerce.pedidos.excecao.*</include>
-              </includes>
+              <haltOnFailure>true</haltOnFailure>
               <rules>
                 <rule>
-                  <element>PACKAGE</element>
+                  <element>BUNDLE</element>
                   <limits>
                     <limit>
                       <counter>LINE</counter>

@@ -90,6 +90,10 @@ public class PedidoServiceImpl implements PedidoService {
             // Regra no domínio: baixa o estoque ou lança EstoqueInsuficienteException (409).
             pedido.adicionarItem(produto, item.quantidade() == null ? 0 : item.quantidade());
         }
+        // O número é sorteado; garante que não colide com um pedido existente (UNIQUE).
+        while (pedidoRepository.existsByNumero(pedido.getNumero())) {
+            pedido.renovarNumero();
+        }
         return PedidoResponse.de(pedidoRepository.save(pedido));
     }
 
