@@ -1,5 +1,7 @@
 # Sistema de Gestão de Pedidos — E-commerce
 
+[![CI](https://github.com/lucaspatracao/ecommerce-pedidos-swift/actions/workflows/ci.yml/badge.svg)](https://github.com/lucaspatracao/ecommerce-pedidos-swift/actions/workflows/ci.yml)
+
 > **Projeto Integrador** da Unidade Curricular: *Desenvolvimento Back-end*
 >
 > **Curso:** Superior de Tecnologia em Análise e Desenvolvimento de Sistemas (Turma CSTADS601)
@@ -155,6 +157,23 @@ mvn clean verify   # unidade + integração (Spring, H2 e Flyway) + regras de co
 | `test` | H2 em memória, `MODE=MySQL` | Testes automatizados (`@ActiveProfiles("test")`) | `src/test/resources/application-test.properties` |
 
 Configurações comuns (`application.properties`): `ddl-auto=validate` (o Hibernate só confere o schema criado pelo Flyway; nunca cria tabelas), `open-in-view=false` e leitura de `${DB_URL}`, `${DB_USERNAME}` e `${DB_PASSWORD}`.
+
+---
+
+### Integração contínua
+
+O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda no GitHub Actions a cada **push na `main`** e em **todo pull request**. O selo no topo deste README mostra o resultado da última execução na `main`.
+
+| Job | Ambiente | O que roda | Artefatos |
+| :--- | :--- | :--- | :--- |
+| `backend` | Ubuntu · Java 17 (Temurin) · cache do Maven | `mvn -B verify`: testes de unidade, testes de integração e metas de cobertura do JaCoCo (85% das linhas e 65% dos ramos) | `jacoco` (relatório `jacoco-total/`) e `aplicacao-jar` (o `.jar` gerado) |
+| `frontend` | Ubuntu · Node 22 · cache do npm | `npm ci`, `npm run lint` e `npm run build` | — |
+
+* **Sem segredos e sem MySQL:** os testes de integração usam o perfil `test` (H2 em memória com as mesmas migrations do Flyway).
+* **Nunca** `mvn package` nem `-DskipTests`: o objetivo do pipeline é justamente rodar os testes.
+* Os dois jobs rodam em paralelo. Um push novo no mesmo PR cancela a execução anterior.
+
+> **Regra da equipe:** PR com pipeline vermelho **não é integrado**. Quem abriu o PR corrige e faz um novo push. Ninguém faz merge "para arrumar depois", nem desliga ou pula testes para o selo ficar verde.
 
 ---
 
@@ -442,7 +461,7 @@ Relatórios para publicar como artefato: `back-end/ecommerce-pedidos-swift/targe
 
 **Pendências da Aula 15:**
 
-1. Workflow do GitHub Actions com os comandos acima em todo push e pull request para a `main`.
+1. ✅ Workflow do GitHub Actions com os comandos acima (veja [Integração contínua](#integração-contínua)).
 2. Telas para os recursos que a API já oferece e o front ainda não usa: listar inativos e reativar (clientes e produtos), inativar cliente com pedidos, cancelar pedido, remover item, excluir pedido em aberto, pedidos por cliente, filtros e paginação.
 3. Revisão final de ponta a ponta com o MySQL local (cadastro → pedido → pagamento → cancelamento).
 
@@ -453,7 +472,7 @@ Relatórios para publicar como artefato: `back-end/ecommerce-pedidos-swift/targe
 1. **`PedidoUtils` com `double`:** os cálculos de frete e desconto da Aula 03 continuam em `double` por fins didáticos. O domínio (preços, totais, pagamentos) já usa `BigDecimal`.
 2. **Autenticação e autorização:** a API ainda não exige login.
 3. **Gateway de pagamento simulado:** `GatewayPagamentoSimulado` autoriza tudo. Uma integração real implementaria a interface `GatewayPagamento`.
-4. **CI/CD:** pipeline do GitHub Actions ainda não configurado (Aula 15).
+4. **CD (entrega contínua):** a integração contínua está no GitHub Actions; ainda não há deploy automático da aplicação.
 5. **Front-end parcial em relação à API:** soft delete, cancelamento e paginação existem na API, mas ainda não têm tela (Aula 15).
 6. **Número do pedido acima de 99.999 por ano:** o formato tem 5 dígitos; o 100.000º pedido do ano sairia com 6 (`PED-2026-100000`). Folga suficiente para o escopo acadêmico.
 
