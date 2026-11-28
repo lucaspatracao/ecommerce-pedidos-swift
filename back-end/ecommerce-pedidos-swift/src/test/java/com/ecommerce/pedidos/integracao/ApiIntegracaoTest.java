@@ -34,7 +34,7 @@ import org.springframework.test.web.servlet.ResultActions;
  * → controller → serviço → banco H2 → JSON de resposta.
  *
  * <p>Conferem o contrato com o front-end: rotas, status HTTP, nomes dos
- * campos JSON e o corpo de erro {@code { "erro": "..." }}. Cenários
+ * campos JSON e o corpo de erro padronizado ({@code ErroResponse}). Cenários
  * adaptados da branch feature/crud-completo.</p>
  */
 @Tag("integracao")
@@ -121,7 +121,7 @@ class ApiIntegracaoTest {
                 .andExpect(status().isNoContent());
             mvc.perform(delete("/api/produtos/{codigo}", codigo).param("definitivo", "true"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.erro").value(containsString("Produto não encontrado")));
+                .andExpect(jsonPath("$.mensagem").value(containsString("Produto não encontrado")));
         }
 
         @Test
@@ -134,7 +134,7 @@ class ApiIntegracaoTest {
                 {"codigo":"%s","nome":"Dup","preco":"1.00","estoque":1}
                 """.formatted(codigo))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value("Já existe um produto com este código."));
+                .andExpect(jsonPath("$.mensagem").value("Já existe um produto com este código."));
 
             enviar("PUT", "/api/produtos/" + outro, """
                 {"codigo":"%s","nome":"Dup","preco":"1.00","estoque":1}
@@ -149,8 +149,9 @@ class ApiIntegracaoTest {
                 {"codigo":"","nome":"X","preco":"0","estoque":-1}
                 """)
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erro").value(containsString("Preço do produto deve ser maior que zero.")))
-                .andExpect(jsonPath("$.erro").value(containsString("Estoque do produto não pode ser negativo.")));
+                .andExpect(jsonPath("$.erro").value("Requisição inválida"))
+                .andExpect(jsonPath("$.campos[?(@.campo == 'preco')].mensagem").value(hasItem("Preço do produto deve ser maior que zero.")))
+                .andExpect(jsonPath("$.campos[?(@.campo == 'estoque')].mensagem").value(hasItem("Estoque do produto não pode ser negativo.")));
         }
 
         @Test
@@ -161,7 +162,7 @@ class ApiIntegracaoTest {
 
             mvc.perform(delete("/api/produtos/{codigo}", codigo).param("definitivo", "true"))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("Inative-o")));
+                .andExpect(jsonPath("$.mensagem").value(containsString("Inative-o")));
         }
     }
 
@@ -207,14 +208,14 @@ class ApiIntegracaoTest {
             enviar("POST", "/api/clientes", corpo.formatted(cpf)).andExpect(status().isConflict());
             enviar("POST", "/api/clientes", corpo.formatted("12345678901"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erro").value("CPF inválido: 12345678901"));
+                .andExpect(jsonPath("$.mensagem").value("CPF inválido: 12345678901"));
             enviar("PUT", "/api/clientes/" + DadosDeTeste.novoCpf(), corpo.formatted("x"))
                 .andExpect(status().isNotFound());
             enviar("POST", "/api/clientes", """
                 {"nome":"","cpf":"%s","email":"sem-arroba","telefone":"abc"}
                 """.formatted(DadosDeTeste.novoCpf()))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erro").value(containsString("E-mail inválido.")));
+                .andExpect(jsonPath("$.campos[?(@.campo == 'email')].mensagem").value(hasItem("E-mail inválido.")));
         }
 
         @Test
@@ -225,7 +226,7 @@ class ApiIntegracaoTest {
 
             mvc.perform(delete("/api/clientes/{cpf}", cpf))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(startsWith("Este cliente possui pedidos e não pode ser excluído.")));
+                .andExpect(jsonPath("$.mensagem").value(startsWith("Este cliente possui pedidos e não pode ser excluído.")));
         }
     }
 
@@ -244,7 +245,7 @@ class ApiIntegracaoTest {
                 {"clienteCpf":"%s","itens":[{"codigo":"%s","quantidade":3}]}
                 """.formatted(novoCliente(), codigo))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("Estoque insuficiente")));
+                .andExpect(jsonPath("$.mensagem").value(containsString("Estoque insuficiente")));
 
             org.junit.jupiter.api.Assertions.assertEquals(2, estoqueDe(codigo));
         }
@@ -265,13 +266,13 @@ class ApiIntegracaoTest {
                 {"clienteCpf":"%s","itens":[]}
                 """.formatted(cpf))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erro").value("Pedido deve conter pelo menos um item."));
+                .andExpect(jsonPath("$.campos[?(@.campo == 'itens')].mensagem").value(hasItem("Pedido deve conter pelo menos um item.")));
             enviar("POST", "/api/pedidos", """
                 {"clienteCpf":"%s","itens":[{"codigo":"%s","quantidade":0}]}
                 """.formatted(cpf, codigo)).andExpect(status().isBadRequest());
             mvc.perform(get("/api/pedidos/{numero}", "PED-0000-00000"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.erro").value("Pedido não encontrado: PED-0000-00000"));
+                .andExpect(jsonPath("$.mensagem").value("Pedido não encontrado: PED-0000-00000"));
         }
 
         @Test
@@ -286,7 +287,7 @@ class ApiIntegracaoTest {
                 {"clienteCpf":"%s","itens":[{"codigo":"%s","quantidade":1}]}
                 """.formatted(novoCliente(), codigo))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("indisponível")));
+                .andExpect(jsonPath("$.mensagem").value(containsString("indisponível")));
         }
 
         @Test
@@ -327,7 +328,7 @@ class ApiIntegracaoTest {
             // Pedido cancelado é histórico: não pode ser excluído nem cancelado de novo.
             mvc.perform(delete("/api/pedidos/{numero}", numero))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("histórico")));
+                .andExpect(jsonPath("$.mensagem").value(containsString("histórico")));
             enviar("PATCH", "/api/pedidos/" + numero, "{\"situacao\":\"CANCELADO\"}").andExpect(status().isConflict());
         }
 
@@ -351,7 +352,7 @@ class ApiIntegracaoTest {
             enviar("POST", "/api/pedidos/" + pedidoPix + "/pagamento", pix).andExpect(status().isCreated());
             enviar("POST", "/api/pedidos/" + pedidoPix + "/pagamento", pix)
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("não pode ser pago")));
+                .andExpect(jsonPath("$.mensagem").value(containsString("não pode ser pago")));
         }
 
         @Test
@@ -363,7 +364,7 @@ class ApiIntegracaoTest {
                 {"tipo":"PIX","valor":"29.00","chave":"c","tipoChave":"EMAIL"}
                 """)
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value("Valor do pagamento deve ser igual ao total do pedido"));
+                .andExpect(jsonPath("$.mensagem").value("Valor do pagamento deve ser igual ao total do pedido"));
             enviar("POST", "/api/pedidos/" + numero + "/pagamento", """
                 {"tipo":"CHEQUE","valor":"30.00"}
                 """).andExpect(status().isBadRequest());
@@ -371,10 +372,10 @@ class ApiIntegracaoTest {
                 {"tipo":"PIX","valor":"30.00"}
                 """)
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erro").value("Chave Pix é obrigatório."));
+                .andExpect(jsonPath("$.mensagem").value("Chave Pix é obrigatório."));
             enviar("POST", "/api/pedidos/" + numero + "/pagamento", "{\"tipo\":\"PIX\"}")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erro").value(containsString("Valor do pagamento é obrigatório.")));
+                .andExpect(jsonPath("$.campos[?(@.campo == 'valor')].mensagem").value(hasItem("Valor do pagamento é obrigatório.")));
             // Pedido ainda sem pagamento: o sub-recurso não existe.
             mvc.perform(get("/api/pedidos/{numero}/pagamento", numero)).andExpect(status().isNotFound());
             // A rota antiga saiu: o pagamento é criado no pedido.
@@ -391,7 +392,7 @@ class ApiIntegracaoTest {
 
             enviar("PATCH", "/api/pedidos/" + numero, "{\"situacao\":\"ENVIADO\"}")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erro").value(containsString("Status inválido")));
+                .andExpect(jsonPath("$.mensagem").value(containsString("Status inválido")));
             enviar("PATCH", "/api/pedidos/" + numero, "{\"situacao\":\"PAGO\"}")
                 .andExpect(status().isConflict());
             enviar("PATCH", "/api/pedidos/" + numero, "{\"situacao\":\"ABERTO\"}")
@@ -407,7 +408,7 @@ class ApiIntegracaoTest {
                 """).andExpect(status().isCreated());
             enviar("PATCH", "/api/pedidos/" + pago, "{\"situacao\":\"ABERTO\"}")
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value("Transição de situação inválida"));
+                .andExpect(jsonPath("$.mensagem").value("Transição de situação inválida"));
         }
 
         @Test
@@ -438,12 +439,12 @@ class ApiIntegracaoTest {
     void deveTratarErrosDoSpring() throws Exception {
         enviar("POST", "/api/clientes", "{ isto não é json")
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.erro").value("Corpo da requisição inválido ou mal formatado."));
+            .andExpect(jsonPath("$.mensagem").value("Corpo da requisição inválido ou mal formatado."));
         mvc.perform(get("/api/nao-existe"))
             .andExpect(status().isNotFound())
-            .andExpect(jsonPath("$.erro").value(containsString("Rota não encontrada")));
+            .andExpect(jsonPath("$.mensagem").value(containsString("Rota não encontrada")));
         mvc.perform(delete("/api/dashboard"))
             .andExpect(status().isMethodNotAllowed())
-            .andExpect(jsonPath("$.erro").exists());
+            .andExpect(jsonPath("$.mensagem").exists());
     }
 }

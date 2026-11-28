@@ -36,6 +36,12 @@ class ExcecoesTest {
         assertInstanceOf(ConflitoException.class, new PagamentoRecusadoException("Pix", "x"));
         assertInstanceOf(RecursoNaoEncontradoException.class, new ClienteNaoEncontradoException("1"));
         assertInstanceOf(NegocioException.class, new ConflitoException("x"));
+        assertInstanceOf(RecursoNaoEncontradoException.class, new ProdutoNaoEncontradoException("P-1"));
+        assertInstanceOf(RecursoNaoEncontradoException.class, new PedidoNaoEncontradoException("PED-1"));
+        assertInstanceOf(RecursoNaoEncontradoException.class, new PagamentoNaoEncontradoException("PED-1"));
+        assertInstanceOf(ConflitoException.class, new RegistroDuplicadoException("x"));
+        assertInstanceOf(PedidoInvalidoException.class, new PedidoJaPagoException("PED-1"));
+        assertEquals("Pagamento do pedido não encontrado: PED-1", new PagamentoNaoEncontradoException("PED-1").getMessage());
     }
 
     @Test

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { criarPedido } from '../api/clienteApi'
+import { ErroCampo } from '../components/ErroCampo'
 
 const formatCurrency = (valor) =>
   new Intl.NumberFormat('pt-BR', {
@@ -22,6 +23,8 @@ export function NovoPedidoPage({ clientes = [], produtos = [], loading, onPedido
   const [itens, setItens] = useState([])
   const [erroItem, setErroItem] = useState('')
   const [erro, setErro] = useState('')
+  // Mensagens por campo vindas do back-end (400 com "campos").
+  const [errosCampos, setErrosCampos] = useState({})
   const [enviando, setEnviando] = useState(false)
 
   // Só produtos que podem ser vendidos: ativos e com estoque.
@@ -89,11 +92,14 @@ export function NovoPedidoPage({ clientes = [], produtos = [], loading, onPedido
 
     setEnviando(true)
     try {
+      setErrosCampos({})
       const pedido = await criarPedido({ clienteCpf, itens })
       onPedidoCriado?.(pedido)
     } catch (error) {
-      // Mensagem do back-end ({ "erro": ... }), ex.: estoque insuficiente (409).
+      // "mensagem" do corpo de erro padronizado, ex.: estoque insuficiente (409);
+      // em 400 de validação, "campos" aparece junto do campo certo.
       setErro(error.message)
+      setErrosCampos(error.campos ?? {})
       // O estoque pode ter mudado desde que a tela abriu: recarrega os produtos.
       onDadosDesatualizados?.()
     } finally {
@@ -131,6 +137,7 @@ export function NovoPedidoPage({ clientes = [], produtos = [], loading, onPedido
                     </option>
                   ))}
                 </select>
+                <ErroCampo mensagem={errosCampos.clienteCpf} />
                 {clientes.length === 0 && (
                   <span className="field-hint">Nenhum cliente cadastrado. Cadastre um em Clientes.</span>
                 )}
@@ -221,6 +228,7 @@ export function NovoPedidoPage({ clientes = [], produtos = [], loading, onPedido
               </div>
             </div>
 
+            <ErroCampo mensagem={errosCampos.itens} />
             {erro && <div className="alert alert-error" role="alert">{erro}</div>}
 
             <div className="actions-row">

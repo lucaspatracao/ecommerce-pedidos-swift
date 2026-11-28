@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { registrarPagamento } from '../api/clienteApi'
+import { ErroCampo } from './ErroCampo'
 
 const formatCurrency = (valor) =>
   new Intl.NumberFormat('pt-BR', {
@@ -51,6 +52,8 @@ export function PagamentoForm({ pedido, onPagamentoRegistrado }) {
   const [tipo, setTipo] = useState('PIX')
   const [campos, setCampos] = useState(FORMAS.PIX.inicial)
   const [erro, setErro] = useState('')
+  // Mensagens por campo vindas do back-end (400 com "campos").
+  const [errosCampos, setErrosCampos] = useState({})
   const [enviando, setEnviando] = useState(false)
 
   const handleTipo = (event) => {
@@ -58,6 +61,7 @@ export function PagamentoForm({ pedido, onPagamentoRegistrado }) {
     setTipo(novoTipo)
     setCampos(FORMAS[novoTipo].inicial)
     setErro('')
+    setErrosCampos({})
   }
 
   const handleCampo = (event) => {
@@ -75,6 +79,7 @@ export function PagamentoForm({ pedido, onPagamentoRegistrado }) {
     }
 
     setErro('')
+    setErrosCampos({})
     setEnviando(true)
     try {
       await registrarPagamento(pedido.numero, {
@@ -85,6 +90,7 @@ export function PagamentoForm({ pedido, onPagamentoRegistrado }) {
       onPagamentoRegistrado?.()
     } catch (error) {
       setErro(error.message)
+      setErrosCampos(error.campos ?? {})
     } finally {
       setEnviando(false)
     }
@@ -104,11 +110,13 @@ export function PagamentoForm({ pedido, onPagamentoRegistrado }) {
               <option key={chave} value={chave}>{forma.rotulo}</option>
             ))}
           </select>
+          <ErroCampo mensagem={errosCampos.tipo} />
         </label>
 
         <label>
           Valor
           <input value={formatCurrency(pedido.valorTotal)} readOnly aria-readonly="true" />
+          <ErroCampo mensagem={errosCampos.valor} />
         </label>
 
         {tipo === 'PIX' && (

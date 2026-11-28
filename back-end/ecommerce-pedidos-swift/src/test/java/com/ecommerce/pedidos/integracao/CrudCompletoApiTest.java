@@ -142,7 +142,7 @@ class CrudCompletoApiTest {
                 {"codigo":"%s","nome":"B","preco":"12.00","estoque":1,"versao":0}
                 """.formatted(codigo))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("alterado(a) por outra operação")));
+                .andExpect(jsonPath("$.mensagem").value(containsString("alterado(a) por outra operação")));
         }
 
         @Test
@@ -189,7 +189,7 @@ class CrudCompletoApiTest {
 
             mvc.perform(delete("/api/produtos/{codigo}", vendido).param("definitivo", "true"))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(startsWith("Este produto já foi vendido")));
+                .andExpect(jsonPath("$.mensagem").value(startsWith("Este produto já foi vendido")));
         }
 
         @Test
@@ -210,12 +210,12 @@ class CrudCompletoApiTest {
             mvc.perform(get("/api/produtos").param("pagina", "-1")).andExpect(status().isBadRequest());
             enviar(post("/api/produtos"), "{\"codigo\":\"%s\",\"nome\":\"Dup\",\"preco\":\"1.00\",\"estoque\":1}".formatted(a))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value("Já existe um produto com este código."));
+                .andExpect(jsonPath("$.mensagem").value("Já existe um produto com este código."));
             enviar(post("/api/produtos"), "{\"codigo\":\"P-X1\",\"nome\":\"Sem preço\",\"estoque\":1}")
                 .andExpect(status().isBadRequest());
             enviar(post("/api/produtos"), "{\"codigo\":\"P-X2\",\"nome\":\"Sem estoque\",\"preco\":\"1.00\"}")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erro").value("Estoque do produto é obrigatório."));
+                .andExpect(jsonPath("$.mensagem").value("Estoque do produto é obrigatório."));
             enviar(patch("/api/produtos/" + a + "/estoque"), "{}").andExpect(status().isBadRequest());
             enviar(patch("/api/produtos/" + a + "/estoque"), "{\"quantidade\":-1}").andExpect(status().isBadRequest());
             enviar(put("/api/produtos/NAO-EXISTE"), "{\"codigo\":\"NAO-EXISTE\",\"nome\":\"X\",\"preco\":\"1.00\"}")
@@ -248,7 +248,7 @@ class CrudCompletoApiTest {
                 {"nome":"X","email":"x@email.com","telefone":"11999999","endereco":"r"}
                 """)
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.erro").value(containsString(inexistente)));
+                .andExpect(jsonPath("$.mensagem").value(containsString(inexistente)));
         }
 
         @Test
@@ -262,7 +262,7 @@ class CrudCompletoApiTest {
                 {"nome":"Outro","cpf":"%s","email":"%s","telefone":"11900000000"}
                 """.formatted(DadosDeTeste.novoCpf(), emailDoPrimeiro))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("e-mail")));
+                .andExpect(jsonPath("$.mensagem").value(containsString("e-mail")));
             enviar(put("/api/clientes/" + segundo), """
                 {"nome":"Lia","email":"%s","telefone":"11900000000"}
                 """.formatted(emailDoPrimeiro))
@@ -283,7 +283,7 @@ class CrudCompletoApiTest {
 
             mvc.perform(delete("/api/clientes/{cpf}", cpf))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(startsWith("Este cliente possui pedidos e não pode ser excluído.")));
+                .andExpect(jsonPath("$.mensagem").value(startsWith("Este cliente possui pedidos e não pode ser excluído.")));
 
             enviar(patch("/api/clientes/{cpf}", cpf), "{\"ativo\":false}")
                 .andExpect(status().isOk())
@@ -330,7 +330,7 @@ class CrudCompletoApiTest {
                 {"clienteCpf":"%s","itens":[{"codigo":"%s","quantidade":9}]}
                 """.formatted(cpf, codigo))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value("Estoque insuficiente de Produto " + codigo + ": disponível 5, solicitado 9"));
+                .andExpect(jsonPath("$.mensagem").value("Estoque insuficiente de Produto " + codigo + ": disponível 5, solicitado 9"));
 
             mvc.perform(get("/api/clientes/{cpf}/pedidos", cpf)).andExpect(jsonPath("$", hasSize(0)));
             assertEquals(5, estoqueDe(codigo));
@@ -375,7 +375,7 @@ class CrudCompletoApiTest {
 
             mvc.perform(delete("/api/pedidos/{numero}", numero))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("Cancele o pedido")));
+                .andExpect(jsonPath("$.mensagem").value(containsString("Cancele o pedido")));
 
             enviar(patch("/api/pedidos/{numero}", numero), "{\"situacao\":\"CANCELADO\"}")
                 .andExpect(status().isOk())

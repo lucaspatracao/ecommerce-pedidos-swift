@@ -4,6 +4,7 @@ import com.ecommerce.pedidos.dto.ClienteRequest;
 import com.ecommerce.pedidos.dto.ClienteResponse;
 import com.ecommerce.pedidos.excecao.ClienteNaoEncontradoException;
 import com.ecommerce.pedidos.excecao.ConflitoException;
+import com.ecommerce.pedidos.excecao.RegistroDuplicadoException;
 import com.ecommerce.pedidos.modelo.Cliente;
 import com.ecommerce.pedidos.modelo.Endereco;
 import com.ecommerce.pedidos.repositorio.ClienteRepository;
@@ -53,10 +54,10 @@ public class ClienteServiceImpl implements ClienteService {
         Cliente cliente = new Cliente(request.nome(), request.cpf(), request.email(),
             request.telefone(), request.endereco());
         if (clienteRepository.existsByDocumento(cliente.getCpf())) {
-            throw new ConflitoException("Já existe cliente cadastrado com o CPF " + cliente.getCpf());
+            throw new RegistroDuplicadoException("Já existe cliente cadastrado com o CPF " + cliente.getCpf());
         }
         if (clienteRepository.existsByEmail(cliente.getEmail())) {
-            throw new ConflitoException("Já existe cliente cadastrado com o e-mail " + cliente.getEmail());
+            throw new RegistroDuplicadoException("Já existe cliente cadastrado com o e-mail " + cliente.getEmail());
         }
         return ClienteResponse.de(clienteRepository.save(cliente));
     }
@@ -69,7 +70,7 @@ public class ClienteServiceImpl implements ClienteService {
         // Hibernate gravar a alteração pendente e o banco recusaria o UPDATE.
         String email = Utils.validarEmail(request.email());
         if (clienteRepository.existsByEmailAndIdNot(email, cliente.getId())) {
-            throw new ConflitoException("Já existe cliente cadastrado com o e-mail " + email);
+            throw new RegistroDuplicadoException("Já existe cliente cadastrado com o e-mail " + email);
         }
         // O CPF da rota identifica o cliente; o CPF do corpo é ignorado (CPF não muda).
         cliente.atualizarContato(request.nome(), email, request.telefone(),

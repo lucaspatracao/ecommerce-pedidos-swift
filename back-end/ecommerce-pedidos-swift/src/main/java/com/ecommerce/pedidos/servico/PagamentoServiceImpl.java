@@ -4,7 +4,8 @@ import com.ecommerce.pedidos.dto.PagamentoDetalhe;
 import com.ecommerce.pedidos.dto.PagamentoRequest;
 import com.ecommerce.pedidos.dto.PagamentoResumoResponse;
 import com.ecommerce.pedidos.excecao.PagamentoRecusadoException;
-import com.ecommerce.pedidos.excecao.RecursoNaoEncontradoException;
+import com.ecommerce.pedidos.excecao.PagamentoNaoEncontradoException;
+import com.ecommerce.pedidos.excecao.PedidoNaoEncontradoException;
 import com.ecommerce.pedidos.modelo.FormaPagamento;
 import com.ecommerce.pedidos.modelo.Pedido;
 import com.ecommerce.pedidos.repositorio.FormaPagamentoRepository;
@@ -73,7 +74,7 @@ public class PagamentoServiceImpl implements PagamentoService {
     public Map<String, Object> buscarPorPedido(String numeroPedido) {
         Pedido pedido = buscarPedido(numeroPedido);
         if (pedido.getFormaPagamento() == null) {
-            throw new RecursoNaoEncontradoException("Pagamento do pedido", pedido.getNumero());
+            throw new PagamentoNaoEncontradoException(pedido.getNumero());
         }
         return PagamentoDetalhe.de(pedido.getFormaPagamento());
     }
@@ -81,6 +82,6 @@ public class PagamentoServiceImpl implements PagamentoService {
     private Pedido buscarPedido(String numeroPedido) {
         String numero = Utils.textoObrigatorio(numeroPedido, "Número do pedido");
         return pedidoRepository.findByNumero(numero)
-            .orElseThrow(() -> new RecursoNaoEncontradoException("Pedido", numero));
+            .orElseThrow(() -> new PedidoNaoEncontradoException(numero));
     }
 }
