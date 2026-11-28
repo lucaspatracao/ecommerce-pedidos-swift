@@ -54,4 +54,4 @@ controller → servico (interface + Impl, @Transactional) → repositorio (Sprin
                 ↑ modelo (entidades com as regras de negócio)
 ```
 
-Erros sempre no formato `{ "erro": "mensagem" }` (`controller/ApiExceptionHandler`).
+Erros sempre no corpo padronizado `{ status, erro, mensagem, caminho, campos }` (`dto/ErroResponse`, montado pelo `controller/ApiExceptionHandler`). CORS centralizado em `config/CorsConfig`. Tabela de rotas e exemplos no README da raiz.

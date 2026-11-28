@@ -1,5 +1,6 @@
 package com.ecommerce.pedidos.controller;
 
+import com.ecommerce.pedidos.dto.AtivoRequest;
 import com.ecommerce.pedidos.dto.ClienteRequest;
 import com.ecommerce.pedidos.dto.ClienteResponse;
 import com.ecommerce.pedidos.dto.PedidoResponse;
@@ -7,12 +8,12 @@ import com.ecommerce.pedidos.servico.ClienteService;
 import com.ecommerce.pedidos.servico.PedidoService;
 import com.ecommerce.pedidos.servico.Visibilidade;
 import jakarta.validation.Valid;
+import java.net.URI;
 import java.util.List;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * Camada web de clientes: só traduz HTTP ↔ serviço.
@@ -27,7 +29,6 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/clientes")
-@CrossOrigin(origins = {"http://localhost:5173", "http://127.0.0.1:5173"})
 public class ClienteController {
     private final ClienteService clienteService;
     private final PedidoService pedidoService;
@@ -58,9 +59,12 @@ public class ClienteController {
         return pedidoService.listarPorCliente(cpf, ParametrosConsulta.pagina(pagina, tamanho));
     }
 
+    /** 201 + {@code Location: /api/clientes/{cpf}} + o cliente criado. */
     @PostMapping
-    public ResponseEntity<ClienteResponse> criar(@Valid @RequestBody ClienteRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(clienteService.cadastrar(request));
+    public ResponseEntity<ClienteResponse> criar(@Valid @RequestBody ClienteRequest request, UriComponentsBuilder uri) {
+        ClienteResponse criado = clienteService.cadastrar(request);
+        URI endereco = uri.path("/api/clientes/{cpf}").buildAndExpand(criado.cpf()).toUri();
+        return ResponseEntity.created(endereco).body(criado);
     }
 
     @PutMapping("/{cpf}")
@@ -75,14 +79,9 @@ public class ClienteController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/{cpf}/inativar")
-    public ResponseEntity<Void> inativar(@PathVariable("cpf") String cpf) {
-        clienteService.inativar(cpf);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/{cpf}/reativar")
-    public ClienteResponse reativar(@PathVariable("cpf") String cpf) {
-        return clienteService.reativar(cpf);
+    /** PATCH parcial: {@code { "ativo": false }} inativa (soft delete) e {@code true} reativa. */
+    @PatchMapping("/{cpf}")
+    public ClienteResponse alterarAtivo(@PathVariable("cpf") String cpf, @Valid @RequestBody AtivoRequest request) {
+        return clienteService.alterarAtivo(cpf, request.ativo());
     }
 }

@@ -45,6 +45,9 @@ public interface ClienteService {
     /** Desfaz o soft delete. 404 se não houver cliente INATIVO com o CPF. */
     ClienteResponse reativar(String cpf);
 
+    /** {@code ativo = false} inativa; {@code true} reativa. Devolve o cliente já atualizado. */
+    ClienteResponse alterarAtivo(String cpf, boolean ativo);
+
     /** Quantidade de clientes ativos. */
     long contar();
 }

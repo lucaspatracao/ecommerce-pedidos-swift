@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * Corpo de {@code POST /api/pagamentos}. Os campos usados dependem do
+ * Corpo de {@code POST /api/pedidos/{numero}/pagamento} (o pedido vem do endereço). Os campos usados dependem do
  * {@code tipo}: CARTAO usa numero/bandeira/parcelas, BOLETO usa
  * vencimento/codigo e PIX usa chave/tipoChave.
  *
@@ -32,9 +32,6 @@ public record PagamentoRequest(
     LocalDate vencimento,
     String codigo,
     String chave,
-    String tipoChave,
-
-    @NotBlank(message = "Número do pedido é obrigatório para registrar o pagamento.")
-    String pedidoNumero
+    String tipoChave
 ) {
 }

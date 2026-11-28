@@ -23,11 +23,11 @@ class FabricaFormaPagamentoTest {
     @DisplayName("cria a subclasse certa para cada tipo, sem diferenciar maiúsculas")
     void deveCriarCadaTipo() {
         assertInstanceOf(CartaoCredito.class, fabrica.criar(
-            new PagamentoRequest("cartao", VALOR, "**** 1", "Visa", 2, null, null, null, null, "PED-1")));
+            new PagamentoRequest("cartao", VALOR, "**** 1", "Visa", 2, null, null, null, null)));
         assertInstanceOf(Boleto.class, fabrica.criar(
-            new PagamentoRequest("BOLETO", VALOR, null, null, null, LocalDate.now().plusDays(1), "123", null, null, "PED-1")));
+            new PagamentoRequest("BOLETO", VALOR, null, null, null, LocalDate.now().plusDays(1), "123", null, null)));
         assertInstanceOf(Pix.class, fabrica.criar(
-            new PagamentoRequest(" PIX ", VALOR, null, null, null, null, null, "chave", "EMAIL", "PED-1")));
+            new PagamentoRequest(" PIX ", VALOR, null, null, null, null, null, "chave", "EMAIL")));
     }
 
     @Test
@@ -35,9 +35,9 @@ class FabricaFormaPagamentoTest {
     void deveRecusarTipoInvalido() {
         assertThrows(IllegalArgumentException.class, () -> fabrica.criar(null));
         assertThrows(IllegalArgumentException.class, () -> fabrica.criar(
-            new PagamentoRequest(" ", VALOR, null, null, null, null, null, null, null, "PED-1")));
+            new PagamentoRequest(" ", VALOR, null, null, null, null, null, null, null)));
         IllegalArgumentException erro = assertThrows(IllegalArgumentException.class, () -> fabrica.criar(
-            new PagamentoRequest("CHEQUE", VALOR, null, null, null, null, null, null, null, "PED-1")));
+            new PagamentoRequest("CHEQUE", VALOR, null, null, null, null, null, null, null)));
         assertEquals("Tipo de pagamento inválido: CHEQUE. Use CARTAO, BOLETO ou PIX.", erro.getMessage());
     }
 
@@ -45,7 +45,7 @@ class FabricaFormaPagamentoTest {
     @DisplayName("cartão sem parcelas é recusado com mensagem clara")
     void deveExigirParcelasNoCartao() {
         IllegalArgumentException erro = assertThrows(IllegalArgumentException.class, () -> fabrica.criar(
-            new PagamentoRequest("CARTAO", VALOR, "**** 1", "Visa", null, null, null, null, null, "PED-1")));
+            new PagamentoRequest("CARTAO", VALOR, "**** 1", "Visa", null, null, null, null, null)));
         assertEquals("Quantidade de parcelas é obrigatória para cartão.", erro.getMessage());
     }
 }

@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -33,7 +34,7 @@ import org.springframework.test.web.servlet.ResultActions;
  * → controller → serviço → banco H2 → JSON de resposta.
  *
  * <p>Conferem o contrato com o front-end: rotas, status HTTP, nomes dos
- * campos JSON e o corpo de erro {@code { "erro": "..." }}. Cenários
+ * campos JSON e o corpo de erro padronizado ({@code ErroResponse}). Cenários
  * adaptados da branch feature/crud-completo.</p>
  */
 @Tag("integracao")
@@ -53,6 +54,7 @@ class ApiIntegracaoTest {
         var requisicao = switch (metodo) {
             case "POST" -> post(url);
             case "PUT" -> put(url);
+            case "PATCH" -> patch(url);
             default -> throw new IllegalArgumentException(metodo);
         };
         return mvc.perform(requisicao.contentType(MediaType.APPLICATION_JSON).content(corpo));
@@ -119,7 +121,7 @@ class ApiIntegracaoTest {
                 .andExpect(status().isNoContent());
             mvc.perform(delete("/api/produtos/{codigo}", codigo).param("definitivo", "true"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.erro").value(containsString("Produto não encontrado")));
+                .andExpect(jsonPath("$.mensagem").value(containsString("Produto não encontrado")));
         }
 
         @Test
@@ -132,7 +134,7 @@ class ApiIntegracaoTest {
                 {"codigo":"%s","nome":"Dup","preco":"1.00","estoque":1}
                 """.formatted(codigo))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value("Já existe um produto com este código."));
+                .andExpect(jsonPath("$.mensagem").value("Já existe um produto com este código."));
 
             enviar("PUT", "/api/produtos/" + outro, """
                 {"codigo":"%s","nome":"Dup","preco":"1.00","estoque":1}
@@ -147,8 +149,9 @@ class ApiIntegracaoTest {
                 {"codigo":"","nome":"X","preco":"0","estoque":-1}
                 """)
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erro").value(containsString("Preço do produto deve ser maior que zero.")))
-                .andExpect(jsonPath("$.erro").value(containsString("Estoque do produto não pode ser negativo.")));
+                .andExpect(jsonPath("$.erro").value("Requisição inválida"))
+                .andExpect(jsonPath("$.campos[?(@.campo == 'preco')].mensagem").value(hasItem("Preço do produto deve ser maior que zero.")))
+                .andExpect(jsonPath("$.campos[?(@.campo == 'estoque')].mensagem").value(hasItem("Estoque do produto não pode ser negativo.")));
         }
 
         @Test
@@ -159,7 +162,7 @@ class ApiIntegracaoTest {
 
             mvc.perform(delete("/api/produtos/{codigo}", codigo).param("definitivo", "true"))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("Inative-o")));
+                .andExpect(jsonPath("$.mensagem").value(containsString("Inative-o")));
         }
     }
 
@@ -205,14 +208,14 @@ class ApiIntegracaoTest {
             enviar("POST", "/api/clientes", corpo.formatted(cpf)).andExpect(status().isConflict());
             enviar("POST", "/api/clientes", corpo.formatted("12345678901"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erro").value("CPF inválido: 12345678901"));
+                .andExpect(jsonPath("$.mensagem").value("CPF inválido: 12345678901"));
             enviar("PUT", "/api/clientes/" + DadosDeTeste.novoCpf(), corpo.formatted("x"))
                 .andExpect(status().isNotFound());
             enviar("POST", "/api/clientes", """
                 {"nome":"","cpf":"%s","email":"sem-arroba","telefone":"abc"}
                 """.formatted(DadosDeTeste.novoCpf()))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erro").value(containsString("E-mail inválido.")));
+                .andExpect(jsonPath("$.campos[?(@.campo == 'email')].mensagem").value(hasItem("E-mail inválido.")));
         }
 
         @Test
@@ -223,7 +226,7 @@ class ApiIntegracaoTest {
 
             mvc.perform(delete("/api/clientes/{cpf}", cpf))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(startsWith("Este cliente possui pedidos e não pode ser excluído.")));
+                .andExpect(jsonPath("$.mensagem").value(startsWith("Este cliente possui pedidos e não pode ser excluído.")));
         }
     }
 
@@ -242,7 +245,7 @@ class ApiIntegracaoTest {
                 {"clienteCpf":"%s","itens":[{"codigo":"%s","quantidade":3}]}
                 """.formatted(novoCliente(), codigo))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("Estoque insuficiente")));
+                .andExpect(jsonPath("$.mensagem").value(containsString("Estoque insuficiente")));
 
             org.junit.jupiter.api.Assertions.assertEquals(2, estoqueDe(codigo));
         }
@@ -263,13 +266,13 @@ class ApiIntegracaoTest {
                 {"clienteCpf":"%s","itens":[]}
                 """.formatted(cpf))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erro").value("Pedido deve conter pelo menos um item."));
+                .andExpect(jsonPath("$.campos[?(@.campo == 'itens')].mensagem").value(hasItem("Pedido deve conter pelo menos um item.")));
             enviar("POST", "/api/pedidos", """
                 {"clienteCpf":"%s","itens":[{"codigo":"%s","quantidade":0}]}
                 """.formatted(cpf, codigo)).andExpect(status().isBadRequest());
             mvc.perform(get("/api/pedidos/{numero}", "PED-0000-00000"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.erro").value("Pedido não encontrado: PED-0000-00000"));
+                .andExpect(jsonPath("$.mensagem").value("Pedido não encontrado: PED-0000-00000"));
         }
 
         @Test
@@ -284,7 +287,7 @@ class ApiIntegracaoTest {
                 {"clienteCpf":"%s","itens":[{"codigo":"%s","quantidade":1}]}
                 """.formatted(novoCliente(), codigo))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("indisponível")));
+                .andExpect(jsonPath("$.mensagem").value(containsString("indisponível")));
         }
 
         @Test
@@ -293,13 +296,12 @@ class ApiIntegracaoTest {
             String codigo = novoProduto("50.00", 10);
             String numero = novoPedido(novoCliente(), codigo, 2);
 
-            enviar("POST", "/api/pagamentos", """
-                {"tipo":"CARTAO","valor":"100.00","numero":"**** 4242","bandeira":"Visa","parcelas":"3","pedidoNumero":"%s"}
-                """.formatted(numero))
+            enviar("POST", "/api/pedidos/" + numero + "/pagamento", """
+                {"tipo":"CARTAO","valor":"100.00","numero":"**** 4242","bandeira":"Visa","parcelas":"3"}
+                """)
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.mensagem").value("Pagamento registrado com sucesso."))
-                .andExpect(jsonPath("$.pagamento.descricao").value("CartaoCredito"))
-                .andExpect(jsonPath("$.pagamento.quantidadeDeParcelas").value(3));
+                .andExpect(jsonPath("$.descricao").value("CartaoCredito"))
+                .andExpect(jsonPath("$.quantidadeDeParcelas").value(3));
 
             mvc.perform(get("/api/pedidos/{numero}", numero))
                 .andExpect(jsonPath("$.valorTotal").value(100.00))
@@ -308,12 +310,16 @@ class ApiIntegracaoTest {
                 .andExpect(jsonPath("$.situacao").value("PAGO"))
                 .andExpect(jsonPath("$.formaPagamento.situacao").value("APROVADO"));
 
+            mvc.perform(get("/api/pedidos/{numero}/pagamento", numero))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.descricao").value("CartaoCredito"));
+
             mvc.perform(get("/api/pagamentos"))
                 .andExpect(jsonPath("$[*].metodo", hasItem("Visa •••• **** 4242")));
 
             mvc.perform(delete("/api/pedidos/{numero}", numero)).andExpect(status().isConflict());
 
-            enviar("PUT", "/api/pedidos/" + numero + "/status", "{\"status\":\"cancelado\"}")
+            enviar("PATCH", "/api/pedidos/" + numero, "{\"situacao\":\"cancelado\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.situacao").value("CANCELADO"))
                 .andExpect(jsonPath("$.formaPagamento.situacao").value("ESTORNADO"));
@@ -322,8 +328,8 @@ class ApiIntegracaoTest {
             // Pedido cancelado é histórico: não pode ser excluído nem cancelado de novo.
             mvc.perform(delete("/api/pedidos/{numero}", numero))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("histórico")));
-            mvc.perform(post("/api/pedidos/{numero}/cancelar", numero)).andExpect(status().isConflict());
+                .andExpect(jsonPath("$.mensagem").value(containsString("histórico")));
+            enviar("PATCH", "/api/pedidos/" + numero, "{\"situacao\":\"CANCELADO\"}").andExpect(status().isConflict());
         }
 
         @Test
@@ -334,19 +340,19 @@ class ApiIntegracaoTest {
             String pedidoBoleto = novoPedido(cpf, codigo, 1);
             String pedidoPix = novoPedido(cpf, codigo, 1);
 
-            enviar("POST", "/api/pagamentos", """
-                {"tipo":"BOLETO","valor":"30.00","vencimento":"%s","codigo":"34191.79001","pedidoNumero":"%s"}
-                """.formatted(LocalDate.now().plusDays(3), pedidoBoleto))
+            enviar("POST", "/api/pedidos/" + pedidoBoleto + "/pagamento", """
+                {"tipo":"BOLETO","valor":"30.00","vencimento":"%s","codigo":"34191.79001"}
+                """.formatted(LocalDate.now().plusDays(3)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.pagamento.codigoDeBarras").value("34191.79001"));
+                .andExpect(jsonPath("$.codigoDeBarras").value("34191.79001"));
 
             String pix = """
-                {"tipo":"PIX","valor":"30.00","chave":"api@teste.com","tipoChave":"EMAIL","pedidoNumero":"%s"}
-                """.formatted(pedidoPix);
-            enviar("POST", "/api/pagamentos", pix).andExpect(status().isCreated());
-            enviar("POST", "/api/pagamentos", pix)
+                {"tipo":"PIX","valor":"30.00","chave":"api@teste.com","tipoChave":"EMAIL"}
+                """;
+            enviar("POST", "/api/pedidos/" + pedidoPix + "/pagamento", pix).andExpect(status().isCreated());
+            enviar("POST", "/api/pedidos/" + pedidoPix + "/pagamento", pix)
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("não pode ser pago")));
+                .andExpect(jsonPath("$.mensagem").value(containsString("não pode ser pago")));
         }
 
         @Test
@@ -354,22 +360,26 @@ class ApiIntegracaoTest {
         void deveValidarPagamento() throws Exception {
             String numero = novoPedido(novoCliente(), novoProduto("30.00", 10), 1);
 
-            enviar("POST", "/api/pagamentos", """
-                {"tipo":"PIX","valor":"29.00","chave":"c","tipoChave":"EMAIL","pedidoNumero":"%s"}
-                """.formatted(numero))
+            enviar("POST", "/api/pedidos/" + numero + "/pagamento", """
+                {"tipo":"PIX","valor":"29.00","chave":"c","tipoChave":"EMAIL"}
+                """)
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value("Valor do pagamento deve ser igual ao total do pedido"));
-            enviar("POST", "/api/pagamentos", """
-                {"tipo":"CHEQUE","valor":"30.00","pedidoNumero":"%s"}
-                """.formatted(numero)).andExpect(status().isBadRequest());
-            enviar("POST", "/api/pagamentos", """
-                {"tipo":"PIX","valor":"30.00","pedidoNumero":"%s"}
-                """.formatted(numero))
+                .andExpect(jsonPath("$.mensagem").value("Valor do pagamento deve ser igual ao total do pedido"));
+            enviar("POST", "/api/pedidos/" + numero + "/pagamento", """
+                {"tipo":"CHEQUE","valor":"30.00"}
+                """).andExpect(status().isBadRequest());
+            enviar("POST", "/api/pedidos/" + numero + "/pagamento", """
+                {"tipo":"PIX","valor":"30.00"}
+                """)
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erro").value("Chave Pix é obrigatório."));
-            enviar("POST", "/api/pagamentos", "{\"tipo\":\"PIX\"}")
+                .andExpect(jsonPath("$.mensagem").value("Chave Pix é obrigatório."));
+            enviar("POST", "/api/pedidos/" + numero + "/pagamento", "{\"tipo\":\"PIX\"}")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erro").value(containsString("Número do pedido é obrigatório")));
+                .andExpect(jsonPath("$.campos[?(@.campo == 'valor')].mensagem").value(hasItem("Valor do pagamento é obrigatório.")));
+            // Pedido ainda sem pagamento: o sub-recurso não existe.
+            mvc.perform(get("/api/pedidos/{numero}/pagamento", numero)).andExpect(status().isNotFound());
+            // A rota antiga saiu: o pagamento é criado no pedido.
+            enviar("POST", "/api/pagamentos", "{}").andExpect(status().isMethodNotAllowed());
         }
 
         @Test
@@ -380,12 +390,12 @@ class ApiIntegracaoTest {
             String numero = novoPedido(cpf, codigo, 3);
             org.junit.jupiter.api.Assertions.assertEquals(2, estoqueDe(codigo));
 
-            enviar("PUT", "/api/pedidos/" + numero + "/status", "{\"status\":\"ENVIADO\"}")
+            enviar("PATCH", "/api/pedidos/" + numero, "{\"situacao\":\"ENVIADO\"}")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erro").value(containsString("Status inválido")));
-            enviar("PUT", "/api/pedidos/" + numero + "/status", "{\"status\":\"PAGO\"}")
+                .andExpect(jsonPath("$.mensagem").value(containsString("Status inválido")));
+            enviar("PATCH", "/api/pedidos/" + numero, "{\"situacao\":\"PAGO\"}")
                 .andExpect(status().isConflict());
-            enviar("PUT", "/api/pedidos/" + numero + "/status", "{\"status\":\"ABERTO\"}")
+            enviar("PATCH", "/api/pedidos/" + numero, "{\"situacao\":\"ABERTO\"}")
                 .andExpect(status().isOk());
 
             mvc.perform(delete("/api/pedidos/{numero}", numero)).andExpect(status().isNoContent());
@@ -393,12 +403,12 @@ class ApiIntegracaoTest {
             mvc.perform(get("/api/pedidos/{numero}", numero)).andExpect(status().isNotFound());
 
             String pago = novoPedido(cpf, codigo, 1);
-            enviar("POST", "/api/pagamentos", """
-                {"tipo":"PIX","valor":"10.00","chave":"c","tipoChave":"EMAIL","pedidoNumero":"%s"}
-                """.formatted(pago)).andExpect(status().isCreated());
-            enviar("PUT", "/api/pedidos/" + pago + "/status", "{\"status\":\"ABERTO\"}")
+            enviar("POST", "/api/pedidos/" + pago + "/pagamento", """
+                {"tipo":"PIX","valor":"10.00","chave":"c","tipoChave":"EMAIL"}
+                """).andExpect(status().isCreated());
+            enviar("PATCH", "/api/pedidos/" + pago, "{\"situacao\":\"ABERTO\"}")
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value("Transição de situação inválida"));
+                .andExpect(jsonPath("$.mensagem").value("Transição de situação inválida"));
         }
 
         @Test
@@ -429,12 +439,12 @@ class ApiIntegracaoTest {
     void deveTratarErrosDoSpring() throws Exception {
         enviar("POST", "/api/clientes", "{ isto não é json")
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.erro").value("Corpo da requisição inválido ou mal formatado."));
+            .andExpect(jsonPath("$.mensagem").value("Corpo da requisição inválido ou mal formatado."));
         mvc.perform(get("/api/nao-existe"))
             .andExpect(status().isNotFound())
-            .andExpect(jsonPath("$.erro").value(containsString("Rota não encontrada")));
+            .andExpect(jsonPath("$.mensagem").value(containsString("Rota não encontrada")));
         mvc.perform(delete("/api/dashboard"))
             .andExpect(status().isMethodNotAllowed())
-            .andExpect(jsonPath("$.erro").exists());
+            .andExpect(jsonPath("$.mensagem").exists());
     }
 }

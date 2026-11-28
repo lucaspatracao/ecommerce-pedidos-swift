@@ -6,6 +6,8 @@ import com.ecommerce.pedidos.dto.PedidoResponse;
 import com.ecommerce.pedidos.excecao.ClienteNaoEncontradoException;
 import com.ecommerce.pedidos.excecao.ConflitoException;
 import com.ecommerce.pedidos.excecao.RecursoNaoEncontradoException;
+import com.ecommerce.pedidos.excecao.PedidoNaoEncontradoException;
+import com.ecommerce.pedidos.excecao.ProdutoNaoEncontradoException;
 import com.ecommerce.pedidos.modelo.Cliente;
 import com.ecommerce.pedidos.modelo.ItemPedido;
 import com.ecommerce.pedidos.modelo.Pedido;
@@ -87,7 +89,7 @@ public class PedidoServiceImpl implements PedidoService {
         String chave = Utils.textoObrigatorio(numero, "Número do pedido");
         return pedidoRepository.buscarCompletoPorNumero(chave)
             .map(PedidoResponse::de)
-            .orElseThrow(() -> new RecursoNaoEncontradoException("Pedido", chave));
+            .orElseThrow(() -> new PedidoNaoEncontradoException(chave));
     }
 
     /**
@@ -145,8 +147,8 @@ public class PedidoServiceImpl implements PedidoService {
 
     @Override
     @Transactional
-    public PedidoResponse atualizarStatus(String numero, String status) {
-        SituacaoPedido nova = SituacaoPedido.deTexto(status);
+    public PedidoResponse atualizarSituacao(String numero, String situacao) {
+        SituacaoPedido nova = SituacaoPedido.deTexto(situacao);
         if (nova == SituacaoPedido.CANCELADO) {
             return cancelar(numero);
         }
@@ -218,12 +220,12 @@ public class PedidoServiceImpl implements PedidoService {
     private Pedido buscarEntidade(String numero) {
         String chave = Utils.textoObrigatorio(numero, "Número do pedido");
         return pedidoRepository.findByNumero(chave)
-            .orElseThrow(() -> new RecursoNaoEncontradoException("Pedido", chave));
+            .orElseThrow(() -> new PedidoNaoEncontradoException(chave));
     }
 
     private Produto buscarProdutoParaVenda(String codigo) {
         String chave = Utils.textoObrigatorio(codigo, "Código do produto");
         return produtoRepository.buscarPorCodigoParaVenda(chave)
-            .orElseThrow(() -> new RecursoNaoEncontradoException("Produto", chave));
+            .orElseThrow(() -> new ProdutoNaoEncontradoException(chave));
     }
 }

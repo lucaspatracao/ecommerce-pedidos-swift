@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { atualizarProduto, cadastrarProduto } from '../api/clienteApi'
+import { ErroCampo } from '../components/ErroCampo'
 
 const estadoInicial = {
   codigo: '',
@@ -15,6 +16,8 @@ export function ProdutosPage({ produtos = [], loading, error, onProdutoSalvo, on
   const [produtoSelecionado, setProdutoSelecionado] = useState(null)
   const [mensagem, setMensagem] = useState('')
   const [erro, setErro] = useState('')
+  // Mensagens por campo vindas do back-end (400 com "campos").
+  const [errosCampos, setErrosCampos] = useState({})
   const [filtro, setFiltro] = useState('')
 
   const produtosFiltrados = useMemo(() => {
@@ -43,6 +46,7 @@ export function ProdutosPage({ produtos = [], loading, error, onProdutoSalvo, on
   const handleSubmit = async (event) => {
     event.preventDefault()
     setErro('')
+    setErrosCampos({})
     setMensagem('')
 
     const payload = {
@@ -64,6 +68,7 @@ export function ProdutosPage({ produtos = [], loading, error, onProdutoSalvo, on
       resetForm()
     } catch (apiError) {
       setErro(apiError.message || 'Não foi possível salvar o produto. Tente novamente.')
+      setErrosCampos(apiError.campos ?? {})
     }
   }
 
@@ -88,26 +93,31 @@ export function ProdutosPage({ produtos = [], loading, error, onProdutoSalvo, on
             <label>
               Código
               <input name="codigo" value={form.codigo} onChange={handleChange} placeholder="PROD-001" required />
+              <ErroCampo mensagem={errosCampos.codigo} />
             </label>
 
             <label>
               Nome
               <input name="nome" value={form.nome} onChange={handleChange} placeholder="Ex.: Headset Premium" required />
+              <ErroCampo mensagem={errosCampos.nome} />
             </label>
 
             <label className="full-width">
               Descrição
               <textarea name="descricao" value={form.descricao} onChange={handleChange} rows="3" placeholder="Descreva as características principais do item." />
+              <ErroCampo mensagem={errosCampos.descricao} />
             </label>
 
             <label>
               Preço
               <input name="preco" type="number" step="0.01" value={form.preco} onChange={handleChange} placeholder="0.00" required />
+              <ErroCampo mensagem={errosCampos.preco} />
             </label>
 
             <label>
               Estoque
               <input name="estoque" type="number" value={form.estoque} onChange={handleChange} placeholder="0" required />
+              <ErroCampo mensagem={errosCampos.estoque} />
             </label>
 
             <label className="checkbox-row full-width">

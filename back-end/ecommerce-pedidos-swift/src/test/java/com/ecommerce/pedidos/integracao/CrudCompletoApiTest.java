@@ -142,7 +142,7 @@ class CrudCompletoApiTest {
                 {"codigo":"%s","nome":"B","preco":"12.00","estoque":1,"versao":0}
                 """.formatted(codigo))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("alterado(a) por outra operação")));
+                .andExpect(jsonPath("$.mensagem").value(containsString("alterado(a) por outra operação")));
         }
 
         @Test
@@ -165,11 +165,13 @@ class CrudCompletoApiTest {
             mvc.perform(get("/api/produtos/{codigo}", inativo)).andExpect(status().isNotFound());
             mvc.perform(delete("/api/produtos/{codigo}", inativo)).andExpect(status().isNotFound());
 
-            mvc.perform(post("/api/produtos/{codigo}/reativar", inativo))
+            enviar(patch("/api/produtos/{codigo}", inativo), "{\"ativo\":true}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ativo").value(true));
-            mvc.perform(post("/api/produtos/{codigo}/reativar", inativo)).andExpect(status().isNotFound());
-            mvc.perform(post("/api/produtos/{codigo}/inativar", inativo)).andExpect(status().isNoContent());
+            enviar(patch("/api/produtos/{codigo}", inativo), "{\"ativo\":true}").andExpect(status().isNotFound());
+            enviar(patch("/api/produtos/{codigo}", inativo), "{\"ativo\":false}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ativo").value(false));
         }
 
         @Test
@@ -187,7 +189,7 @@ class CrudCompletoApiTest {
 
             mvc.perform(delete("/api/produtos/{codigo}", vendido).param("definitivo", "true"))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(startsWith("Este produto já foi vendido")));
+                .andExpect(jsonPath("$.mensagem").value(startsWith("Este produto já foi vendido")));
         }
 
         @Test
@@ -208,12 +210,12 @@ class CrudCompletoApiTest {
             mvc.perform(get("/api/produtos").param("pagina", "-1")).andExpect(status().isBadRequest());
             enviar(post("/api/produtos"), "{\"codigo\":\"%s\",\"nome\":\"Dup\",\"preco\":\"1.00\",\"estoque\":1}".formatted(a))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value("Já existe um produto com este código."));
+                .andExpect(jsonPath("$.mensagem").value("Já existe um produto com este código."));
             enviar(post("/api/produtos"), "{\"codigo\":\"P-X1\",\"nome\":\"Sem preço\",\"estoque\":1}")
                 .andExpect(status().isBadRequest());
             enviar(post("/api/produtos"), "{\"codigo\":\"P-X2\",\"nome\":\"Sem estoque\",\"preco\":\"1.00\"}")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erro").value("Estoque do produto é obrigatório."));
+                .andExpect(jsonPath("$.mensagem").value("Estoque do produto é obrigatório."));
             enviar(patch("/api/produtos/" + a + "/estoque"), "{}").andExpect(status().isBadRequest());
             enviar(patch("/api/produtos/" + a + "/estoque"), "{\"quantidade\":-1}").andExpect(status().isBadRequest());
             enviar(put("/api/produtos/NAO-EXISTE"), "{\"codigo\":\"NAO-EXISTE\",\"nome\":\"X\",\"preco\":\"1.00\"}")
@@ -246,7 +248,7 @@ class CrudCompletoApiTest {
                 {"nome":"X","email":"x@email.com","telefone":"11999999","endereco":"r"}
                 """)
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.erro").value(containsString(inexistente)));
+                .andExpect(jsonPath("$.mensagem").value(containsString(inexistente)));
         }
 
         @Test
@@ -260,7 +262,7 @@ class CrudCompletoApiTest {
                 {"nome":"Outro","cpf":"%s","email":"%s","telefone":"11900000000"}
                 """.formatted(DadosDeTeste.novoCpf(), emailDoPrimeiro))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("e-mail")));
+                .andExpect(jsonPath("$.mensagem").value(containsString("e-mail")));
             enviar(put("/api/clientes/" + segundo), """
                 {"nome":"Lia","email":"%s","telefone":"11900000000"}
                 """.formatted(emailDoPrimeiro))
@@ -281,9 +283,11 @@ class CrudCompletoApiTest {
 
             mvc.perform(delete("/api/clientes/{cpf}", cpf))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(startsWith("Este cliente possui pedidos e não pode ser excluído.")));
+                .andExpect(jsonPath("$.mensagem").value(startsWith("Este cliente possui pedidos e não pode ser excluído.")));
 
-            mvc.perform(post("/api/clientes/{cpf}/inativar", cpf)).andExpect(status().isNoContent());
+            enviar(patch("/api/clientes/{cpf}", cpf), "{\"ativo\":false}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ativo").value(false));
             mvc.perform(get("/api/clientes")).andExpect(jsonPath("$[*].cpf", not(hasItem(cpf))));
             mvc.perform(get("/api/clientes").param("situacao", "inativos")).andExpect(jsonPath("$[*].cpf", hasItem(cpf)));
             mvc.perform(get("/api/clientes/{cpf}", cpf)).andExpect(status().isNotFound());
@@ -293,7 +297,7 @@ class CrudCompletoApiTest {
                 {"clienteCpf":"%s","itens":[{"codigo":"%s","quantidade":1}]}
                 """.formatted(cpf, codigo)).andExpect(status().isNotFound());
 
-            mvc.perform(post("/api/clientes/{cpf}/reativar", cpf))
+            enviar(patch("/api/clientes/{cpf}", cpf), "{\"ativo\":true}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ativo").value(true));
             mvc.perform(get("/api/clientes/{cpf}/pedidos", DadosDeTeste.novoCpf())).andExpect(status().isNotFound());
@@ -326,7 +330,7 @@ class CrudCompletoApiTest {
                 {"clienteCpf":"%s","itens":[{"codigo":"%s","quantidade":9}]}
                 """.formatted(cpf, codigo))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value("Estoque insuficiente de Produto " + codigo + ": disponível 5, solicitado 9"));
+                .andExpect(jsonPath("$.mensagem").value("Estoque insuficiente de Produto " + codigo + ": disponível 5, solicitado 9"));
 
             mvc.perform(get("/api/clientes/{cpf}/pedidos", cpf)).andExpect(jsonPath("$", hasSize(0)));
             assertEquals(5, estoqueDe(codigo));
@@ -356,12 +360,12 @@ class CrudCompletoApiTest {
             String numero = criarPedido(cpf, codigo, 2);
             assertEquals(3, estoqueDe(codigo));
 
-            enviar(put("/api/pedidos/" + numero + "/status"), "{\"status\":\"ABERTO\"}").andExpect(status().isOk());
-            enviar(put("/api/pedidos/" + numero + "/status"), "{\"status\":\"PAGO\"}").andExpect(status().isConflict());
+            enviar(patch("/api/pedidos/{numero}", numero), "{\"situacao\":\"ABERTO\"}").andExpect(status().isOk());
+            enviar(patch("/api/pedidos/{numero}", numero), "{\"situacao\":\"PAGO\"}").andExpect(status().isConflict());
 
-            enviar(post("/api/pagamentos"), """
-                {"tipo":"PIX","valor":"100.00","chave":"lia@email.com","tipoChave":"EMAIL","pedidoNumero":"%s"}
-                """.formatted(numero)).andExpect(status().isCreated());
+            enviar(post("/api/pedidos/{numero}/pagamento", numero), """
+                {"tipo":"PIX","valor":"100.00","chave":"lia@email.com","tipoChave":"EMAIL"}
+                """).andExpect(status().isCreated());
             mvc.perform(get("/api/pedidos").param("situacao", "pago"))
                 .andExpect(jsonPath("$[*].numero", hasItem(numero)))
                 .andExpect(jsonPath("$[*].situacao", everyItem(org.hamcrest.Matchers.is("PAGO"))));
@@ -371,14 +375,14 @@ class CrudCompletoApiTest {
 
             mvc.perform(delete("/api/pedidos/{numero}", numero))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.erro").value(containsString("Cancele o pedido")));
+                .andExpect(jsonPath("$.mensagem").value(containsString("Cancele o pedido")));
 
-            mvc.perform(post("/api/pedidos/{numero}/cancelar", numero))
+            enviar(patch("/api/pedidos/{numero}", numero), "{\"situacao\":\"CANCELADO\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.situacao").value("CANCELADO"))
                 .andExpect(jsonPath("$.formaPagamento.situacao").value("ESTORNADO"));
             assertEquals(5, estoqueDe(codigo));
-            mvc.perform(post("/api/pedidos/{numero}/cancelar", numero)).andExpect(status().isConflict());
+            enviar(patch("/api/pedidos/{numero}", numero), "{\"situacao\":\"CANCELADO\"}").andExpect(status().isConflict());
         }
 
         @Test
@@ -398,9 +402,8 @@ class CrudCompletoApiTest {
                 }
             }
 
-            mvc.perform(delete("/api/pedidos/{numero}/itens/{id}", numero, itemExtra))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.itens", hasSize(1)));
+            mvc.perform(delete("/api/pedidos/{numero}/itens/{id}", numero, itemExtra)).andExpect(status().isNoContent());
+            mvc.perform(get("/api/pedidos/{numero}", numero)).andExpect(jsonPath("$.itens", hasSize(1)));
             assertEquals(4, estoqueDe(extra));
             mvc.perform(delete("/api/pedidos/{numero}/itens/{id}", numero, 999_999)).andExpect(status().isNotFound());
 
@@ -418,7 +421,7 @@ class CrudCompletoApiTest {
             String numero = pedido.get("numero").asText();
             long item = pedido.get("itens").get(0).get("id").asLong();
 
-            mvc.perform(post("/api/pedidos/{numero}/cancelar", numero)).andExpect(status().isOk());
+            enviar(patch("/api/pedidos/{numero}", numero), "{\"situacao\":\"CANCELADO\"}").andExpect(status().isOk());
             mvc.perform(delete("/api/pedidos/{numero}/itens/{id}", numero, item)).andExpect(status().isConflict());
         }
 

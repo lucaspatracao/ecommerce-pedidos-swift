@@ -1,15 +1,15 @@
 package com.ecommerce.pedidos.controller;
 
+import com.ecommerce.pedidos.dto.AtivoRequest;
 import com.ecommerce.pedidos.dto.EstoqueRequest;
 import com.ecommerce.pedidos.dto.ProdutoRequest;
 import com.ecommerce.pedidos.dto.ProdutoResponse;
 import com.ecommerce.pedidos.servico.ProdutoService;
 import com.ecommerce.pedidos.servico.Visibilidade;
 import jakarta.validation.Valid;
+import java.net.URI;
 import java.util.List;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -20,10 +20,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @RestController
 @RequestMapping("/api/produtos")
-@CrossOrigin(origins = {"http://localhost:5173", "http://127.0.0.1:5173"})
 public class ProdutoController {
     private final ProdutoService produtoService;
 
@@ -48,9 +48,12 @@ public class ProdutoController {
         return produtoService.buscarPorCodigo(codigo);
     }
 
+    /** 201 + {@code Location: /api/produtos/{codigo}} + o produto criado. */
     @PostMapping
-    public ResponseEntity<ProdutoResponse> cadastrar(@Valid @RequestBody ProdutoRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(produtoService.cadastrar(request));
+    public ResponseEntity<ProdutoResponse> cadastrar(@Valid @RequestBody ProdutoRequest request, UriComponentsBuilder uri) {
+        ProdutoResponse criado = produtoService.cadastrar(request);
+        URI endereco = uri.path("/api/produtos/{codigo}").buildAndExpand(criado.codigo()).toUri();
+        return ResponseEntity.created(endereco).body(criado);
     }
 
     /** Envie {@code versao} para o controle otimista: versão desatualizada → 409. */
@@ -77,14 +80,9 @@ public class ProdutoController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/{codigo}/inativar")
-    public ResponseEntity<Void> inativar(@PathVariable("codigo") String codigo) {
-        produtoService.inativar(codigo);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/{codigo}/reativar")
-    public ProdutoResponse reativar(@PathVariable("codigo") String codigo) {
-        return produtoService.reativar(codigo);
+    /** PATCH parcial: {@code { "ativo": false }} inativa (soft delete) e {@code true} reativa. */
+    @PatchMapping("/{codigo}")
+    public ProdutoResponse alterarAtivo(@PathVariable("codigo") String codigo, @Valid @RequestBody AtivoRequest request) {
+        return produtoService.alterarAtivo(codigo, request.ativo());
     }
 }

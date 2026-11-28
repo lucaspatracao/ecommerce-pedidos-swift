@@ -3,6 +3,7 @@ package com.ecommerce.pedidos.modelo;
 import com.ecommerce.pedidos.excecao.EstoqueInsuficienteException;
 import com.ecommerce.pedidos.excecao.PagamentoRecusadoException;
 import com.ecommerce.pedidos.excecao.PedidoInvalidoException;
+import com.ecommerce.pedidos.excecao.PedidoJaPagoException;
 import com.ecommerce.pedidos.util.Utils;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -206,6 +207,9 @@ public class Pedido {
     public void pagar(FormaPagamento pagamento) {
         if (pagamento == null) {
             throw new IllegalArgumentException("Forma de pagamento é obrigatória");
+        }
+        if (situacao == SituacaoPedido.PAGO) {
+            throw new PedidoJaPagoException(numero);
         }
         if (!isAberto()) {
             throw new PedidoInvalidoException("Pedido " + situacao + " não pode ser pago");

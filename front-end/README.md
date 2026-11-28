@@ -34,7 +34,7 @@ npm run dev        # abre em http://localhost:5173 (o back-end libera CORS para 
 | `/produtos` | Cadastro, edição, busca e exclusão (inativação) de produtos | `GET/POST/PUT/DELETE /produtos` |
 | `/pedidos` | Lista de pedidos | `GET /pedidos` |
 | `/pedidos/novo` | Novo pedido: cliente, itens, subtotal e total, com validação de estoque | `POST /pedidos` |
-| `/pedido/:id` (`:id` = número do pedido) | Detalhe do pedido e pagamento (Pix, Boleto, Cartão de crédito) | `GET /pedidos/{numero}`, `POST /pagamentos` |
+| `/pedido/:id` (`:id` = número do pedido) | Detalhe do pedido e pagamento (Pix, Boleto, Cartão de crédito) | `GET /pedidos/{numero}`, `POST /pedidos/{numero}/pagamento` |
 | `/pagamentos` | Pagamentos registrados | `GET /pagamentos` |
 | `/historico` | Histórico de compras (últimos pedidos) | `GET /historico` |
 
@@ -42,8 +42,8 @@ npm run dev        # abre em http://localhost:5173 (o back-end libera CORS para 
 
 ```text
 src/
-├── api/clienteApi.js          # todas as chamadas HTTP (Axios); erros viram a mensagem "erro" da API
-├── components/                # ClienteForm, PagamentoForm
+├── api/clienteApi.js          # todas as chamadas HTTP (Axios); erros viram `ErroApi` (mensagem + campos do corpo de erro padronizado)
+├── components/                # ClienteForm, PagamentoForm, ErroCampo (mensagem de validação junto do campo)
 ├── pages/                     # uma página por rota
 ├── utils/                     # formatarFormaPagamento (nome legível de cada forma)
 ├── App.jsx                    # rotas, menu lateral e carga dos dados (Promise.allSettled)
@@ -62,4 +62,4 @@ src/
 
 ## Ainda não usado pela interface
 
-A API já oferece, mas o front ainda não tem tela para: inativar/reativar e listar inativos, filtros e paginação, estoque parcial (`PATCH`), cancelar pedido, remover item, excluir pedido e pedidos por cliente. Esses itens estão na lista da Aula 15 no README da raiz.
+A API já oferece, mas o front ainda não tem tela para: inativar/reativar (`PATCH {"ativo"}`) e listar inativos, filtros e paginação, estoque parcial (`PATCH`), cancelar pedido (`PATCH {"situacao"}`), remover item, excluir pedido e pedidos por cliente. Esses itens estão na lista da Aula 15 no README da raiz.

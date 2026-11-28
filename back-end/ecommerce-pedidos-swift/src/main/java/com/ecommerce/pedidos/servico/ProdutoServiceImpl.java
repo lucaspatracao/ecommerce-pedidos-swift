@@ -3,7 +3,8 @@ package com.ecommerce.pedidos.servico;
 import com.ecommerce.pedidos.dto.ProdutoRequest;
 import com.ecommerce.pedidos.dto.ProdutoResponse;
 import com.ecommerce.pedidos.excecao.ConflitoException;
-import com.ecommerce.pedidos.excecao.RecursoNaoEncontradoException;
+import com.ecommerce.pedidos.excecao.RegistroDuplicadoException;
+import com.ecommerce.pedidos.excecao.ProdutoNaoEncontradoException;
 import com.ecommerce.pedidos.modelo.Produto;
 import com.ecommerce.pedidos.repositorio.ItemPedidoRepository;
 import com.ecommerce.pedidos.repositorio.ProdutoRepository;
@@ -49,7 +50,7 @@ public class ProdutoServiceImpl implements ProdutoService {
             preco(request), estoqueObrigatorio(request));
         produto.definirDisponibilidade(disponivel(request));
         if (produtoRepository.existsByCodigo(produto.getCodigo())) {
-            throw new ConflitoException(CODIGO_DUPLICADO);
+            throw new RegistroDuplicadoException(CODIGO_DUPLICADO);
         }
         return ProdutoResponse.de(produtoRepository.save(produto));
     }
@@ -65,7 +66,7 @@ public class ProdutoServiceImpl implements ProdutoService {
 
         String novoCodigo = Utils.textoObrigatorio(request.codigo(), "Código do produto");
         if (!novoCodigo.equals(produto.getCodigo()) && produtoRepository.existsByCodigo(novoCodigo)) {
-            throw new ConflitoException(CODIGO_DUPLICADO);
+            throw new RegistroDuplicadoException(CODIGO_DUPLICADO);
         }
         produto.alterarCodigo(novoCodigo);
         produto.atualizarDados(request.nome(), request.descricao(), preco(request));
@@ -115,6 +116,16 @@ public class ProdutoServiceImpl implements ProdutoService {
     }
 
     @Override
+    @Transactional
+    public ProdutoResponse alterarAtivo(String codigo, boolean ativo) {
+        if (ativo) {
+            return reativar(codigo);
+        }
+        inativar(codigo);
+        return ProdutoResponse.de(buscarEntidade(codigo, Visibilidade.TODOS));
+    }
+
+    @Override
     public long contar() {
         return produtoRepository.countByAtivoTrue();
     }
@@ -132,7 +143,7 @@ public class ProdutoServiceImpl implements ProdutoService {
         Boolean ativo = visibilidade.filtroAtivo();
         return produtoRepository.findByCodigo(chave)
             .filter(produto -> ativo == null || produto.isAtivo() == ativo)
-            .orElseThrow(() -> new RecursoNaoEncontradoException("Produto", chave));
+            .orElseThrow(() -> new ProdutoNaoEncontradoException(chave));
     }
 
     // Na API o @Valid já barra nulos; estas checagens protegem quem chama o serviço direto.

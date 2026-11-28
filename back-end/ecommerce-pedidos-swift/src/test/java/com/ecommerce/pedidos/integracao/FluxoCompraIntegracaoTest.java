@@ -12,7 +12,7 @@ import static org.mockito.Mockito.when;
 import com.ecommerce.pedidos.apoio.DadosDeTeste;
 import com.ecommerce.pedidos.dto.ClienteRequest;
 import com.ecommerce.pedidos.dto.ItemPedidoRequest;
-import com.ecommerce.pedidos.dto.PagamentoRegistradoResponse;
+import java.util.Map;
 import com.ecommerce.pedidos.dto.PagamentoRequest;
 import com.ecommerce.pedidos.dto.PedidoRequest;
 import com.ecommerce.pedidos.dto.PedidoResponse;
@@ -80,10 +80,8 @@ class FluxoCompraIntegracaoTest {
     void devePagarQuandoGatewayAprova() {
         when(gateway.autorizar(any(FormaPagamento.class))).thenReturn(true);
 
-        PagamentoRegistradoResponse resposta = pagamentoService.registrar(pix("300.00"));
-
-        assertEquals("Pagamento registrado com sucesso.", resposta.mensagem());
-        assertEquals(SituacaoPagamento.APROVADO, resposta.pagamento().get("situacao"));
+        Map<String, Object> resposta = pagamentoService.registrar(pedido.numero(), pix("300.00"));
+        assertEquals(SituacaoPagamento.APROVADO, resposta.get("situacao"));
         PedidoResponse pago = pedidoService.buscarPorNumero(pedido.numero());
         assertEquals(SituacaoPedido.PAGO, pago.situacao());
         assertEquals("Pix", pago.formaPagamento().get("descricao"));
@@ -98,7 +96,7 @@ class FluxoCompraIntegracaoTest {
         when(gateway.autorizar(any(FormaPagamento.class))).thenReturn(false);
 
         PagamentoRecusadoException erro = assertThrows(PagamentoRecusadoException.class,
-            () -> pagamentoService.registrar(pix("300.00")));
+            () -> pagamentoService.registrar(pedido.numero(), pix("300.00")));
 
         assertEquals("Pix", erro.getFormaPagamento());
         PedidoResponse aindaAberto = pedidoService.buscarPorNumero(pedido.numero());
@@ -110,7 +108,7 @@ class FluxoCompraIntegracaoTest {
     @DisplayName("valor diferente do total é barrado pelo domínio ANTES de chamar o gateway")
     void naoDeveChamarGatewayComValorErrado() {
         // IllegalStateException do domínio; o ApiExceptionHandler a converte em 409.
-        assertThrows(IllegalStateException.class, () -> pagamentoService.registrar(pix("299.99")));
+        assertThrows(IllegalStateException.class, () -> pagamentoService.registrar(pedido.numero(), pix("299.99")));
         verify(gateway, never()).autorizar(any());
     }
 
@@ -118,9 +116,9 @@ class FluxoCompraIntegracaoTest {
     @DisplayName("cancelar pedido pago estorna o pagamento e devolve o estoque")
     void deveEstornarAoCancelar() {
         when(gateway.autorizar(any(FormaPagamento.class))).thenReturn(true);
-        pagamentoService.registrar(pix("300.00"));
+        pagamentoService.registrar(pedido.numero(), pix("300.00"));
 
-        PedidoResponse cancelado = pedidoService.atualizarStatus(pedido.numero(), "CANCELADO");
+        PedidoResponse cancelado = pedidoService.atualizarSituacao(pedido.numero(), "CANCELADO");
 
         assertEquals(SituacaoPedido.CANCELADO, cancelado.situacao());
         assertEquals(SituacaoPagamento.ESTORNADO, cancelado.formaPagamento().get("situacao"));
@@ -129,6 +127,6 @@ class FluxoCompraIntegracaoTest {
 
     private PagamentoRequest pix(String valor) {
         return new PagamentoRequest("PIX", new BigDecimal(valor), null, null, null, null, null,
-            "carla@teste.com", "EMAIL", pedido.numero());
+            "carla@teste.com", "EMAIL");
     }
 }

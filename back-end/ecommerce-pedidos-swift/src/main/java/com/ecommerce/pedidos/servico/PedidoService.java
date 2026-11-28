@@ -35,8 +35,8 @@ public interface PedidoService {
      */
     PedidoResponse criar(PedidoRequest request);
 
-    /** Aceita "CANCELADO" (o mesmo que {@link #cancelar}) ou "ABERTO" (sem mudança). */
-    PedidoResponse atualizarStatus(String numero, String status);
+    /** PATCH da situação: aceita "CANCELADO" (o mesmo que {@link #cancelar}) ou "ABERTO" (sem mudança). */
+    PedidoResponse atualizarSituacao(String numero, String situacao);
 
     /** Cancela: devolve o estoque e estorna o pagamento. Cancelar de novo → 409. */
     PedidoResponse cancelar(String numero);

@@ -1,0 +1,77 @@
+# Integração contínua (Aula 15): roda os testes e o build a cada push na main
+# e em todo pull request. PR com pipeline vermelho não é integrado.
+#
+# Sem segredos e sem MySQL: os testes de integração usam o perfil "test"
+# (H2 em memória com as mesmas migrations do Flyway).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Um push novo no mesmo PR cancela a execução anterior, que ficou velha.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Back-end (Maven verify)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: back-end/ecommerce-pedidos-swift
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 17 (Temurin) com cache do Maven
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      # verify = unidade + integração + metas de cobertura do JaCoCo.
+      # Nunca "package" nem -DskipTests: o objetivo do pipeline é rodar os testes.
+      - name: Testes, cobertura e build
+        run: mvn -B verify
+
+      - name: Relatório de cobertura (JaCoCo)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco
+          path: back-end/ecommerce-pedidos-swift/target/site/jacoco-total/
+          if-no-files-found: warn
+
+      - name: Pacote da aplicação (.jar)
+        uses: actions/upload-artifact@v4
+        with:
+          name: aplicacao-jar
+          path: back-end/ecommerce-pedidos-swift/target/*.jar
+          if-no-files-found: error
+
+  frontend:
+    name: Front-end (lint e build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: front-end
+    steps:
+      - uses: actions/checkout@v4
+
+      # README: Node 20.19+ ou 22.13+ (Vite 8 e ESLint 10). A linha 22 atende.
+      - name: Node 22 com cache do npm
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: front-end/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build

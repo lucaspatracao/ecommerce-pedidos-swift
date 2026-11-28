@@ -5,20 +5,28 @@ const api = axios.create({
   timeout: 10000,
 })
 
-const tratarErro = (error, mensagemPadrao) => {
-  if (error?.response?.data?.erro) {
-    return error.response.data.erro
+/**
+ * Erro vindo da API, já traduzido para a tela.
+ * - message: o campo "mensagem" do corpo de erro padronizado (ErroResponse);
+ * - campos: { nomeDoCampo: "mensagem" } quando o back-end recusou a validação (400),
+ *   para cada formulário mostrar a mensagem junto do campo certo;
+ * - status: código HTTP (undefined quando nem houve resposta, ex.: back-end fora do ar).
+ */
+export class ErroApi extends Error {
+  constructor(mensagem, { campos = {}, status, cause } = {}) {
+    super(mensagem, { cause })
+    this.name = 'ErroApi'
+    this.campos = campos
+    this.status = status
   }
+}
 
-  if (error?.response?.data?.message) {
-    return error.response.data.message
-  }
-
-  if (error?.message) {
-    return error.message
-  }
-
-  return mensagemPadrao
+// Corpo de erro da API: { status, erro, mensagem, caminho, campos?: [{ campo, mensagem }] }
+const erroDaApi = (error, mensagemPadrao) => {
+  const corpo = error?.response?.data
+  const campos = Object.fromEntries((corpo?.campos ?? []).map(({ campo, mensagem }) => [campo, mensagem]))
+  const mensagem = corpo?.mensagem || error?.message || mensagemPadrao
+  return new ErroApi(mensagem, { campos, status: error?.response?.status, cause: error })
 }
 
 const normalizarId = (valor) => {
@@ -53,7 +61,7 @@ export const cadastrarCliente = async (cliente) => {
     const resposta = await api.post('/clientes', normalizarPayloadCliente(cliente))
     return resposta.data
   } catch (error) {
-    throw new Error(tratarErro(error, 'Não foi possível cadastrar o cliente. Tente novamente.'), { cause: error })
+    throw erroDaApi(error, 'Não foi possível cadastrar o cliente. Tente novamente.')
   }
 }
 
@@ -67,7 +75,7 @@ export const atualizarCliente = async (cpf, cliente) => {
     const resposta = await api.put(`/clientes/${encodeURIComponent(cpfNormalizado)}`, normalizarPayloadCliente(cliente))
     return resposta.data
   } catch (error) {
-    throw new Error(tratarErro(error, 'Não foi possível atualizar o cliente. Tente novamente.'), { cause: error })
+    throw erroDaApi(error, 'Não foi possível atualizar o cliente. Tente novamente.')
   }
 }
 
@@ -81,7 +89,7 @@ export const excluirCliente = async (cpf) => {
     await api.delete(`/clientes/${encodeURIComponent(cpfNormalizado)}`)
     return true
   } catch (error) {
-    throw new Error(tratarErro(error, 'Não foi possível excluir o cliente. Tente novamente.'), { cause: error })
+    throw erroDaApi(error, 'Não foi possível excluir o cliente. Tente novamente.')
   }
 }
 
@@ -95,7 +103,7 @@ export const cadastrarProduto = async (produto) => {
     const resposta = await api.post('/produtos', normalizarPayloadProduto(produto))
     return resposta.data
   } catch (error) {
-    throw new Error(tratarErro(error, 'Não foi possível cadastrar o produto. Tente novamente.'), { cause: error })
+    throw erroDaApi(error, 'Não foi possível cadastrar o produto. Tente novamente.')
   }
 }
 
@@ -109,7 +117,7 @@ export const atualizarProduto = async (codigo, produto) => {
     const resposta = await api.put(`/produtos/${encodeURIComponent(codigoNormalizado)}`, normalizarPayloadProduto(produto))
     return resposta.data
   } catch (error) {
-    throw new Error(tratarErro(error, 'Não foi possível atualizar o produto. Tente novamente.'), { cause: error })
+    throw erroDaApi(error, 'Não foi possível atualizar o produto. Tente novamente.')
   }
 }
 
@@ -123,7 +131,7 @@ export const excluirProduto = async (codigo) => {
     await api.delete(`/produtos/${encodeURIComponent(codigoNormalizado)}`)
     return true
   } catch (error) {
-    throw new Error(tratarErro(error, 'Não foi possível excluir o produto. Tente novamente.'), { cause: error })
+    throw erroDaApi(error, 'Não foi possível excluir o produto. Tente novamente.')
   }
 }
 
@@ -144,7 +152,7 @@ export const criarPedido = async ({ clienteCpf, itens = [] }) => {
     })
     return resposta.data
   } catch (error) {
-    throw new Error(tratarErro(error, 'Não foi possível registrar o pedido. Tente novamente.'), { cause: error })
+    throw erroDaApi(error, 'Não foi possível registrar o pedido. Tente novamente.')
   }
 }
 
@@ -153,20 +161,21 @@ export const buscarPedido = async (numero) => {
     const resposta = await api.get(`/pedidos/${encodeURIComponent(normalizarId(numero))}`)
     return resposta.data
   } catch (error) {
-    throw new Error(tratarErro(error, 'Não foi possível carregar o pedido. Tente novamente.'), { cause: error })
+    throw erroDaApi(error, 'Não foi possível carregar o pedido. Tente novamente.')
   }
 }
 
 /**
- * POST /pagamentos — contrato do back-end (PagamentoRequest). Campos por tipo:
+ * POST /pedidos/{numero}/pagamento — o pagamento é sub-recurso do pedido.
+ * Corpo (PagamentoRequest): { tipo, valor, ...campos do tipo }
  * PIX: chave, tipoChave | BOLETO: vencimento (AAAA-MM-DD), codigo | CARTAO: numero, bandeira, parcelas
  */
-export const registrarPagamento = async (pagamento) => {
+export const registrarPagamento = async (numeroPedido, pagamento) => {
   try {
-    const resposta = await api.post('/pagamentos', pagamento)
+    const resposta = await api.post(`/pedidos/${encodeURIComponent(normalizarId(numeroPedido))}/pagamento`, pagamento)
     return resposta.data
   } catch (error) {
-    throw new Error(tratarErro(error, 'Não foi possível registrar o pagamento. Tente novamente.'), { cause: error })
+    throw erroDaApi(error, 'Não foi possível registrar o pagamento. Tente novamente.')
   }
 }
 

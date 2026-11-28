@@ -48,6 +48,9 @@ public interface ProdutoService {
     /** 404 se não houver produto INATIVO com o código. */
     ProdutoResponse reativar(String codigo);
 
+    /** {@code ativo = false} inativa; {@code true} reativa. Devolve o produto já atualizado. */
+    ProdutoResponse alterarAtivo(String codigo, boolean ativo);
+
     /** Quantidade de produtos ativos. */
     long contar();
 

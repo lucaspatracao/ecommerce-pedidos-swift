@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { atualizarCliente, cadastrarCliente } from '../api/clienteApi'
+import { ErroCampo } from './ErroCampo'
 
 const estadoInicial = {
   nome: '',
@@ -34,6 +35,8 @@ export function ClienteForm({ cliente = null, onClienteSalvo, onCancelarEdicao }
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [mensagem, setMensagem] = useState('')
   const [erro, setErro] = useState('')
+  // Mensagens por campo vindas do back-end (400 com "campos").
+  const [errosCampos, setErrosCampos] = useState({})
   const isEdicao = Boolean(cliente)
 
   // Outro cliente escolhido para edição (ou edição cancelada): recarrega o
@@ -53,6 +56,7 @@ export function ClienteForm({ cliente = null, onClienteSalvo, onCancelarEdicao }
     event.preventDefault()
     setIsSubmitting(true)
     setErro('')
+    setErrosCampos({})
     setMensagem('')
 
     try {
@@ -68,6 +72,7 @@ export function ClienteForm({ cliente = null, onClienteSalvo, onCancelarEdicao }
       }
     } catch (error) {
       setErro(error.message || 'Não foi possível salvar o cliente. Tente novamente.')
+      setErrosCampos(error.campos ?? {})
     } finally {
       setIsSubmitting(false)
     }
@@ -86,26 +91,31 @@ export function ClienteForm({ cliente = null, onClienteSalvo, onCancelarEdicao }
         <label>
           Nome
           <input name="nome" value={form.nome} onChange={handleChange} placeholder="Ex.: Maria Silva" required />
+          <ErroCampo mensagem={errosCampos.nome} />
         </label>
 
         <label>
           CPF
           <input name="cpf" value={form.cpf} onChange={handleChange} placeholder="Apenas números" required />
+          <ErroCampo mensagem={errosCampos.cpf} />
         </label>
 
         <label>
           E-mail
           <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="cliente@email.com" required />
+          <ErroCampo mensagem={errosCampos.email} />
         </label>
 
         <label>
           Telefone
           <input name="telefone" value={form.telefone} onChange={handleChange} placeholder="11999999999" required />
+          <ErroCampo mensagem={errosCampos.telefone} />
         </label>
 
         <label className="full-width">
           Endereço
           <input name="endereco" value={form.endereco} onChange={handleChange} placeholder="Rua das Flores, 123" required />
+          <ErroCampo mensagem={errosCampos.endereco} />
         </label>
 
         {mensagem && <div className="alert alert-success full-width">{mensagem}</div>}
