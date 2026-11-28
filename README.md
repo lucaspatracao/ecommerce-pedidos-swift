@@ -194,7 +194,8 @@ MySQL (schema versionado pelo Flyway)
 ```
 
 * **DTOs** (`dto/`): os *requests* têm Bean Validation (`@NotBlank`, `@Email`, `@Positive`...). Os *responses* fixam o JSON que o front-end consome, sem expor as relações do banco. Clientes, produtos e pedidos são identificados por CPF, código e número; só o item do pedido expõe o `id`, usado para removê-lo.
-* **Erros** (`ApiExceptionHandler`): todo erro volta como `{ "erro": "mensagem" }`, que é a chave lida pelo front.
+* **Erros** (`ApiExceptionHandler`): todo erro volta no [corpo padronizado](#corpo-de-erro-padronizado) `{ status, erro, mensagem, caminho, campos }`; o front mostra a `mensagem` e, na validação, a mensagem de cada campo.
+* **CORS** (`config/CorsConfig`): liberado num lugar só para o front do Vite (`localhost:5173` e `127.0.0.1:5173`).
 * **Transação**: criar um pedido baixa o estoque de todos os itens numa transação só. Se qualquer item falhar, nada é gravado (rollback).
 * **Consultas**: `@Query` em JPQL (cliente por CPF, estoque crítico, receita via `SUM`) e `JOIN FETCH` no `PedidoRepository`, que carrega pedido, cliente, itens, produtos e pagamento numa única consulta e evita o problema N+1.
 
@@ -202,54 +203,113 @@ MySQL (schema versionado pelo Flyway)
 
 ### API REST
 
-Base: `http://localhost:8080/api`
+Base: `http://localhost:8080/api`. Os recursos usam os identificadores naturais: `cpf` (cliente), `codigo` (produto) e `numero` (pedido).
 
-| Método | Rota | Descrição | Sucesso | Erros comuns |
+Regras que a API segue (Aula 15):
+
+* **Endereços são substantivos:** a ação fica no método HTTP, não na URL (nada de `/cancelar` ou `/inativar`).
+* **POST que cria responde `201 Created`** com o cabeçalho `Location` apontando para o recurso novo e o DTO no corpo.
+* **DELETE responde `204 No Content`**, sem corpo.
+* **Mudança parcial usa `PATCH`** (só os campos enviados mudam); `PUT` substitui o recurso inteiro.
+* **Erro nunca vem com 200:** todo erro tem status 4xx/5xx e o [corpo padronizado](#corpo-de-erro-padronizado).
+
+| Método | Endereço | O que faz | Sucesso | Erro |
 | :--- | :--- | :--- | :---: | :--- |
-| GET | `/clientes?situacao=&pagina=&tamanho=` | Lista clientes (padrão: ativos) | 200 | 400 (parâmetro inválido) |
+| GET | `/clientes?situacao=&pagina=&tamanho=` | Lista clientes (padrão: ativos) | 200 | 400 |
 | GET | `/clientes/{cpf}` | Busca cliente ativo | 200 | 404 |
 | GET | `/clientes/{cpf}/pedidos?pagina=&tamanho=` | Pedidos do cliente, inclusive inativo | 200 | 404 |
-| POST | `/clientes` | Cadastra cliente | 201 | 400 (validação/CPF), 409 (CPF ou e-mail duplicado) |
+| POST | `/clientes` | Cadastra cliente | 201 + `Location` | 400, 409 (CPF ou e-mail já cadastrado) |
 | PUT | `/clientes/{cpf}` | Atualiza nome e contato (o CPF não muda) | 200 | 400, 404, 409 (e-mail em uso) |
+| PATCH | `/clientes/{cpf}` | `{"ativo": false}` inativa; `{"ativo": true}` reativa | 200 | 400, 404 |
 | DELETE | `/clientes/{cpf}` | Exclui cliente sem pedidos | 204 | 404, 409 (tem pedidos: inative-o) |
-| POST | `/clientes/{cpf}/inativar` · `/reativar` | Soft delete e reativação | 204 · 200 | 404 |
 | GET | `/produtos?situacao=&nome=&pagina=&tamanho=` | Lista produtos (padrão: ativos) | 200 | 400 |
 | GET | `/produtos/{codigo}` | Busca produto ativo | 200 | 404 |
-| POST | `/produtos` | Cadastra produto | 201 | 400, 409 (código duplicado) |
+| POST | `/produtos` | Cadastra produto | 201 + `Location` | 400, 409 (código já cadastrado) |
 | PUT | `/produtos/{codigo}` | Atualiza produto (inclusive inativo); `versao` opcional | 200 | 400, 404, 409 (código duplicado / versão desatualizada) |
+| PATCH | `/produtos/{codigo}` | `{"ativo": false}` inativa; `{"ativo": true}` reativa | 200 | 400, 404 |
 | PATCH | `/produtos/{codigo}/estoque` | Altera só o estoque: `{"quantidade": n}` | 200 | 400, 404 |
 | DELETE | `/produtos/{codigo}` | Soft delete (inativa) | 204 | 404 |
 | DELETE | `/produtos/{codigo}?definitivo=true` | Exclui produto nunca vendido | 204 | 404, 409 (já vendido: inative-o) |
-| POST | `/produtos/{codigo}/inativar` · `/reativar` | Soft delete e reativação | 204 · 200 | 404 |
 | GET | `/pedidos?situacao=&pagina=&tamanho=` | Lista pedidos (mais recentes primeiro) | 200 | 400 |
 | GET | `/pedidos/{numero}` | Busca pedido completo | 200 | 404 |
-| POST | `/pedidos` | Cria pedido e baixa o estoque | 201 | 400, 404 (cliente/produto), 409 (estoque/produto inativo) |
-| PUT | `/pedidos/{numero}/status` | `CANCELADO` = cancelar; `ABERTO` não muda nada | 200 | 400, 404, 409 |
-| POST | `/pedidos/{numero}/cancelar` | Devolve estoque e estorna pagamento | 200 | 404, 409 (já cancelado) |
+| POST | `/pedidos` | Cria pedido e baixa o estoque | 201 + `Location` | 400, 404 (cliente/produto), 409 (estoque insuficiente / produto inativo) |
+| PATCH | `/pedidos/{numero}` | `{"situacao": "CANCELADO"}` cancela (devolve estoque e estorna pagamento); `ABERTO` não muda nada | 200 | 400, 404, 409 (já cancelado / transição inválida) |
 | DELETE | `/pedidos/{numero}` | Exclui pedido em aberto (devolve estoque) | 204 | 404, 409 (pago ou cancelado) |
-| DELETE | `/pedidos/{numero}/itens/{itemId}` | Remove item de pedido aberto (devolve estoque) | 200 | 404, 409 (pedido não está aberto) |
-| GET | `/pagamentos` | Lista pagamentos | 200 | |
-| POST | `/pagamentos` | Paga um pedido aberto | 201 | 400, 404, 409 (recusado/valor ≠ total) |
-| GET | `/dashboard` | Indicadores (contagens de ativos) | 200 | |
-| GET | `/historico` | Últimos 10 pedidos | 200 | |
+| DELETE | `/pedidos/{numero}/itens/{itemId}` | Remove item de pedido aberto (devolve estoque) | 204 | 404, 409 (pedido não está aberto) |
+| POST | `/pedidos/{numero}/pagamento` | Paga o pedido | 201 + `Location` | 400, 404, 409 (já pago / recusado / valor ≠ total) |
+| GET | `/pedidos/{numero}/pagamento` | Pagamento do pedido | 200 | 404 (pedido inexistente ou sem pagamento) |
+| GET | `/pagamentos` | Lista todos os pagamentos | 200 | — |
+| GET | `/dashboard` | Indicadores (contagens de ativos) | 200 | — |
+| GET | `/historico` | Últimos 10 pedidos | 200 | — |
 
 Parâmetros das listagens: `situacao=ativos|inativos|todos` (clientes e produtos) ou `aberto|pago|cancelado` (pedidos); `pagina` começa em 0 e `tamanho` vai de 1 a 500 (padrão 20). Sem `pagina` nem `tamanho`, a lista vem inteira, como o front espera.
 
 Exemplo de criação de pedido:
 
-```json
+```http
 POST /api/pedidos
+Content-Type: application/json
+
 { "clienteCpf": "78617768916", "itens": [ { "codigo": "CAM-001", "quantidade": 2 } ] }
 ```
 
-Exemplo de pagamento (campos usados dependem do `tipo`):
+```http
+HTTP/1.1 201 Created
+Location: http://localhost:8080/api/pedidos/PED-2026-00042
+
+{ "numero": "PED-2026-00042", "situacao": "ABERTO", "valorTotal": 99.80, ... }
+```
+
+Exemplo de pagamento. O pedido vem do endereço; os campos usados dependem do `tipo`:
 
 ```json
-POST /api/pagamentos
-{ "tipo": "PIX", "valor": "99.80", "chave": "cliente@email.com", "tipoChave": "EMAIL", "pedidoNumero": "PED-2026-01234" }
-{ "tipo": "BOLETO", "valor": "99.80", "vencimento": "2026-12-31", "codigo": "34191.79001", "pedidoNumero": "..." }
-{ "tipo": "CARTAO", "valor": "99.80", "numero": "**** 4242", "bandeira": "Visa", "parcelas": 3, "pedidoNumero": "..." }
+POST /api/pedidos/PED-2026-00042/pagamento
+{ "tipo": "PIX", "valor": "99.80", "chave": "cliente@email.com", "tipoChave": "EMAIL" }
+{ "tipo": "BOLETO", "valor": "99.80", "vencimento": "2026-12-31", "codigo": "34191.79001" }
+{ "tipo": "CARTAO", "valor": "99.80", "numero": "**** 4242", "bandeira": "Visa", "parcelas": 3 }
 ```
+
+#### Corpo de erro padronizado
+
+Toda resposta de erro tem o mesmo formato (`dto/ErroResponse`), montado pelo `ApiExceptionHandler`:
+
+| Campo | Conteúdo |
+| :--- | :--- |
+| `status` | o mesmo código da linha de status HTTP |
+| `erro` | rótulo do status: "Requisição inválida" (400), "Não encontrado" (404), "Conflito" (409), "Erro interno" (500) |
+| `mensagem` | texto de negócio, pronto para mostrar ao usuário |
+| `caminho` | endereço da requisição que falhou |
+| `campos` | só em erro de validação: lista de `{ campo, mensagem }` |
+
+Conflito (409):
+
+```json
+{
+  "status": 409,
+  "erro": "Conflito",
+  "mensagem": "Estoque insuficiente de Camiseta Básica: disponível 2, solicitado 5",
+  "caminho": "/api/pedidos"
+}
+```
+
+Validação (400), com a mensagem de cada campo:
+
+```json
+{
+  "status": 400,
+  "erro": "Requisição inválida",
+  "mensagem": "Há campos inválidos. Corrija-os e tente novamente.",
+  "caminho": "/api/clientes",
+  "campos": [
+    { "campo": "email", "mensagem": "E-mail inválido." },
+    { "campo": "nome", "mensagem": "Nome é obrigatório." }
+  ]
+}
+```
+
+Erro inesperado (500): sempre `"mensagem": "Erro interno. Tente novamente mais tarde."`. Nome de classe, SQL e stack trace ficam só no log do servidor.
+
+No front-end, `src/api/clienteApi.js` transforma esse corpo num `ErroApi` (`message` = `mensagem`, `campos` = `{ email: "E-mail inválido.", ... }`), e cada formulário mostra a mensagem junto do campo.
 
 > Os CPFs deste README e dos testes são **sintéticos**, gerados com dígitos verificadores válidos apenas para exemplo. Não use CPFs reais em testes.
 
@@ -280,7 +340,7 @@ As regras vieram da branch `feature/crud-completo` (PR #18), que as implementou 
 | Excluir pedido com itens | Só para pedido `ABERTO`: os itens saem em cascata e o estoque reservado volta, na mesma transação. |
 | Excluir cliente com pedidos | **409**: "Este cliente possui pedidos e não pode ser excluído. Inative-o..." |
 | Excluir produto que está em pedidos | `DELETE /api/produtos/{codigo}` inativa (204). Com `?definitivo=true` → **409**. |
-| Excluir pedido já pago | **409**: "Pedido já pago não pode ser excluído. Cancele o pedido..." Use `POST /api/pedidos/{numero}/cancelar`. |
+| Excluir pedido já pago | **409**: "Pedido já pago não pode ser excluído. Cancele o pedido..." Use `PATCH /api/pedidos/{numero}` com `{"situacao": "CANCELADO"}`. |
 
 #### Soft delete
 
@@ -364,10 +424,11 @@ Todas as exceções de negócio são **unchecked** (`RuntimeException`): o erro 
 | Exceção | Quando | HTTP |
 | :--- | :--- | :---: |
 | `NegocioException` | raiz das exceções de negócio | 400 |
-| `RecursoNaoEncontradoException` / `ClienteNaoEncontradoException` | cliente, produto ou pedido inexistente | 404 |
-| `ConflitoException` | duplicado, produto vendido, cliente com pedidos | 409 |
+| `RecursoNaoEncontradoException` (um handler só) e as subclasses `Cliente`/`Produto`/`Pedido`/`PagamentoNaoEncontradoException` | recurso inexistente | 404 |
+| `ConflitoException` | produto vendido, cliente com pedidos, transição inválida | 409 |
+| `RegistroDuplicadoException` | CPF, e-mail ou código já cadastrado | 409 |
 | `EstoqueInsuficienteException` (código, solicitada, disponível) | estoque não basta | 409 |
-| `PedidoInvalidoException` | pagar pedido vazio ou já pago | 409 |
+| `PedidoInvalidoException` / `PedidoJaPagoException` | pagar pedido vazio, cancelado ou já pago | 409 |
 | `PagamentoRecusadoException` (forma, motivo) | limite do cartão ou gateway recusou | 409 |
 | `IllegalArgumentException` / Bean Validation | dado inválido | 400 |
 | `IllegalStateException` | operação incompatível com o estado | 409 |
@@ -383,7 +444,7 @@ Todas as exceções de negócio são **unchecked** (`RuntimeException`): o erro 
 | Persistência | `PersistenciaIntegracaoTest`: soft delete, RESTRICT, CASCADE, UNIQUE, CHECK, versão otimista e auditoria conferidos direto no banco | `mvn verify` |
 | Número do pedido | `NumeroPedidoIntegracaoTest`: pedidos seguidos e simultâneos sem número repetido; `MigracaoNumeroPedidoTest`: a V3 sobre pedidos antigos | `mvn verify` |
 | Consultas | `RepositoriosConsultaTest`: `@Query` e prova do `JOIN FETCH` contando os SQLs | `mvn verify` |
-| API | `ApiIntegracaoTest` e `CrudCompletoApiTest`: MockMvc com rotas, status e corpo `{ "erro" }` | `mvn verify` |
+| API | `ApiIntegracaoTest` e `CrudCompletoApiTest`: MockMvc com rotas e regras de negócio; `StatusHttpApiTest`: 201 + `Location` em cada POST e 204 em cada DELETE; `ErroPadronizadoApiTest`: corpo de erro em 400 (com `campos`), 404, 409 e 500 sem vazar detalhes | `mvn verify` |
 
 ---
 
@@ -436,7 +497,7 @@ ecommerce-pedidos-swift/
 | **12** | Persistência: conexão, Create e Read (Spring Data JPA) | 🟢 Concluído |
 | **13** | Persistência: CRUD completo, soft delete, integridade referencial e transações | 🟢 Concluído |
 | **14** | Spring Boot: camadas, DTOs, validação, perfis, Flyway, `@Query`, `JOIN FETCH` | 🟢 Concluído |
-| **15** | API REST completa + integração com Front-end + pipeline de CI/CD | ⏳ Próxima |
+| **15** | API REST (endereços, status, erro padronizado) + pipeline de CI no GitHub Actions | 🟢 Concluído |
 | **16** | Entrega final, documentação consolidada e apresentação | ⏳ Pendente |
 
 ---
