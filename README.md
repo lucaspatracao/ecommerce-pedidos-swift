@@ -2,6 +2,33 @@
 
 [![CI](https://github.com/lucaspatracao/ecommerce-pedidos-swift/actions/workflows/ci.yml/badge.svg)](https://github.com/lucaspatracao/ecommerce-pedidos-swift/actions/workflows/ci.yml)
 
+> [!TIP]
+> **Primeira vez aqui?** Siga o **[Guia de uso](docs/guia-de-uso.md)**: do zero até o sistema rodando e sendo usado, num PC Windows, com todos os comandos prontos para colar.
+>
+> Prints da demo e como tirá-los: **[docs/prints/](docs/prints/)**.
+
+> **Projeto Integrador** da Unidade Curricular: *Desenvolvimento Back-end*
+>
+> **Curso:** Superior de Tecnologia em Análise e Desenvolvimento de Sistemas (Turma CSTADS601)
+>
+> **Instituição:** Faculdade de Tecnologia SENAI "Antonio Adolpho Lobbe"
+
+---
+
+### Equipe / Squad: Swift
+
+| Nome | Papel |
+| :--- | :--- |
+| **Lucas Nunes Patracão** | Responsável do dia |
+| **Rafael Rubiá Oliveira Cardoso** | Desenvolvedor / Colaborador |
+
+---
+
+### Descrição do Desafio
+
+O objetivo principal deste projeto é conceber e implementar uma solução completa de **Gestão de Pedidos para E-commerce**, contemplando Back-end, API REST e uma interface Front-end integrada.
+
+A aplicação engloba a modelagem de domínio, regras de negócio e infraestrutura para administrar o cadastro de clientes e catálogo de produtos, gerenciar o ciclo de vida dos pedidos e processar transações financeiras com múltiplos métodos de pagamento.
 API REST em Spring Boot + interface React para cadastrar clientes e produtos, registrar pedidos com baixa de estoque transacional e pagá-los por Pix, Boleto ou Cartão.
 
 📐 [Arquitetura e diagramas](docs/arquitetura.md) · 📄 [Relatório técnico](docs/relatorio-tecnico.md) · 📝 [Exercícios da Aula 15](docs/aula-15-exercicios.md) · 🎤 [Roteiro do pitch](docs/pitch.md)

@@ -24,6 +24,29 @@
 ## Plano B (se a demo falhar)
 
 1. **Não depurar ao vivo.** Dizer "o ambiente local caiu; vou mostrar a mesma sequência em prints" e seguir no tempo.
+2. **Prints:** seguir a mesma sequência da demo com os prints abaixo. Como tirar cada um: [`prints/README.md`](prints/README.md).
+3. **Sem app nenhum:** mostrar no GitHub o PR #23 com o CI verde (prova de que o build e os 168 testes passam) e o PR #24 vermelho, e depois os diagramas do `docs/arquitetura.md`.
+
+### Prints, na ordem da demo
+
+![Ponto de partida: dashboard com o banco vazio](prints/01-dashboard-vazio.png)
+
+![1. Cliente: e-mail e telefone inválidos, com a mensagem embaixo de cada campo](prints/07-erro-validacao.png)
+
+![1. Cliente: cadastro corrigido e salvo](prints/02-cliente-cadastrado.png)
+
+![2. Produto: cadastrado no catálogo](prints/03-produto-cadastrado.png)
+
+![3. Pedido: cliente, item e total antes de salvar](prints/04-novo-pedido.png)
+
+![4. Pagamento: pedido pago com Pix](prints/05-pedido-pago.png)
+
+![5. Dashboard: receita do pedido pago](prints/06-dashboard-com-receita.png)
+
+![Qualidade e CI: PR com os dois jobs verdes](prints/09-ci-verde.png)
+
+![Qualidade e CI: PR #24 com o job backend vermelho](prints/08-ci-vermelho.png)
+
 2. **Prints:** capturar antes da apresentação, um por passo da demo: erro de validação no formulário, 409 de estoque, pedido criado, pagamento aprovado e dashboard. *(Os prints ainda não estão no repositório; precisam ser tirados com o app rodando.)*
 3. **Sem app nenhum:** mostrar no GitHub o PR #23 com o CI verde (prova de que o build e os 168 testes passam) e o PR #24 vermelho, e depois os diagramas do `docs/arquitetura.md`.
 
