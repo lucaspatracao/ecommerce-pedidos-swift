@@ -2,206 +2,100 @@
 
 [![CI](https://github.com/lucaspatracao/ecommerce-pedidos-swift/actions/workflows/ci.yml/badge.svg)](https://github.com/lucaspatracao/ecommerce-pedidos-swift/actions/workflows/ci.yml)
 
-> **Projeto Integrador** da Unidade Curricular: *Desenvolvimento Back-end*
->
-> **Curso:** Superior de Tecnologia em Análise e Desenvolvimento de Sistemas (Turma CSTADS601)
->
-> **Instituição:** Faculdade de Tecnologia SENAI "Antonio Adolpho Lobbe"
+API REST em Spring Boot + interface React para cadastrar clientes e produtos, registrar pedidos com baixa de estoque transacional e pagá-los por Pix, Boleto ou Cartão.
+
+📐 [Arquitetura e diagramas](docs/arquitetura.md) · 📄 [Relatório técnico](docs/relatorio-tecnico.md) · 📝 [Exercícios da Aula 15](docs/aula-15-exercicios.md) · 🎤 [Roteiro do pitch](docs/pitch.md)
 
 ---
 
-### Equipe / Squad: Swift
+### Pré-requisitos
 
-| Nome | Papel |
-| :--- | :--- |
-| **Lucas Nunes Patracão** | Responsável do dia |
-| **Rafael Rubiá Oliveira Cardoso** | Desenvolvedor / Colaborador |
-
----
-
-### Descrição do Desafio
-
-O objetivo principal deste projeto é conceber e implementar uma solução completa de **Gestão de Pedidos para E-commerce**, contemplando Back-end, API REST e uma interface Front-end integrada.
-
-A aplicação engloba a modelagem de domínio, regras de negócio e infraestrutura para administrar o cadastro de clientes e catálogo de produtos, gerenciar o ciclo de vida dos pedidos e processar transações financeiras com múltiplos métodos de pagamento.
-
-A solução também possui uma interface administrativa para consumo e apresentação dos dados disponibilizados pela API, mantendo o **Back-end como fonte de verdade do sistema**.
+| Ferramenta | Versão | Observação |
+| :--- | :--- | :--- |
+| JDK | 17 ou mais novo | O código compila com `--release 17`. O CI usa o 17 (Temurin); o build também passa com JDK mais novo. |
+| Maven | 3.9+ | Não há Maven Wrapper (`mvnw`) no repositório: o `mvn` precisa estar no PATH. |
+| MySQL | 8.x | Só para rodar a aplicação. Os testes **não** usam MySQL. |
+| Node.js | 20.19+ ou 22.13+ | Exigência do Vite 8 e do ESLint 10. O CI usa o Node 22. |
 
 ---
 
-### Funcionalidades
+### Rodando em 5 minutos
 
-* **Gerenciamento de Produtos:** cadastro, atualização completa (com versão otimista) e parcial (estoque), consulta com filtros e paginação, soft delete (inativar/reativar) e exclusão definitiva de produto nunca vendido.
-* **Gerenciamento de Clientes:** cadastro com CPF validado por dígitos verificadores e e-mail único, edição, soft delete e exclusão de cliente sem pedidos.
-* **Gestão de Pedidos:** abertura com vários itens, cálculo de totais, baixa de estoque transacional, remoção de item, cancelamento e exclusão de pedido em aberto.
-* **Processamento de Pagamentos:** Cartão de Crédito, Boleto, Pix (e Vale-Compras no domínio), com arquitetura polimórfica.
-* **Dashboard e Histórico:** totais, receita, estoque crítico e pedidos recentes.
-* **Interface Administrativa:** front-end React consumindo a API real.
-* **Garantia de Qualidade:** testes unitários, de integração e de API, com cobertura mínima verificada no build.
+Os comandos abaixo são para o PowerShell, a partir da raiz do repositório.
 
----
-
-### Tecnologias
-
-* **Linguagem:** Java 17 (LTS)
-* **Build e dependências:** Apache Maven
-* **Framework:** Spring Boot 3.3 (Web, Validation, Data JPA)
-* **Persistência:** Hibernate/JPA, **MySQL 8** (desenvolvimento) e **Flyway** (migrations)
-* **Testes:** JUnit 5, Mockito, MockMvc, H2 em memória (modo MySQL), Surefire/Failsafe e **JaCoCo** (cobertura)
-* **Front-end:** React + Vite (Axios para a API)
-* **Controle de versão:** Git & GitHub
-* **CI/CD:** GitHub Actions — previsto no roadmap
-
----
-
-### Como Rodar o Projeto
-
-#### Pré-requisitos
-
-| Ferramenta | Versão |
-| :--- | :--- |
-| JDK | 17 |
-| Maven | 3.9+ |
-| MySQL | 8.x |
-| Node.js | 20.19+ ou 22.13+ (para o front-end; exigência do Vite 8 e do ESLint 10) |
-
-#### 1. Criar o banco de desenvolvimento (uma vez)
-
-O perfil `dev` usa um banco **novo e dedicado**, chamado `ecommerce_swift`. As tabelas **não** são criadas à mão: o Flyway cria tudo na primeira subida da API.
+**1. Banco (uma vez).** O Flyway cria as tabelas na primeira subida. Só o banco vazio precisa existir:
 
 ```powershell
 mysql -u root -p -e "CREATE DATABASE ecommerce_swift CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 ```
 
-#### 2. Configurar a conexão (variáveis de ambiente)
+> No Windows, o instalador do MySQL **não** coloca o `mysql` no PATH. Se aparecer "mysql não é reconhecido", use o caminho completo (`& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p -e "..."`) ou rode o `CREATE DATABASE` no MySQL Workbench.
 
-A API lê a conexão de três variáveis. **Nenhuma senha fica no repositório**: `DB_PASSWORD` não tem valor padrão, e sem ela a aplicação não sobe.
-
-| Variável | Obrigatória? | Exemplo |
-| :--- | :--- | :--- |
-| `DB_URL` | Não no perfil `dev` (padrão: `localhost:3306/ecommerce_swift`) | `jdbc:mysql://localhost:3307/ecommerce_swift?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC` |
-| `DB_USERNAME` | Sim | `root` |
-| `DB_PASSWORD` | Sim | *(a sua senha local)* |
-
-**Opção A: variáveis na sessão do PowerShell** (valem até fechar o terminal):
+**2. Variáveis.** A API lê `DB_USERNAME` e `DB_PASSWORD` (obrigatórias) e `DB_URL` (opcional; o padrão é `localhost:3306/ecommerce_swift`). Nenhuma senha fica no repositório. Escolha **uma** das opções:
 
 ```powershell
+# Opção A: só neste terminal
 $env:DB_USERNAME = "root"
 $env:DB_PASSWORD = "sua-senha-local"
+# Só se o MySQL não estiver em localhost:3306:
+# $env:DB_URL = "jdbc:mysql://localhost:3307/ecommerce_swift?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
 
-# Só se o MySQL NÃO estiver em localhost:3306. Exemplo: instância na porta 3307
-$env:DB_URL = "jdbc:mysql://localhost:3307/ecommerce_swift?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+# Opção B: arquivo .env (fica no .gitignore). Preencha DB_PASSWORD no arquivo.
+Copy-Item back-end\ecommerce-pedidos-swift\.env.example back-end\ecommerce-pedidos-swift\.env
+notepad back-end\ecommerce-pedidos-swift\.env
 ```
 
-**Opção B: arquivo `.env`** (não precisa repetir a cada terminal). Copie o modelo e preencha a senha:
+> O `.env` é lido da **pasta em que a API é iniciada** (`spring.config.import=optional:file:.env[.properties]`). Por isso o passo 3 sobe a API de dentro de `back-end\ecommerce-pedidos-swift`. Se a variável existir no terminal e no `.env`, vale a do terminal.
 
-```powershell
-cd back-end\ecommerce-pedidos-swift
-Copy-Item .env.example .env
-notepad .env
-```
-
-O `.env` está no `.gitignore` e nunca é versionado. Se a mesma variável existir no PowerShell e no `.env`, vale a do PowerShell.
-
-> O arquivo é lido por `spring.config.import=optional:file:.env[.properties]`, procurado na **pasta em que a API é iniciada**. Suba a API de `back-end\ecommerce-pedidos-swift` (como no passo 3) ou, na IDE, configure essa pasta como diretório de trabalho. Formato: uma variável por linha, `CHAVE=valor`, sem aspas.
-
-#### 3. Subir o back-end
+**3. API** (porta 8080):
 
 ```powershell
 cd back-end\ecommerce-pedidos-swift
 mvn spring-boot:run "-Dspring-boot.run.profiles=dev"
 ```
 
-> `dev` já é o perfil padrão (`spring.profiles.default=dev`), então `mvn spring-boot:run` também funciona. O parâmetro explícito deixa claro qual perfil está ativo. No PowerShell, as **aspas** são obrigatórias por causa do `-D` com ponto.
+Na primeira subida, o log mostra `Successfully applied 3 migrations`. A API responde em `http://localhost:8080/api` (teste com `http://localhost:8080/api/dashboard`). No PowerShell, as aspas no `-D` são obrigatórias. `dev` já é o perfil padrão.
 
-Na primeira subida o Flyway cria as tabelas (migrations V1 a V3; o log mostra `Successfully applied 3 migrations`). A API fica em:
-
-```text
-http://localhost:8080/api
-```
-
-#### 4. Subir o front-end
-
-Em outro terminal:
+**4. Front-end** (porta 5173), em outro terminal:
 
 ```powershell
 cd front-end
-npm install
+npm ci
 npm run dev
 ```
 
-Acesse o endereço exibido pelo Vite (normalmente `http://localhost:5173`). O back-end libera CORS para essa origem.
+Abra `http://localhost:5173`. Use `npm ci`, e não `npm install`: ele instala exatamente as versões do `package-lock.json`, como o CI, e não altera o lockfile.
 
-#### 5. Rodar os testes
+#### Problemas comuns
+
+| Sintoma | Causa | Solução |
+| :--- | :--- | :--- |
+| `Access denied for user '${DB_USERNAME}'@'localhost'` | As variáveis não foram definidas (o texto `${...}` chega literal ao MySQL), ou o `.env` está em outra pasta | Faça o passo 2 no **mesmo** terminal, ou confira se o `.env` está em `back-end\ecommerce-pedidos-swift` e se a API foi iniciada dali |
+| `Access denied for user 'root'@'localhost'` | Senha errada em `DB_PASSWORD` | Corrija a senha |
+| `Communications link failure` | MySQL parado ou em outra porta | Inicie o serviço MySQL ou ajuste `DB_URL` |
+| `Unknown database 'ecommerce_swift'` | Passo 1 não feito | Crie o banco |
+| Front mostra erro ao carregar os dados | API fora do ar | Suba a API (passo 3) antes de usar a tela |
+
+---
+
+### Testes e cobertura
 
 ```powershell
 cd back-end\ecommerce-pedidos-swift
 mvn clean test     # só a suíte de unidade (rápida, sem Spring)
-mvn clean verify   # unidade + integração (Spring, H2 e Flyway) + regras de cobertura
+mvn clean verify   # unidade + integração (Spring, H2 e Flyway) + metas de cobertura
 ```
 
-* Os testes de integração têm `@Tag("integracao")` e rodam pelo Failsafe no `verify`. Usam o perfil `test`: **H2 em memória** no modo MySQL, com as **mesmas migrations** do Flyway. Não precisam de MySQL nem de variáveis de ambiente.
-* Regras do **JaCoCo** (o build **falha** abaixo delas):
-  * `mvn test`: pacotes `modelo` e `excecao` com no mínimo **70% das linhas** cobertas pelos testes de unidade;
-  * `mvn verify`: projeto inteiro (unidade + integração) com no mínimo **85% das linhas** e **65% dos ramos**.
-* Ficam fora da medição só a classe `main` e os `record` de DTO.
-* Relatórios: `back-end/ecommerce-pedidos-swift/target/site/jacoco/` (unidade), `jacoco-it/` (integração) e `jacoco-total/` (as duas somadas). Abra o `index.html` no navegador.
+* **Não precisa de MySQL nem de variáveis:** os testes de integração (`@Tag("integracao")`, rodados pelo Failsafe no `verify`) usam o perfil `test`, com **H2 em memória** no modo MySQL e as mesmas migrations do Flyway.
+* **Números do `mvn clean verify` atual:** 97 testes de unidade e 71 de integração, nenhuma falha. Cobertura total de **96,9% das linhas** (896/925) e **90,9% dos ramos** (281/309).
+* **Metas do JaCoCo** (o build **falha** abaixo delas): pacotes `modelo` e `excecao` com 70% das linhas nos testes de unidade (`mvn test`); projeto inteiro com 85% das linhas e 65% dos ramos (`mvn verify`). Ficam fora da medição só a classe `main` e os `record` de DTO.
+* **Relatórios:** `back-end/ecommerce-pedidos-swift/target/site/jacoco/` (unidade), `jacoco-it/` (integração) e `jacoco-total/` (as duas somadas). Abra o `index.html`.
+* **Front-end:** `cd front-end` · `npm run lint` · `npm run build`.
+* **CI:** os mesmos comandos rodam no GitHub Actions a cada push na `main` e em todo PR (veja [Integração contínua](#integração-contínua)).
 
 ---
 
-### Perfis de Execução
-
-| Perfil | Banco | Para quê | Arquivo |
-| :--- | :--- | :--- | :--- |
-| `dev` (padrão) | MySQL `ecommerce_swift` | Desenvolvimento local; mostra o SQL formatado no console (`show-sql`, `format_sql`) | `src/main/resources/application-dev.properties` |
-| `test` | H2 em memória, `MODE=MySQL` | Testes automatizados (`@ActiveProfiles("test")`) | `src/test/resources/application-test.properties` |
-
-Configurações comuns (`application.properties`): `ddl-auto=validate` (o Hibernate só confere o schema criado pelo Flyway; nunca cria tabelas), `open-in-view=false` e leitura de `${DB_URL}`, `${DB_USERNAME}` e `${DB_PASSWORD}`.
-
----
-
-### Integração contínua
-
-O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda no GitHub Actions a cada **push na `main`** e em **todo pull request**. O selo no topo deste README mostra o resultado da última execução na `main`.
-
-| Job | Ambiente | O que roda | Artefatos |
-| :--- | :--- | :--- | :--- |
-| `backend` | Ubuntu · Java 17 (Temurin) · cache do Maven | `mvn -B verify`: testes de unidade, testes de integração e metas de cobertura do JaCoCo (85% das linhas e 65% dos ramos) | `jacoco` (relatório `jacoco-total/`) e `aplicacao-jar` (o `.jar` gerado) |
-| `frontend` | Ubuntu · Node 22 · cache do npm | `npm ci`, `npm run lint` e `npm run build` | — |
-
-* **Sem segredos e sem MySQL:** os testes de integração usam o perfil `test` (H2 em memória com as mesmas migrations do Flyway).
-* **Nunca** `mvn package` nem `-DskipTests`: o objetivo do pipeline é justamente rodar os testes.
-* Os dois jobs rodam em paralelo. Um push novo no mesmo PR cancela a execução anterior.
-
-> **Regra da equipe:** PR com pipeline vermelho **não é integrado**. Quem abriu o PR corrige e faz um novo push. Ninguém faz merge "para arrumar depois", nem desliga ou pula testes para o selo ficar verde.
-
----
-
-### Arquitetura (Aula 14)
-
-```text
-Front-end (React)
-    ↓  HTTP + JSON
-controller   → recebe a requisição, aplica @Valid e devolve DTOs
-    ↓
-servico      → interfaces (ClienteService...) + implementações (...Impl) com @Transactional
-    ↓
-modelo       → entidades JPA com as regras de negócio (Pedido calcula o total, Produto controla o estoque)
-    ↓
-repositorio  → interfaces Spring Data JPA (CRUD + @Query JPQL + JOIN FETCH)
-    ↓
-MySQL (schema versionado pelo Flyway)
-```
-
-* **DTOs** (`dto/`): os *requests* têm Bean Validation (`@NotBlank`, `@Email`, `@Positive`...). Os *responses* fixam o JSON que o front-end consome, sem expor as relações do banco. Clientes, produtos e pedidos são identificados por CPF, código e número; só o item do pedido expõe o `id`, usado para removê-lo.
-* **Erros** (`ApiExceptionHandler`): todo erro volta no [corpo padronizado](#corpo-de-erro-padronizado) `{ status, erro, mensagem, caminho, campos }`; o front mostra a `mensagem` e, na validação, a mensagem de cada campo.
-* **CORS** (`config/CorsConfig`): liberado num lugar só para o front do Vite (`localhost:5173` e `127.0.0.1:5173`).
-* **Transação**: criar um pedido baixa o estoque de todos os itens numa transação só. Se qualquer item falhar, nada é gravado (rollback).
-* **Consultas**: `@Query` em JPQL (cliente por CPF, estoque crítico, receita via `SUM`) e `JOIN FETCH` no `PedidoRepository`, que carrega pedido, cliente, itens, produtos e pagamento numa única consulta e evita o problema N+1.
-
----
-
-### API REST
+### Rotas da API
 
 Base: `http://localhost:8080/api`. Os recursos usam os identificadores naturais: `cpf` (cliente), `codigo` (produto) e `numero` (pedido).
 
@@ -315,6 +209,111 @@ No front-end, `src/api/clienteApi.js` transforma esse corpo num `ErroApi` (`mess
 
 ---
 
+### Squad e créditos
+
+**Squad Swift**
+
+| Nome | Papel |
+| :--- | :--- |
+| **Lucas Nunes Patracão** | Responsável do dia |
+| **Rafael Rubiá Oliveira Cardoso** | Desenvolvedor / Colaborador |
+
+> **Projeto Integrador** da Unidade Curricular: *Desenvolvimento Back-end*
+>
+> **Curso:** Superior de Tecnologia em Análise e Desenvolvimento de Sistemas (Turma CSTADS601)
+>
+> **Instituição:** Faculdade de Tecnologia SENAI "Antonio Adolpho Lobbe"
+
+---
+
+### Descrição do Desafio
+
+O objetivo principal deste projeto é conceber e implementar uma solução completa de **Gestão de Pedidos para E-commerce**, contemplando Back-end, API REST e uma interface Front-end integrada.
+
+A aplicação engloba a modelagem de domínio, regras de negócio e infraestrutura para administrar o cadastro de clientes e catálogo de produtos, gerenciar o ciclo de vida dos pedidos e processar transações financeiras com múltiplos métodos de pagamento.
+
+A solução também possui uma interface administrativa para consumo e apresentação dos dados disponibilizados pela API, mantendo o **Back-end como fonte de verdade do sistema**.
+
+---
+
+### Funcionalidades
+
+* **Gerenciamento de Produtos:** cadastro, atualização completa (com versão otimista) e parcial (estoque), consulta com filtros e paginação, soft delete (inativar/reativar) e exclusão definitiva de produto nunca vendido.
+* **Gerenciamento de Clientes:** cadastro com CPF validado por dígitos verificadores e e-mail único, edição, soft delete e exclusão de cliente sem pedidos.
+* **Gestão de Pedidos:** abertura com vários itens, cálculo de totais, baixa de estoque transacional, remoção de item, cancelamento e exclusão de pedido em aberto.
+* **Processamento de Pagamentos:** Cartão de Crédito, Boleto, Pix (e Vale-Compras no domínio), com arquitetura polimórfica.
+* **Dashboard e Histórico:** totais, receita, estoque crítico e pedidos recentes.
+* **Interface Administrativa:** front-end React consumindo a API real.
+* **Garantia de Qualidade:** testes unitários, de integração e de API, com cobertura mínima verificada no build.
+
+---
+
+### Tecnologias
+
+* **Linguagem:** Java 17 (LTS)
+* **Build e dependências:** Apache Maven
+* **Framework:** Spring Boot 3.3 (Web, Validation, Data JPA)
+* **Persistência:** Hibernate/JPA, **MySQL 8** (desenvolvimento) e **Flyway** (migrations)
+* **Testes:** JUnit 5, Mockito, MockMvc, H2 em memória (modo MySQL), Surefire/Failsafe e **JaCoCo** (cobertura)
+* **Front-end:** React + Vite (Axios para a API)
+* **Controle de versão:** Git & GitHub
+* **CI:** GitHub Actions (testes, cobertura, lint e build em todo PR). Não há deploy (CD) em nuvem.
+
+---
+
+### Perfis de Execução
+
+| Perfil | Banco | Para quê | Arquivo |
+| :--- | :--- | :--- | :--- |
+| `dev` (padrão) | MySQL `ecommerce_swift` | Desenvolvimento local; mostra o SQL formatado no console (`show-sql`, `format_sql`) | `src/main/resources/application-dev.properties` |
+| `test` | H2 em memória, `MODE=MySQL` | Testes automatizados (`@ActiveProfiles("test")`) | `src/test/resources/application-test.properties` |
+
+Configurações comuns (`application.properties`): `ddl-auto=validate` (o Hibernate só confere o schema criado pelo Flyway; nunca cria tabelas), `open-in-view=false` e leitura de `${DB_URL}`, `${DB_USERNAME}` e `${DB_PASSWORD}`.
+
+---
+
+### Integração contínua
+
+O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda no GitHub Actions a cada **push na `main`** e em **todo pull request**. O selo no topo deste README mostra o resultado da última execução na `main`.
+
+| Job | Ambiente | O que roda | Artefatos |
+| :--- | :--- | :--- | :--- |
+| `backend` | Ubuntu · Java 17 (Temurin) · cache do Maven | `mvn -B verify`: testes de unidade, testes de integração e metas de cobertura do JaCoCo (85% das linhas e 65% dos ramos) | `jacoco` (relatório `jacoco-total/`) e `aplicacao-jar` (o `.jar` gerado) |
+| `frontend` | Ubuntu · Node 22 · cache do npm | `npm ci`, `npm run lint` e `npm run build` | — |
+
+* **Sem segredos e sem MySQL:** os testes de integração usam o perfil `test` (H2 em memória com as mesmas migrations do Flyway).
+* **Nunca** `mvn package` nem `-DskipTests`: o objetivo do pipeline é justamente rodar os testes.
+* Os dois jobs rodam em paralelo. Um push novo no mesmo PR cancela a execução anterior.
+
+> **Regra da equipe:** PR com pipeline vermelho **não é integrado**. Quem abriu o PR corrige e faz um novo push. Ninguém faz merge "para arrumar depois", nem desliga ou pula testes para o selo ficar verde.
+
+---
+
+### Arquitetura (resumo)
+
+Diagramas completos (camadas, domínio, sequência e execução) em [docs/arquitetura.md](docs/arquitetura.md).
+
+```text
+Front-end (React)
+    ↓  HTTP + JSON
+controller   → recebe a requisição, aplica @Valid e devolve DTOs
+    ↓
+servico      → interfaces (ClienteService...) + implementações (...Impl) com @Transactional
+    ↓
+modelo       → entidades JPA com as regras de negócio (Pedido calcula o total, Produto controla o estoque)
+    ↓
+repositorio  → interfaces Spring Data JPA (CRUD + @Query JPQL + JOIN FETCH)
+    ↓
+MySQL (schema versionado pelo Flyway)
+```
+
+* **DTOs** (`dto/`): os *requests* têm Bean Validation (`@NotBlank`, `@Email`, `@Positive`...). Os *responses* fixam o JSON que o front-end consome, sem expor as relações do banco. Clientes, produtos e pedidos são identificados por CPF, código e número; só o item do pedido expõe o `id`, usado para removê-lo.
+* **Erros** (`ApiExceptionHandler`): todo erro volta no [corpo padronizado](#corpo-de-erro-padronizado) `{ status, erro, mensagem, caminho, campos }`; o front mostra a `mensagem` e, na validação, a mensagem de cada campo.
+* **CORS** (`config/CorsConfig`): liberado num lugar só para o front do Vite (`localhost:5173` e `127.0.0.1:5173`).
+* **Transação**: criar um pedido baixa o estoque de todos os itens numa transação só. Se qualquer item falhar, nada é gravado (rollback).
+* **Consultas**: `@Query` em JPQL (cliente por CPF, estoque crítico, receita via `SUM`) e `JOIN FETCH` no `PedidoRepository`, que carrega pedido, cliente, itens, produtos e pagamento numa única consulta e evita o problema N+1.
+
+---
 ### CRUD Completo, Integridade Referencial e Transações (Aula 13)
 
 As regras vieram da branch `feature/crud-completo` (PR #18), que as implementou com JDBC manual. Nesta versão elas rodam sobre **Spring Data JPA + Flyway**, com o mesmo comportamento na API.
@@ -473,6 +472,8 @@ ecommerce-pedidos-swift/
 │           └── resources/application-test.properties
 ├── front-end/                            # React + Vite (veja front-end/README.md)
 │   └── src/                              # api/, components/, pages/, utils/
+├── docs/                                 # arquitetura, relatório técnico, exercícios da Aula 15 e pitch
+├── .github/workflows/ci.yml              # pipeline do GitHub Actions
 ├── .gitignore
 └── README.md
 ```
@@ -498,33 +499,8 @@ ecommerce-pedidos-swift/
 | **13** | Persistência: CRUD completo, soft delete, integridade referencial e transações | 🟢 Concluído |
 | **14** | Spring Boot: camadas, DTOs, validação, perfis, Flyway, `@Query`, `JOIN FETCH` | 🟢 Concluído |
 | **15** | API REST (endereços, status, erro padronizado) + pipeline de CI no GitHub Actions | 🟢 Concluído |
-| **16** | Entrega final, documentação consolidada e apresentação | ⏳ Pendente |
+| **16** | Entrega final, documentação consolidada e apresentação | 🟡 Em andamento |
 
----
-
-### Entrega da Aula 14 e ponto de partida da Aula 15
-
-**Estado da `main` ao fechar a Aula 14:**
-
-* Back-end em camadas (controller → serviço → domínio → repositório), DTOs com Bean Validation, perfis `dev`/`test`, Flyway (V1 a V3), `@Query` e `JOIN FETCH`.
-* CRUD completo com soft delete, integridade referencial, transações com bloqueio e número de pedido sem colisão.
-* `mvn clean verify` verde, com as regras de cobertura do JaCoCo (85% das linhas e 65% dos ramos no total) e sem precisar de MySQL.
-* Front-end integrado à API real, com `npm run build` e `npm run lint` sem erros.
-
-**O pipeline de CI/CD da Aula 15 só precisa repetir o que já roda localmente:**
-
-| Parte | Ambiente | Comandos |
-| :--- | :--- | :--- |
-| Back-end | JDK 17 + Maven | `cd back-end/ecommerce-pedidos-swift` · `mvn -B clean verify` (H2 em memória; sem MySQL nem segredos) |
-| Front-end | Node 20.19+ ou 22.13+ | `cd front-end` · `npm ci` · `npm run lint` · `npm run build` |
-
-Relatórios para publicar como artefato: `back-end/ecommerce-pedidos-swift/target/site/jacoco-total/` (cobertura) e `front-end/dist/` (build).
-
-**Pendências da Aula 15:**
-
-1. ✅ Workflow do GitHub Actions com os comandos acima (veja [Integração contínua](#integração-contínua)).
-2. Telas para os recursos que a API já oferece e o front ainda não usa: listar inativos e reativar (clientes e produtos), inativar cliente com pedidos, cancelar pedido, remover item, excluir pedido em aberto, pedidos por cliente, filtros e paginação.
-3. Revisão final de ponta a ponta com o MySQL local (cadastro → pedido → pagamento → cancelamento).
 
 ---
 
@@ -533,9 +509,10 @@ Relatórios para publicar como artefato: `back-end/ecommerce-pedidos-swift/targe
 1. **`PedidoUtils` com `double`:** os cálculos de frete e desconto da Aula 03 continuam em `double` por fins didáticos. O domínio (preços, totais, pagamentos) já usa `BigDecimal`.
 2. **Autenticação e autorização:** a API ainda não exige login.
 3. **Gateway de pagamento simulado:** `GatewayPagamentoSimulado` autoriza tudo. Uma integração real implementaria a interface `GatewayPagamento`.
-4. **CD (entrega contínua):** a integração contínua está no GitHub Actions; ainda não há deploy automático da aplicação.
-5. **Front-end parcial em relação à API:** soft delete, cancelamento e paginação existem na API, mas ainda não têm tela (Aula 15).
+4. **Sem deploy em nuvem:** o pipeline faz só integração contínua; a aplicação roda apenas localmente. Proposta de publicação em [docs/arquitetura.md](docs/arquitetura.md#próximos-passos-proposta-não-implementada).
+5. **Front-end parcial em relação à API:** soft delete, cancelamento e paginação existem na API, mas ainda não têm tela.
 6. **Número do pedido acima de 99.999 por ano:** o formato tem 5 dígitos; o 100.000º pedido do ano sairia com 6 (`PED-2026-100000`). Folga suficiente para o escopo acadêmico.
+7. **Falha pouco clara sem as variáveis do banco:** sem `DB_USERNAME`/`DB_PASSWORD`, a API não sobe e o erro mostra o placeholder literal (`${DB_USERNAME}`). Ver "Problemas comuns".
 
 ---
 

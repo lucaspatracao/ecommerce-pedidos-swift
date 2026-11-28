@@ -14,7 +14,7 @@ O back-end precisa estar no ar em `http://localhost:8080/api` (veja o README da 
 
 ```powershell
 cd front-end
-npm install
+npm ci
 npm run dev        # abre em http://localhost:5173 (o back-end libera CORS para essa origem)
 ```
 
@@ -62,4 +62,4 @@ src/
 
 ## Ainda não usado pela interface
 
-A API já oferece, mas o front ainda não tem tela para: inativar/reativar (`PATCH {"ativo"}`) e listar inativos, filtros e paginação, estoque parcial (`PATCH`), cancelar pedido (`PATCH {"situacao"}`), remover item, excluir pedido e pedidos por cliente. Esses itens estão na lista da Aula 15 no README da raiz.
+A API já oferece, mas o front ainda não tem tela para: inativar/reativar (`PATCH {"ativo"}`) e listar inativos, filtros e paginação, estoque parcial (`PATCH`), cancelar pedido (`PATCH {"situacao"}`), remover item, excluir pedido e pedidos por cliente. Esses itens estão em "Dívidas Técnicas Registradas" no README da raiz.
