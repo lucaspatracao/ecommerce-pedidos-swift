@@ -2,6 +2,11 @@
 
 [![CI](https://github.com/lucaspatracao/ecommerce-pedidos-swift/actions/workflows/ci.yml/badge.svg)](https://github.com/lucaspatracao/ecommerce-pedidos-swift/actions/workflows/ci.yml)
 
+> [!TIP]
+> **Primeira vez aqui?** Siga o **[Guia de uso](docs/guia-de-uso.md)**: do zero até o sistema rodando e sendo usado, num PC Windows, com todos os comandos prontos para colar.
+>
+> Prints da demo e como tirá-los: **[docs/prints/](docs/prints/)**.
+
 > **Projeto Integrador** da Unidade Curricular: *Desenvolvimento Back-end*
 >
 > **Curso:** Superior de Tecnologia em Análise e Desenvolvimento de Sistemas (Turma CSTADS601)
