@@ -47,6 +47,9 @@
 
 ![Qualidade e CI: PR #24 com o job backend vermelho](prints/08-ci-vermelho.png)
 
+2. **Prints:** capturar antes da apresentação, um por passo da demo: erro de validação no formulário, 409 de estoque, pedido criado, pagamento aprovado e dashboard. *(Os prints ainda não estão no repositório; precisam ser tirados com o app rodando.)*
+3. **Sem app nenhum:** mostrar no GitHub o PR #23 com o CI verde (prova de que o build e os 168 testes passam) e o PR #24 vermelho, e depois os diagramas do `docs/arquitetura.md`.
+
 ## 5 perguntas prováveis da banca
 
 1. **Por que o estoque baixa na criação do pedido, e não no pagamento?**
